@@ -142,7 +142,7 @@ async function sendMessage({ threadId, userId, content }) {
     if (resp.stop_reason !== 'tool_use' || toolUses.length === 0) {
       // Final assistant turn
       Number(insertMessage.run(threadId, 'assistant', text, toolUses.length ? JSON.stringify(toolUses) : null, 'final').lastInsertRowid);
-      auditCall({ userId, threadId, model: t.model, content, text, totalIn, totalOut, t0, error: null });
+      auditAndCost({ userId, threadId, model: t.model, content, text, totalIn, totalOut, t0, error: null });
       return { status: 'final', text };
     }
 
@@ -157,7 +157,7 @@ async function sendMessage({ threadId, userId, content }) {
       // rare and would require a UI for batch-confirmation.)
       const first = proposals[0];
       const payload = tools.buildProposal(first.name, first.input, { userId });
-      auditCall({ userId, threadId, model: t.model, content, text, totalIn, totalOut, t0, error: null });
+      auditAndCost({ userId, threadId, model: t.model, content, text, totalIn, totalOut, t0, error: null });
       return { status: 'paused', text, message_id: asstId, proposal: { tool_use_id: first.id, name: first.name, input: first.input, ...payload } };
     }
 
@@ -173,19 +173,12 @@ async function sendMessage({ threadId, userId, content }) {
   }
 
   if (lastError) {
-    auditCall({ userId, threadId, model: t.model, content, text: '', totalIn, totalOut, t0, error: lastError });
+    auditAndCost({ userId, threadId, model: t.model, content, text: '', totalIn, totalOut, t0, error: lastError });
     throw new Error(lastError);
   }
   // Hit iteration cap without final — treat as error for now.
-  auditCall({ userId, threadId, model: t.model, content, text: '', totalIn, totalOut, t0, error: 'iteration_cap' });
+  auditAndCost({ userId, threadId, model: t.model, content, text: '', totalIn, totalOut, t0, error: 'iteration_cap' });
   throw new Error('Tool loop did not converge in 8 iterations');
-}
-
-function auditCall({ userId, threadId, model, content, text, totalIn, totalOut, t0, error }) {
-  const prices = PRICE_TABLE[model] || PRICE_TABLE[DEFAULT_MODEL];
-  const cost = (totalIn / 1_000_000) * prices.input + (totalOut / 1_000_000) * prices.output;
-  insertCall.run(userId, model, content.slice(0, 200), (text || '').slice(0, 200),
-    totalIn, totalOut, cost, Date.now() - t0, error, threadId);
 }
 
 // Confirm/reject a pending proposal. Called from the chat route after the
@@ -204,12 +197,126 @@ function recordToolResult({ threadId, userId, message_id, tool_use_id, result, i
   updateThreadTouch.run(threadId, userId);
 }
 
+// Streaming variant. `emit(event, data)` is invoked for each SSE-shaped
+// event. Returns the same shape as sendMessage — the route module
+// translates {status, ...} into the final SSE event so the client knows
+// the stream is done.
+async function streamMessage({ threadId, userId, content }, emit) {
+  const t = getThread.get(threadId, userId);
+  if (!t) throw new Error(`Thread ${threadId} not found for user ${userId}`);
+  if (!isAgentConfigured()) throw new Error('Anthropic agent is not configured. Set ANTHROPIC_API_KEY.');
+
+  const userMsgId = Number(insertMessage.run(threadId, 'user', content, null, 'final').lastInsertRowid);
+  emit('thread_meta', { user_message_id: userMsgId });
+
+  const msgCountRow = db.prepare('SELECT COUNT(*) AS n FROM agent_messages WHERE thread_id = ? AND role = "user"').get(threadId);
+  if (msgCountRow.n === 1) updateThreadTitle.run(content.slice(0, 40).trim() || 'New chat', threadId, userId);
+  else updateThreadTouch.run(threadId, userId);
+
+  const client = getClient();
+  let totalIn = 0, totalOut = 0;
+  const t0 = Date.now();
+
+  for (let iter = 0; iter < 8; iter++) {
+    const messages = rowsToMessages(listMessages.all(threadId));
+    const stream = client.messages.stream({
+      model: t.model, max_tokens: 1024,
+      system: systemPromptFor(t.agent_kind),
+      tools: tools.TOOLS, messages
+    });
+
+    let textBuf = '';
+    let asstId = null;
+    const toolUses = [];
+
+    for await (const event of stream) {
+      if (event.type === 'content_block_start') {
+        if (event.content_block.type === 'text' && asstId == null) {
+          asstId = Number(insertMessage.run(threadId, 'assistant', '', null, 'streaming').lastInsertRowid);
+          emit('assistant_start', { message_id: asstId });
+        }
+        if (event.content_block.type === 'tool_use') {
+          toolUses.push({ id: event.content_block.id, name: event.content_block.name, input_buf: '' });
+        }
+      } else if (event.type === 'content_block_delta') {
+        if (event.delta.type === 'text_delta') {
+          textBuf += event.delta.text;
+          emit('text', { delta: event.delta.text });
+        } else if (event.delta.type === 'input_json_delta') {
+          toolUses[toolUses.length - 1].input_buf += event.delta.partial_json;
+        }
+      }
+    }
+
+    const final = await stream.finalMessage();
+    totalIn  += final.usage?.input_tokens  || 0;
+    totalOut += final.usage?.output_tokens || 0;
+
+    // Resolve tool_use inputs (input_buf is a JSON string; the SDK also
+    // exposes parsed input on the final block, prefer that).
+    const finalToolUses = final.content.filter(b => b.type === 'tool_use')
+      .map(b => ({ id: b.id, name: b.name, input: b.input }));
+
+    if (final.stop_reason !== 'tool_use' || finalToolUses.length === 0) {
+      // Finalize the assistant row with the buffered text
+      if (asstId == null) asstId = Number(insertMessage.run(threadId, 'assistant', textBuf, null, 'final').lastInsertRowid);
+      else updateMessageStatus.run('final', textBuf, null, asstId);
+      const cost = auditAndCost({ userId, threadId, model: t.model, content, text: textBuf, totalIn, totalOut, t0, error: null });
+      emit('done', { message_id: asstId, usage: { in: totalIn, out: totalOut, cost_usd: cost } });
+      return;
+    }
+
+    const proposals = finalToolUses.filter(u => tools.TOOL_KIND[u.name] === 'propose');
+    if (proposals.length > 0) {
+      // Persist assistant message with text + tool_uses, status streaming
+      if (asstId == null) {
+        asstId = Number(insertMessage.run(threadId, 'assistant', textBuf, JSON.stringify(finalToolUses), 'streaming').lastInsertRowid);
+      } else {
+        updateMessageStatus.run('streaming', textBuf, JSON.stringify(finalToolUses), asstId);
+      }
+      const first = proposals[0];
+      let payload;
+      try { payload = tools.buildProposal(first.name, first.input, { userId }); }
+      catch (e) { emit('error', { message: e.message }); return; }
+      emit('proposal', {
+        tool_use_id: first.id, name: first.name, input: first.input,
+        message_id: asstId, summary: payload.summary, mutation: payload.mutation
+      });
+      auditAndCost({ userId, threadId, model: t.model, content, text: textBuf, totalIn, totalOut, t0, error: null });
+      return;
+    }
+
+    // All read tools — finalize the assistant row, run them, loop.
+    if (asstId == null) asstId = Number(insertMessage.run(threadId, 'assistant', textBuf, JSON.stringify(finalToolUses), 'final').lastInsertRowid);
+    else updateMessageStatus.run('final', textBuf, JSON.stringify(finalToolUses), asstId);
+    for (const u of finalToolUses) {
+      emit('tool_use', { id: u.id, name: u.name, input: u.input });
+      let result, isError = false;
+      try { result = await tools.runReadTool(u.name, u.input, { userId }); }
+      catch (e) { result = { error: e.message }; isError = true; }
+      insertMessage.run(threadId, 'tool',
+        JSON.stringify({ tool_use_id: u.id, name: u.name, result, is_error: isError }), null, 'final');
+      emit('tool_result', { tool_use_id: u.id, status: isError ? 'error' : 'ok', result });
+    }
+  }
+
+  emit('error', { message: 'Tool loop did not converge in 8 iterations' });
+}
+
+function auditAndCost({ userId, threadId, model, content, text, totalIn, totalOut, t0, error }) {
+  const prices = PRICE_TABLE[model] || PRICE_TABLE[DEFAULT_MODEL];
+  const cost = (totalIn / 1_000_000) * prices.input + (totalOut / 1_000_000) * prices.output;
+  insertCall.run(userId, model, content.slice(0, 200), (text || '').slice(0, 200),
+    totalIn, totalOut, cost, Date.now() - t0, error, threadId);
+  return cost;
+}
+
 module.exports = {
   isAgentConfigured,
   createThread,
-  sendMessage,
+  sendMessage,       // non-streaming, used by smoke test
+  streamMessage,     // SSE-streaming, used by routes
   recordToolResult,
-  // exposed for routes:
   _getThread: (id, userId) => getThread.get(id, userId),
   _listMessages: (threadId) => listMessages.all(threadId),
   _updateThread: (id, userId, fields) => {

@@ -74,3 +74,22 @@ const chatAgent = require('../server/services/chatAgent');
     result2,
     r => r && r.status === 'final');
 })();
+
+(async () => {
+  if (!process.env.ANTHROPIC_API_KEY) return;
+  const threadId = chatAgent.createThread({ userId: 1 });
+  const events = [];
+  await chatAgent.streamMessage(
+    { threadId, userId: 1, content: 'Say hi in 3 words.' },
+    (event, data) => events.push({ event, data })
+  );
+  eq('streamMessage emits assistant_start',
+    events,
+    e => e.some(x => x.event === 'assistant_start'));
+  eq('streamMessage emits text deltas',
+    events,
+    e => e.some(x => x.event === 'text'));
+  eq('streamMessage emits done',
+    events,
+    e => e.some(x => x.event === 'done'));
+})();
