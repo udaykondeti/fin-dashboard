@@ -92,6 +92,10 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
 .agent-thread{padding:10px 12px;margin-bottom:4px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--text-primary);border:1px solid transparent;display:flex;align-items:center;justify-content:space-between;gap:8px}
 .agent-thread:hover{background:rgba(198,134,66,.08)}
 .agent-thread.active{background:rgba(198,134,66,.18);border-color:rgba(198,134,66,.35)}
+.agent-thread.pinned{background:rgba(198,134,66,.05);font-weight:600}
+.agent-thread.pinned .title::before{content:""}
+.agent-thread-divider{height:1px;background:var(--border);margin:8px 4px}
+.agent-thread-badge{font-size:10px;font-weight:700;background:var(--caramel);color:var(--cream);padding:2px 7px;border-radius:10px;min-width:18px;text-align:center}
 .agent-thread .title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .agent-thread .menu{opacity:0;font-size:14px;color:var(--text-secondary);padding:0 4px;border-radius:4px}
 .agent-thread:hover .menu{opacity:1}
@@ -4410,13 +4414,25 @@ function agentRenderThreadList() {
     el.innerHTML = '<div class="agent-empty-list">No chats yet — start one with + New Chat.</div>';
     return;
   }
-  el.innerHTML = agentState.threads.map(function(t){
+  var pinned = agentState.threads.filter(function(t){ return t.agent_kind === 'upload_processor'; });
+  var rest   = agentState.threads.filter(function(t){ return t.agent_kind !== 'upload_processor'; });
+
+  var renderRow = function(t, isPinned) {
     var active = t.id === agentState.activeId ? ' active' : '';
-    return '<div class="agent-thread'+active+'" onclick="agentOpenThread('+t.id+')">'
+    var pendingBadge = (isPinned && t.pending_count > 0)
+      ? '<span class="agent-thread-badge">'+t.pending_count+'</span>' : '';
+    return '<div class="agent-thread'+active+(isPinned ? ' pinned' : '')+'" onclick="agentOpenThread('+t.id+')">'
       + '<span class="title">'+esc(t.title || 'New chat')+'</span>'
+      + pendingBadge
       + '<span class="menu" onclick="event.stopPropagation();agentThreadMenu('+t.id+')">⋯</span>'
       + '</div>';
-  }).join('');
+  };
+
+  var html = '';
+  pinned.forEach(function(t){ html += renderRow(t, true); });
+  if (pinned.length && rest.length) html += '<div class="agent-thread-divider"></div>';
+  rest.forEach(function(t){ html += renderRow(t, false); });
+  el.innerHTML = html;
 }
 
 async function agentNewThread() {

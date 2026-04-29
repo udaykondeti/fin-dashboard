@@ -337,5 +337,12 @@ module.exports = {
     db.prepare(`UPDATE agent_threads SET ${cols.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?`).run(...vals, id, userId);
   },
   _deleteThread: (id, userId) => db.prepare('DELETE FROM agent_threads WHERE id = ? AND user_id = ?').run(id, userId),
-  _listThreads: (userId) => db.prepare('SELECT id, title, agent_kind, model, updated_at FROM agent_threads WHERE user_id = ? ORDER BY updated_at DESC').all(userId)
+  _listThreads: (userId) => db.prepare(`
+    SELECT t.id, t.title, t.agent_kind, t.model, t.updated_at,
+      (SELECT COUNT(*) FROM agent_messages m
+        WHERE m.thread_id = t.id AND m.role = 'assistant' AND m.status = 'streaming') AS pending_count
+    FROM agent_threads t
+    WHERE t.user_id = ?
+    ORDER BY t.updated_at DESC
+  `).all(userId)
 };
