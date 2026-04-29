@@ -271,129 +271,22 @@ function initializeDatabase() {
 }
 
 function seedData() {
-  // Check if admin user already exists
   const existingUser = db.prepare('SELECT id FROM users WHERE email = ?').get('kondetiudaykiran@gmail.com');
   if (existingUser) {
-    console.log('Seed data already present, skipping.');
     return;
   }
 
-  console.log('Seeding database with initial data...');
-
-  // Create admin user
   const passwordHash = bcrypt.hashSync('Admin@123', 12);
-  const insertUser = db.prepare(`
-    INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)
-  `);
-  const userResult = insertUser.run('kondetiudaykiran@gmail.com', passwordHash, 'Kiran');
+  const userResult = db.prepare(
+    'INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)'
+  ).run('kondetiudaykiran@gmail.com', passwordHash, 'Kiran');
   const userId = userResult.lastInsertRowid;
 
-  // Seed Indian stocks
-  const insertStock = db.prepare(`
-    INSERT INTO stocks (user_id, symbol, exchange, company_name, quantity, avg_buy_price, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `);
+  db.prepare(
+    'INSERT INTO profiles (user_id, name, color, icon, is_default) VALUES (?,?,?,?,?)'
+  ).run(userId, 'Kiran', '#fbbf24', '👤', 1);
 
-  insertStock.run(userId, 'TCS', 'NSE', 'Tata Consultancy Services Ltd', 10, 3450.00, 'Core IT holding');
-  insertStock.run(userId, 'INFY', 'NSE', 'Infosys Ltd', 25, 1420.00, 'Long term hold');
-  insertStock.run(userId, 'RELIANCE', 'NSE', 'Reliance Industries Ltd', 8, 2600.00, 'Conglomerate play');
-  insertStock.run(userId, 'HDFCBANK', 'NSE', 'HDFC Bank Ltd', 15, 1580.00, 'Banking sector');
-  insertStock.run(userId, 'WIPRO', 'NSE', 'Wipro Ltd', 40, 420.00, 'IT sector diversification');
-
-  // Seed mutual funds
-  const insertMF = db.prepare(`
-    INSERT INTO mutual_funds (user_id, fund_name, folio_number, units, avg_nav, fund_type, sip_amount, sip_date, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  insertMF.run(userId, 'Mirae Asset Large Cap Fund - Direct Growth', 'MIR123456', 285.432, 95.50, 'Equity - Large Cap', 5000, 5, 'Primary large cap fund');
-  insertMF.run(userId, 'SBI Small Cap Fund - Direct Growth', 'SBI789012', 142.876, 128.75, 'Equity - Small Cap', 3000, 10, 'High risk, high reward');
-  insertMF.run(userId, 'Axis Bluechip Fund - Direct Growth', 'AXS345678', 198.543, 52.30, 'Equity - Large Cap', 2000, 15, 'Blue chip exposure');
-
-  // Seed fixed deposits
-  const insertFD = db.prepare(`
-    INSERT INTO fixed_deposits (user_id, bank_name, principal, interest_rate, start_date, maturity_date, fd_type, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  insertFD.run(userId, 'State Bank of India', 200000, 7.0, '2023-04-01', '2025-04-01', 'Cumulative', 'Emergency fund FD');
-  insertFD.run(userId, 'HDFC Bank', 100000, 6.5, '2024-01-15', '2025-01-15', 'Cumulative', 'Short term savings');
-
-  // Seed US stocks
-  const insertUSStock = db.prepare(`
-    INSERT INTO us_stocks (user_id, symbol, company_name, quantity, avg_buy_price_usd, notes)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
-
-  insertUSStock.run(userId, 'GOOGL', 'Alphabet Inc.', 2, 138.50, 'US tech exposure via INDmoney');
-
-  // Seed credit cards
-  const insertCC = db.prepare(`
-    INSERT INTO credit_cards (user_id, card_name, bank, card_limit, outstanding_balance, due_date, min_payment, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  insertCC.run(userId, 'HDFC Millennia Credit Card', 'HDFC Bank', 200000, 15000, '2026-05-05', 1500, 'Primary daily use card');
-
-  // Seed loans
-  const insertLoan = db.prepare(`
-    INSERT INTO loans (user_id, loan_type, lender, principal_amount, outstanding_amount, interest_rate, emi_amount, emi_date, start_date, end_date, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  insertLoan.run(userId, 'Home Loan', 'State Bank of India', 6000000, 5000000, 8.5, 52000, 5, '2022-06-01', '2042-06-01', '20yr home loan for flat in Hyderabad');
-
-  // Seed hand loans
-  const insertHandLoan = db.prepare(`
-    INSERT INTO hand_loans (user_id, person_name, phone, direction, amount, date, due_date, interest_rate, status, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  insertHandLoan.run(userId, 'Ravi', '9876543210', 'given', 50000, '2025-12-01', '2026-06-01', 0, 'active', 'Given to friend Ravi for his business');
-  insertHandLoan.run(userId, 'Mom', null, 'taken', 20000, '2026-01-15', null, 0, 'active', 'Borrowed from Mom for home appliances');
-
-  // Seed profiles
-  const insertProfile = db.prepare(`INSERT INTO profiles (user_id, name, color, icon, is_default) VALUES (?,?,?,?,?)`);
-  insertProfile.run(userId, 'Kiran', '#fbbf24', '👤', 1);
-  insertProfile.run(userId, 'Joint', '#60a5fa', '🏠', 0);
-
-  // Seed savings accounts
-  const insertSav = db.prepare(`INSERT INTO savings_accounts (user_id, bank_name, account_type, balance, interest_rate, notes) VALUES (?,?,?,?,?,?)`);
-  insertSav.run(userId, 'HDFC Bank', 'Savings', 85000, 3.5, 'Primary salary account');
-  insertSav.run(userId, 'State Bank of India', 'Savings', 45000, 2.7, 'Secondary savings');
-
-  // Seed insurance
-  const insertIns = db.prepare(`INSERT INTO insurance_policies (user_id, policy_name, insurer, policy_type, premium_amount, premium_frequency, cover_amount, next_due_date, notes) VALUES (?,?,?,?,?,?,?,?,?)`);
-  insertIns.run(userId, 'Term Plan - 1 Cr', 'HDFC Life', 'Term', 15000, 'Annual', 10000000, '2026-09-01', 'Pure term plan');
-  insertIns.run(userId, 'Family Floater Health', 'Star Health', 'Health', 18000, 'Annual', 500000, '2026-08-15', '5L family floater cover');
-
-  // Seed NPS
-  db.prepare(`INSERT INTO nps_accounts (user_id, pran, tier, total_invested, current_value, equity_pct, bonds_pct, govt_pct, notes) VALUES (?,?,?,?,?,?,?,?,?)`).run(userId, 'PRAN110000000001', 'Tier I', 150000, 175000, 75, 15, 10, 'NPS Tier I');
-
-  // Seed scheduled payments
-  const insertPay = db.prepare(`INSERT INTO scheduled_payments (user_id, name, amount, frequency, category, next_due_date, auto_debit, is_active, notes) VALUES (?,?,?,?,?,?,?,?,?)`);
-  insertPay.run(userId, 'Home Loan EMI - SBI', 52000, 'Monthly', 'EMI', '2026-05-05', 1, 1, 'Home loan auto-debit');
-  insertPay.run(userId, 'Mirae Asset SIP', 5000, 'Monthly', 'SIP', '2026-05-05', 1, 1, 'Monthly SIP');
-  insertPay.run(userId, 'SBI Small Cap SIP', 3000, 'Monthly', 'SIP', '2026-05-10', 1, 1, 'Monthly SIP');
-  insertPay.run(userId, 'Axis Bluechip SIP', 2000, 'Monthly', 'SIP', '2026-05-15', 1, 1, 'Monthly SIP');
-  insertPay.run(userId, 'HDFC Life Term Plan', 15000, 'Annual', 'Insurance', '2026-09-01', 0, 1, 'Annual premium');
-  insertPay.run(userId, 'Star Health Insurance', 18000, 'Annual', 'Insurance', '2026-08-15', 0, 1, 'Annual premium');
-  insertPay.run(userId, 'Netflix', 649, 'Monthly', 'Subscription', '2026-05-07', 1, 1, 'Streaming');
-  insertPay.run(userId, 'NPS Contribution', 5000, 'Monthly', 'NPS', '2026-05-01', 1, 1, 'Voluntary NPS Tier I');
-
-  // Seed advance tax payments
-  const insertAT = db.prepare(`INSERT INTO advance_tax_payments (user_id, assessment_year, installment, amount, date_paid, notes) VALUES (?,?,?,?,?,?)`);
-  insertAT.run(userId, '2026-27', 'Q1 (15 Jun)', 25000, '2025-06-12', 'Q1 advance tax');
-  insertAT.run(userId, '2026-27', 'Q2 (15 Sep)', 25000, '2025-09-10', 'Q2 advance tax');
-  insertAT.run(userId, '2026-27', 'Q3 (15 Dec)', 25000, '2025-12-08', 'Q3 advance tax');
-
-  // Seed earnings
-  const insertEarn = db.prepare(`INSERT INTO earnings (user_id, source_name, source_type, amount, frequency, share_percentage, notes) VALUES (?,?,?,?,?,?,?)`);
-  insertEarn.run(userId, 'Salary', 'Salary', 150000, 'Monthly', 100, 'Monthly take-home');
-  insertEarn.run(userId, 'Rental Income - Flat', 'Rent', 25000, 'Monthly', 40, '40% share of rental income (co-owned with mother 60-40)');
-
-  console.log('Seed data inserted successfully.');
-  console.log(`Admin user: kondetiudaykiran@gmail.com / Admin@123`);
+  console.log('Initialized admin user: kondetiudaykiran@gmail.com / Admin@123');
 }
 
 // Run migrations for columns added after initial schema
