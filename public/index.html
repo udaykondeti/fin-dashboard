@@ -79,6 +79,11 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
 .main-content{margin-top:var(--nav-height);padding:24px;min-height:calc(100vh - var(--nav-height));max-width:1400px;width:100%;margin-left:auto;margin-right:auto}
 .page{display:none}
 .page.active{display:block}
+.demo-banner{display:flex;align-items:center;gap:10px;background:rgba(198,134,66,.10);border:1px solid rgba(198,134,66,.35);color:var(--text-primary);padding:10px 14px;border-radius:10px;margin:0 0 18px;font-size:13px}
+.demo-banner strong{color:var(--caramel)}
+.demo-banner .demo-dot{width:8px;height:8px;border-radius:50%;background:var(--caramel);flex-shrink:0;box-shadow:0 0 0 3px rgba(198,134,66,.18)}
+.demo-banner .demo-close{margin-left:auto;background:none;border:none;color:var(--caramel);font-size:18px;line-height:1;cursor:pointer;padding:2px 8px;border-radius:6px}
+.demo-banner .demo-close:hover{background:rgba(198,134,66,.18)}
 
 .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
 .summary-card{background:var(--espresso);color:var(--cream);border-radius:var(--radius);padding:18px 22px;position:relative;overflow:hidden;box-shadow:var(--shadow-card)}
@@ -418,6 +423,13 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
   </div>
 
   <div class="main-content">
+
+    <div id="demoBanner" class="demo-banner" style="display:none">
+      <span class="demo-dot"></span>
+      <strong>Demo mode</strong>
+      <span>Server isn't reachable or you signed in without a real account — the figures shown are sample data and changes won't persist.</span>
+      <button type="button" class="demo-close" onclick="dismissDemoBanner()" aria-label="Dismiss">×</button>
+    </div>
 
     <!-- DASHBOARD PAGE -->
     <div class="page active" id="page-dashboard">
@@ -1529,12 +1541,32 @@ function showApp(){
   document.getElementById('app').style.display='flex';
   document.getElementById('userNameDisplay').textContent=localStorage.getItem('fin_user')||'Kiran';
   document.getElementById('dashDate').textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  refreshDemoBanner();
   loadAllData();
   priceRefreshTimer=setInterval(function(){showToast('Refreshing prices...','info');},300000);
 }
 
+// Demo mode = fin_token is empty/'demo'/'demo_*' (the client-side fallback).
+// 'fin_demo_dismissed' hides the banner for the rest of the session even
+// while demo mode is active.
+function isDemoMode(){
+  var t=localStorage.getItem('fin_token')||'';
+  return !t || t==='demo' || t.indexOf('demo_')===0;
+}
+function refreshDemoBanner(){
+  var el=document.getElementById('demoBanner');
+  if(!el)return;
+  el.style.display=(isDemoMode() && !localStorage.getItem('fin_demo_dismissed')) ? 'flex' : 'none';
+}
+function dismissDemoBanner(){
+  localStorage.setItem('fin_demo_dismissed','1');
+  var el=document.getElementById('demoBanner');
+  if(el)el.style.display='none';
+}
+
 function logout(){
   clearInterval(priceRefreshTimer);
+  localStorage.removeItem('fin_demo_dismissed');
   localStorage.removeItem('fin_token');
   localStorage.removeItem('fin_user');
   document.getElementById('app').style.display='none';
@@ -1546,18 +1578,36 @@ function checkAuth(){
   if(localStorage.getItem('fin_token')){showApp();}
 }
 
+// Single source of truth for page navigation. All pages are .page inside
+// .main-content; .page.active CSS controls visibility. Desktop nav highlight
+// is driven by onclick attribute matching, which avoids index drift when a
+// new tab is added in the middle of the row.
 function navigateTo(page){
-  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
-  document.getElementById('page-'+page).classList.add('active');
-  document.querySelectorAll('.nav-tab').forEach(function(t){t.classList.remove('active')});
+  document.querySelectorAll('.main-content > .page').forEach(function(p){p.classList.remove('active')});
+  var pageEl = document.getElementById('page-'+page);
+  if (pageEl) pageEl.classList.add('active');
+  document.querySelectorAll('.topnav-tabs .nav-tab').forEach(function(b){
+    var oc = b.getAttribute('onclick')||'';
+    b.classList.toggle('active', oc.indexOf("'"+page+"'")>-1 || oc.indexOf('"'+page+'"')>-1);
+  });
   document.querySelectorAll('.mobile-tab').forEach(function(t){t.classList.remove('active')});
-  var pages=['dashboard','investments','liabilities','handloans','analytics'];
-  var idx=pages.indexOf(page);
-  var tabs=document.querySelectorAll('.nav-tab');
-  if(tabs[idx])tabs[idx].classList.add('active');
-  var mt=document.getElementById('mtab-'+page);
-  if(mt)mt.classList.add('active');
-  if(page==='analytics')setTimeout(renderAnalyticsCharts,120);
+  var mt = document.getElementById('mtab-'+page);
+  if (mt) mt.classList.add('active');
+  // Per-page hooks. Guard with typeof to tolerate scripts loaded out of order.
+  if (page==='analytics' && typeof renderAnalyticsCharts==='function') setTimeout(renderAnalyticsCharts,120);
+  if (page==='vault') {
+    if (typeof renderRecentUploads==='function') renderRecentUploads();
+    if (typeof renderCACategoryChecks==='function') renderCACategoryChecks();
+    var vn = document.getElementById('vaultNotice'); if (vn) vn.style.display='none';
+  }
+  if (page==='earnings'   && typeof loadEarnings==='function')   loadEarnings();
+  if (page==='payments'   && typeof loadPayments==='function')   loadPayments();
+  if (page==='properties' && typeof loadProperties==='function') loadProperties();
+  if (page==='incometax'  && typeof loadAdvTax==='function') {
+    loadAdvTax();
+    var ai = document.getElementById('itAnnualIncome');
+    if (ai && typeof calcAnnualIncome==='function') ai.textContent = fmt(calcAnnualIncome());
+  }
 }
 
 function toggleMobileMenu(){document.getElementById('mobileMenu').classList.toggle('open')}
@@ -2541,25 +2591,7 @@ renderLoansTable = function() {
   });
 };
 
-// ─── Complete navigateTo override (includes vault) ────────────────
-navigateTo = function(page) {
-  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
-  document.getElementById('page-'+page).classList.add('active');
-  document.querySelectorAll('.nav-tab').forEach(function(t){t.classList.remove('active')});
-  document.querySelectorAll('.mobile-tab').forEach(function(t){t.classList.remove('active')});
-  var pages=['dashboard','investments','liabilities','handloans','analytics','vault'];
-  var idx=pages.indexOf(page);
-  var tabs=document.querySelectorAll('.nav-tab');
-  if(tabs[idx])tabs[idx].classList.add('active');
-  var mt=document.getElementById('mtab-'+page);
-  if(mt)mt.classList.add('active');
-  if(page==='analytics')setTimeout(renderAnalyticsCharts,120);
-  if(page==='vault'){
-    renderRecentUploads();
-    renderCACategoryChecks();
-    document.getElementById('vaultNotice').style.display = 'none';
-  }
-};
+// navigateTo() above already handles every page including vault — no override needed.
 
 checkAuth();
 </script>
@@ -3695,21 +3727,7 @@ loadAllData = async function() {
   await Promise.all([loadSavings(), loadInsurance(), loadNPS(), loadAdvTax(), loadEarnings(), loadPayments()]);
 };
 
-var _origNavigateTo = navigateTo;
-navigateTo = function(page) {
-  _origNavigateTo(page);
-  var pages = ['dashboard','investments','liabilities','handloans','analytics','vault','earnings','payments','properties'];
-  pages.forEach(function(p){
-    var el = document.getElementById('page-'+p);
-    if (el) el.style.display = p===page ? '' : 'none';
-    var mt = document.getElementById('mtab-'+p);
-    if (mt) mt.classList.toggle('active', p===page);
-  });
-  if (page==='earnings') { renderEarnings(); }
-  if (page==='payments') { renderPayments(); }
-  if (page==='properties') { loadProperties(); }
-  if (page==='investments') { /* tabs handled by switchInvTab */ }
-};
+// navigateTo handles every page directly — no wrapper needed.
 
 // Patch switchInvTab to handle new tabs
 var _origSwitchInvTab = switchInvTab;
@@ -4185,27 +4203,7 @@ function renderITCategories() {
   }).join('');
 }
 
-// Update navigateTo to include incometax
-var _prevNavigateTo2 = navigateTo;
-navigateTo = function(page) {
-  var allPages = ['dashboard','investments','liabilities','handloans','analytics','vault','earnings','payments','properties','incometax'];
-  allPages.forEach(function(p){
-    var el = document.getElementById('page-'+p);
-    if (el) el.style.display = p===page ? '' : 'none';
-    var mt = document.getElementById('mtab-'+p);
-    if (mt) mt.classList.toggle('active', p===page);
-  });
-  // Update desktop nav-tab active state
-  document.querySelectorAll('.topnav-tabs .nav-tab').forEach(function(b){
-    var onclick = b.getAttribute('onclick')||'';
-    b.classList.toggle('active', onclick.indexOf("'"+page+"'")>-1 || onclick.indexOf('"'+page+'"')>-1);
-  });
-  if (page==='earnings') { loadEarnings(); }
-  if (page==='payments') { loadPayments(); }
-  if (page==='properties') { loadProperties(); }
-  if (page==='incometax') { loadAdvTax(); document.getElementById('itAnnualIncome').textContent = fmt(calcAnnualIncome()); }
-  if (page==='analytics') { setTimeout(renderAnalyticsCharts,120); }
-};
+// navigateTo above already handles incometax — no wrapper needed.
 
 // ─── PROPERTIES RESEARCH PANEL ───────────────────────────────────────────────
 function togglePropResearch() {
