@@ -369,7 +369,40 @@ function initializeDatabase() {
 
     CREATE INDEX IF NOT EXISTS idx_agent_calls_user_time ON agent_calls(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_agent_calls_task_time ON agent_calls(task_type, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS agent_threads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      title TEXT NOT NULL DEFAULT 'New chat',
+      agent_kind TEXT NOT NULL DEFAULT 'financial_advisor',
+      model TEXT NOT NULL DEFAULT 'claude-haiku-4-5',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_agent_threads_user ON agent_threads(user_id, updated_at DESC);
+
+    CREATE TABLE IF NOT EXISTS agent_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      thread_id INTEGER NOT NULL,
+      role TEXT NOT NULL CHECK(role IN ('user','assistant','tool')),
+      content TEXT,
+      tool_uses TEXT,
+      status TEXT NOT NULL DEFAULT 'final' CHECK(status IN ('streaming','final')),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (thread_id) REFERENCES agent_threads(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_agent_messages_thread ON agent_messages(thread_id, id);
   `);
+
+  // Add thread_id link column for chat-driven calls. Idempotent: a second
+  // run throws "duplicate column name", which we swallow.
+  try { db.exec('ALTER TABLE agent_calls ADD COLUMN thread_id INTEGER'); }
+  catch (e) {
+    if (!/duplicate column/i.test(e.message)) throw e;
+  }
 
   console.log('Database tables initialized.');
   seedData();
