@@ -442,6 +442,16 @@ function runMigrations() {
     // CA token usage limits — null = unlimited (legacy rows); new tokens default to a finite cap.
     { id: 13, name: 'ca_access_tokens.max_uses',      run: () => addColumnIfMissing('ca_access_tokens', 'max_uses', 'ALTER TABLE ca_access_tokens ADD COLUMN max_uses INTEGER') },
     { id: 14, name: 'ca_access_tokens.revoked_at',    run: () => addColumnIfMissing('ca_access_tokens', 'revoked_at', 'ALTER TABLE ca_access_tokens ADD COLUMN revoked_at TEXT') },
+    { id: 15, name: 'users.is_admin',                 run: () => addColumnIfMissing('users', 'is_admin', 'ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0') },
+    { id: 16, name: 'bootstrap_admin_from_env', run: () => {
+      // Optional bootstrap: when BOOTSTRAP_ADMIN_EMAIL is set, promote that
+      // user to admin once. This migration runs only once (recorded in
+      // schema_migrations), so re-running with a different env value has no
+      // effect — change admins manually via UPDATE users SET is_admin=1.
+      const email = (process.env.BOOTSTRAP_ADMIN_EMAIL || '').toLowerCase().trim();
+      if (!email) return;
+      db.prepare('UPDATE users SET is_admin = 1 WHERE email = ?').run(email);
+    } },
   ];
 
   const appliedIds = new Set(

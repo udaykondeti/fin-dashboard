@@ -23,6 +23,12 @@ const propertiesRoutes = require('./routes/properties');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// In production we sit behind nginx, so trust X-Forwarded-* headers from the
+// first proxy hop. Required for express-rate-limit to see real client IPs.
+if (isProd) {
+  app.set('trust proxy', 1);
+}
+
 // Security headers. CSP is intentionally permissive on inline because the
 // frontend is a single-file index.html with inline scripts; tighten when the
 // frontend is modularized.
@@ -80,12 +86,13 @@ app.use('/api/properties', propertiesRoutes);
 const authMiddleware = require('./middleware/auth');
 const vaultRoutes = require('./routes/vault');
 const adminRoutes = require('./routes/admin');
+const requireAdmin = require('./middleware/requireAdmin');
 // Public CA download endpoint must be registered BEFORE the authenticated
 // /api/vault router; otherwise Express's first-match routing sends it
 // through authMiddleware and the public link is unreachable.
 app.get('/api/vault/ca/:token', vaultRoutes.caAccess);
 app.use('/api/vault', authMiddleware, vaultRoutes);
-app.use('/api/admin', authMiddleware, adminRoutes);
+app.use('/api/admin', authMiddleware, requireAdmin, adminRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

@@ -91,9 +91,15 @@ fi
 
 CERT_PATH="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
 if [ ! -f "$CERT_PATH" ]; then
+  CERTBOT_EMAIL="${CERTBOT_EMAIL:-}"
+  if [ -z "$CERTBOT_EMAIL" ]; then
+    echo "  ERROR: CERTBOT_EMAIL is not set — required for Let's Encrypt registration." >&2
+    echo "  Re-run with: CERTBOT_EMAIL=you@example.com bash scripts/deploy.sh" >&2
+    exit 1
+  fi
   echo "  No SSL cert found — running certbot for ${DOMAIN}..."
   sudo certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos \
-    -m "kondetiudaykiran@gmail.com" --redirect
+    -m "$CERTBOT_EMAIL" --redirect
   echo "  SSL certificate obtained."
 else
   echo "  SSL certificate already exists — skipping certbot."
@@ -109,12 +115,28 @@ else
 fi
 pm2 save
 
-# Configure PM2 to start on boot (prints a command you should run as root)
+# Configure PM2 to start on boot. `pm2 startup` prints a sudo command on its
+# last line; we only execute it if it begins with the literal `sudo env` and
+# contains pm2 — refuses to run anything else, since `eval` on opaque output
+# is otherwise a footgun.
 PM2_STARTUP=$(pm2 startup | tail -n1 || true)
-if [[ "$PM2_STARTUP" == sudo* ]]; then
+if [[ "$PM2_STARTUP" == "sudo env "* && "$PM2_STARTUP" == *"pm2"* ]]; then
   echo "  Running PM2 startup command..."
   eval "$PM2_STARTUP"
+else
+  echo "  Skipping pm2 startup auto-exec; review and run manually:"
+  echo "    $PM2_STARTUP"
 fi
+
+# Post-restart health check — if the process didn't come up (e.g. JWT_SECRET
+# missing), surface it loudly instead of letting the deploy claim success.
+sleep 2
+if ! pm2 describe fin-dashboard | grep -qE 'status\s+\│\s+online'; then
+  echo "  ERROR: fin-dashboard is not online after restart. Recent logs:" >&2
+  pm2 logs fin-dashboard --lines 30 --nostream || true
+  exit 1
+fi
+echo "  fin-dashboard is online."
 
 # ── Nginx reload ─────────────────────────────────────────────────────────────
 echo "Testing Nginx config..."

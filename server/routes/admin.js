@@ -8,9 +8,12 @@ const DEFAULT_MODEL = 'claude-haiku-4-5';
 // ─── GET /api/admin/agent-usage?days=30 ───────────────────────────────────────
 // Aggregated agent usage for the requesting user over the last N days.
 router.get('/agent-usage', (req, res) => {
-  const userId = req.user.id;
   const days = Math.max(1, Math.min(365, parseInt(req.query.days, 10) || 30));
+  const filterUserId = req.query.user_id ? parseInt(req.query.user_id, 10) : null;
+  // Admins can scope to a specific user via ?user_id=, or aggregate across all.
+  const userClause = filterUserId ? 'user_id = ? AND ' : '';
   const sinceClause = `created_at >= datetime('now', '-' || ? || ' days')`;
+  const baseParams = filterUserId ? [filterUserId] : [];
 
   try {
     const totals = db.prepare(`
@@ -21,8 +24,8 @@ router.get('/agent-usage', (req, res) => {
         COALESCE(SUM(cost_usd), 0)    AS cost_usd,
         SUM(CASE WHEN error IS NOT NULL THEN 1 ELSE 0 END) AS errors
       FROM agent_calls
-      WHERE user_id = ? AND ${sinceClause}
-    `).get(userId, days);
+      WHERE ${userClause}${sinceClause}
+    `).get(...baseParams, days);
 
     const byTaskType = db.prepare(`
       SELECT
@@ -32,18 +35,18 @@ router.get('/agent-usage', (req, res) => {
         COALESCE(SUM(tokens_out), 0) AS tokens_out,
         COALESCE(SUM(cost_usd), 0)   AS cost_usd
       FROM agent_calls
-      WHERE user_id = ? AND ${sinceClause}
+      WHERE ${userClause}${sinceClause}
       GROUP BY task_type
       ORDER BY calls DESC
-    `).all(userId, days);
+    `).all(...baseParams, days);
 
     const recentErrors = db.prepare(`
       SELECT created_at, task_type, error
       FROM agent_calls
-      WHERE user_id = ? AND error IS NOT NULL AND ${sinceClause}
+      WHERE ${userClause}error IS NOT NULL AND ${sinceClause}
       ORDER BY created_at DESC
       LIMIT 10
-    `).all(userId, days);
+    `).all(...baseParams, days);
 
     res.json({
       configured: isAgentConfigured(),
@@ -68,17 +71,19 @@ router.get('/agent-usage', (req, res) => {
 // ─── GET /api/admin/agent-calls?limit=&offset=&task_type=&user_id= ────────────
 // Paginated call list. Returns hash + preview only — never full prompts.
 router.get('/agent-calls', (req, res) => {
-  const userId = req.user.id;
   const limit = Math.max(1, Math.min(500, parseInt(req.query.limit, 10) || 50));
   const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
   const taskType = req.query.task_type || null;
-  // user_id query param is accepted but currently constrained to the requester's own id
-  // (admin role check is a future TODO; for now self-scoped).
-  const filterUserId = req.query.user_id ? parseInt(req.query.user_id, 10) : userId;
-  const effectiveUserId = filterUserId === userId ? userId : userId;
+  // Route is admin-gated, so an admin may filter by any user_id. Omitting it
+  // returns calls across all users.
+  const filterUserId = req.query.user_id ? parseInt(req.query.user_id, 10) : null;
 
-  let where = 'WHERE user_id = ?';
-  const params = [effectiveUserId];
+  let where = 'WHERE 1=1';
+  const params = [];
+  if (filterUserId) {
+    where += ' AND user_id = ?';
+    params.push(filterUserId);
+  }
   if (taskType) {
     where += ' AND task_type = ?';
     params.push(taskType);
