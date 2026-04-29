@@ -1,19 +1,36 @@
 const crypto = require('crypto');
 const Anthropic = require('@anthropic-ai/sdk');
 const db = require('../db/database');
+const groqClient = require('./groqClient');
 
 // Allowed task types. Extend this list as new agent-driven features land.
-const TASK_TYPES = ['categorise_file', 'validate_name', 'parse_message', 'suggest_tax_action'];
+const TASK_TYPES = [
+  'categorise_file',
+  'validate_name',
+  'parse_message',
+  'suggest_tax_action',
+  // Run by scripts/groq-watcher.js every 5 minutes — summarises recent DB
+  // changes into plain-English activity_log entries.
+  'summarise_db_changes'
+];
 
-// USD per 1M tokens. Update when Anthropic pricing changes.
-// Source of truth lives here so cost math in admin views stays in sync.
+// USD per 1M tokens. Source of truth so admin cost views stay in sync. Models
+// are keyed by provider:model_id where provider matches PROVIDERS below.
+// Update when pricing changes.
 const PRICE_TABLE = {
-  'claude-haiku-4-5':       { input: 1.0, output: 5.0 },
-  'claude-sonnet-4-5':      { input: 3.0, output: 15.0 },
-  'claude-opus-4-5':        { input: 15.0, output: 75.0 }
+  // Anthropic
+  'claude-haiku-4-5':           { input: 1.0,  output: 5.0  },
+  'claude-sonnet-4-5':          { input: 3.0,  output: 15.0 },
+  'claude-opus-4-5':            { input: 15.0, output: 75.0 },
+  // Groq (OpenAI-compatible) — prices as of 2026-04
+  'llama-3.1-8b-instant':       { input: 0.05, output: 0.08 },
+  'llama-3.3-70b-versatile':    { input: 0.59, output: 0.79 }
 };
 
+const PROVIDERS = ['anthropic', 'groq'];
+
 const DEFAULT_MODEL = 'claude-haiku-4-5';
+const GROQ_DEFAULT_MODEL = 'llama-3.1-8b-instant';
 
 /**
  * True iff ANTHROPIC_API_KEY is present in the environment.
@@ -73,7 +90,7 @@ const insertCallStmt = db.prepare(`
  * Privacy: full prompts are NEVER persisted. Only a SHA-256 of (system+user)
  * input plus a 200-char preview are stored.
  */
-async function runTask({ userId, taskType, systemPrompt, userInput, maxTokens } = {}) {
+async function runTask({ userId, taskType, systemPrompt, userInput, maxTokens, provider, model } = {}) {
   if (!TASK_TYPES.includes(taskType)) {
     throw new Error(`Invalid taskType "${taskType}". Allowed: ${TASK_TYPES.join(', ')}`);
   }
@@ -81,34 +98,58 @@ async function runTask({ userId, taskType, systemPrompt, userInput, maxTokens } 
     throw new Error('runTask requires string systemPrompt and userInput');
   }
 
-  const client = getClient();
-  const model = process.env.ANTHROPIC_MODEL || DEFAULT_MODEL;
+  const useProvider = provider || 'anthropic';
+  if (!PROVIDERS.includes(useProvider)) {
+    throw new Error(`Invalid provider "${useProvider}". Allowed: ${PROVIDERS.join(', ')}`);
+  }
+
+  const useModel =
+    model ||
+    (useProvider === 'groq'
+      ? (process.env.GROQ_MODEL || GROQ_DEFAULT_MODEL)
+      : (process.env.ANTHROPIC_MODEL || DEFAULT_MODEL));
+
   const inputHash = sha256(systemPrompt + '\n' + userInput);
   const inputPreview = preview(userInput);
-
   const startedAt = Date.now();
-  let response;
+
+  let outputText = '';
+  let tokensIn = 0;
+  let tokensOut = 0;
+  let usage = null;
+
   try {
-    response = await client.messages.create({
-      model,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userInput }],
-      max_tokens: maxTokens || 200
-    });
+    if (useProvider === 'groq') {
+      const r = await groqClient.chatCompletion({
+        model: useModel,
+        system: systemPrompt,
+        user: userInput,
+        maxTokens: maxTokens || 400
+      });
+      outputText = r.output;
+      tokensIn = r.tokensIn;
+      tokensOut = r.tokensOut;
+      usage = { input_tokens: tokensIn, output_tokens: tokensOut };
+    } else {
+      const client = getClient();
+      const response = await client.messages.create({
+        model: useModel,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userInput }],
+        max_tokens: maxTokens || 200
+      });
+      outputText = (response.content && response.content[0] && response.content[0].text) || '';
+      tokensIn = (response.usage && response.usage.input_tokens) || 0;
+      tokensOut = (response.usage && response.usage.output_tokens) || 0;
+      usage = response.usage;
+    }
   } catch (err) {
     const latencyMs = Date.now() - startedAt;
     try {
       insertCallStmt.run(
-        userId || null,
-        taskType,
-        model,
-        inputHash,
-        inputPreview,
-        null,
-        0,
-        0,
-        0,
-        latencyMs,
+        userId || null, taskType, useModel,
+        inputHash, inputPreview, null,
+        0, 0, 0, latencyMs,
         err.message || String(err)
       );
     } catch (auditErr) {
@@ -118,37 +159,25 @@ async function runTask({ userId, taskType, systemPrompt, userInput, maxTokens } 
   }
 
   const latencyMs = Date.now() - startedAt;
-  const outputText = (response.content && response.content[0] && response.content[0].text) || '';
-  const tokensIn = (response.usage && response.usage.input_tokens) || 0;
-  const tokensOut = (response.usage && response.usage.output_tokens) || 0;
-  const costUsd = estimateCost({ tokensIn, tokensOut, model });
+  const costUsd = estimateCost({ tokensIn, tokensOut, model: useModel });
 
   const result = insertCallStmt.run(
-    userId || null,
-    taskType,
-    model,
-    inputHash,
-    inputPreview,
-    preview(outputText),
-    tokensIn,
-    tokensOut,
-    costUsd,
-    latencyMs,
+    userId || null, taskType, useModel,
+    inputHash, inputPreview, preview(outputText),
+    tokensIn, tokensOut, costUsd, latencyMs,
     null
   );
 
-  return {
-    output: outputText,
-    usage: response.usage,
-    callId: result.lastInsertRowid
-  };
+  return { output: outputText, usage, callId: result.lastInsertRowid, provider: useProvider, model: useModel };
 }
 
 module.exports = {
   isAgentConfigured,
+  isGroqConfigured: groqClient.isGroqConfigured,
   getClient,
   runTask,
   estimateCost,
   TASK_TYPES,
-  PRICE_TABLE
+  PRICE_TABLE,
+  PROVIDERS
 };
