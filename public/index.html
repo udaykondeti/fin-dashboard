@@ -1042,6 +1042,37 @@ const MOCK = {
   handLoansTaken: [
     {id:1,person:'Suresh Kondeti',phone:'9988776655',amount:100000,rate:0,date:'2025-11-01',due:'2026-05-01',status:'Pending',notes:'Emergency funds'},
     {id:2,person:'Venkateswara Rao',phone:'9123456780',amount:30000,rate:0,date:'2026-02-14',due:'2026-08-14',status:'Partial',notes:''},
+  ],
+  savings: [
+    {id:1,bank_name:'HDFC Bank',account_type:'Savings',account_number:'XXXX1234',balance:185000,interest_rate:3.5,notes:'Primary salary account'},
+    {id:2,bank_name:'ICICI Bank',account_type:'Salary',account_number:'XXXX5678',balance:42000,interest_rate:3.0,notes:''},
+    {id:3,bank_name:'Kotak 811',account_type:'Savings',account_number:'XXXX9012',balance:78000,interest_rate:4.0,notes:'Online savings - higher rate'},
+  ],
+  insurance: [
+    {id:1,policy_name:'HDFC Life Click 2 Protect',insurer:'HDFC Life',policy_type:'Term',premium_amount:18500,premium_frequency:'Annual',cover_amount:10000000,start_date:'2023-04-01',maturity_date:'2053-04-01',next_due_date:'2026-04-01',nominee:'Spouse',notes:'Pure term'},
+    {id:2,policy_name:'Star Health Family Floater',insurer:'Star Health',policy_type:'Health',premium_amount:24000,premium_frequency:'Annual',cover_amount:1000000,start_date:'2024-06-15',maturity_date:null,next_due_date:'2026-06-15',nominee:'Spouse',notes:'Family floater 4 members'},
+    {id:3,policy_name:'LIC Jeevan Anand',insurer:'LIC of India',policy_type:'Endowment',premium_amount:32000,premium_frequency:'Annual',cover_amount:500000,start_date:'2018-03-10',maturity_date:'2038-03-10',next_due_date:'2026-03-10',nominee:'Spouse',notes:''},
+  ],
+  nps: [
+    {id:1,pran:'1100XXXXXX01',tier:'Tier I',total_invested:280000,current_value:362000,equity_pct:75,bonds_pct:15,govt_pct:10,notes:'NPS-A scheme'},
+  ],
+  advTax: [
+    {id:1,assessment_year:'2026-27',installment:'Q1 (15 Jun)',amount:35000,date_paid:'2026-06-12',notes:'On account'},
+    {id:2,assessment_year:'2026-27',installment:'Q2 (15 Sep)',amount:45000,date_paid:'2026-09-14',notes:''},
+    {id:3,assessment_year:'2025-26',installment:'Q4 (15 Mar)',amount:55000,date_paid:'2026-03-13',notes:'Final installment'},
+  ],
+  earnings: [
+    {id:1,source_name:'Salary - TechCorp',source_type:'Salary',amount:185000,frequency:'Monthly',share_percentage:100,is_auto:false,notes:'Net of TDS'},
+    {id:2,source_name:'Rent - Hyderabad Flat',source_type:'Rent',amount:25000,frequency:'Monthly',share_percentage:50,is_auto:false,notes:'Joint with spouse'},
+    {id:3,source_name:'Freelance Consulting',source_type:'Freelance',amount:120000,frequency:'Annual',share_percentage:100,is_auto:false,notes:'Side projects'},
+    {id:'sav_demo_1',source_name:'Savings Interest (auto)',source_type:'Interest',amount:10675,frequency:'Annual',share_percentage:100,is_auto:true,notes:'Aggregate of savings accounts'},
+  ],
+  payments: [
+    {id:1,name:'Home Loan EMI',category:'EMI',amount:32000,frequency:'Monthly',next_due_date:'2026-05-05',auto_debit:true,is_active:true,notes:'HDFC home loan'},
+    {id:2,name:'Mirae Large Cap SIP',category:'SIP',amount:5000,frequency:'Monthly',next_due_date:'2026-05-07',auto_debit:true,is_active:true,notes:''},
+    {id:3,name:'Term Insurance Premium',category:'Insurance',amount:18500,frequency:'Annual',next_due_date:'2026-04-01',auto_debit:false,is_active:true,notes:'HDFC Life Click 2 Protect'},
+    {id:4,name:'Netflix',category:'Other',amount:649,frequency:'Monthly',next_due_date:'2026-05-12',auto_debit:true,is_active:true,notes:'Premium plan'},
+    {id:5,name:'Property Tax 2026',category:'Other',amount:14500,frequency:'One-time',next_due_date:'2026-05-25',auto_debit:false,is_active:true,notes:''},
   ]
 };
 
@@ -2464,7 +2495,7 @@ async function apiDel(url) {
 var savingsData = [];
 async function loadSavings() {
   var r = await apiFetch('/api/investments/savings');
-  savingsData = r && r.savings_accounts ? r.savings_accounts : [];
+  savingsData = (r && r.savings_accounts) || MOCK.savings;
   renderSavings();
 }
 function renderSavings() {
@@ -2500,7 +2531,7 @@ async function deleteSavings(id) {
 var insuranceData = [];
 async function loadInsurance() {
   var r = await apiFetch('/api/investments/insurance');
-  insuranceData = r && r.insurance_policies ? r.insurance_policies : [];
+  insuranceData = (r && r.insurance_policies) || MOCK.insurance;
   renderInsurance();
 }
 function renderInsurance() {
@@ -2539,7 +2570,7 @@ async function deleteInsurance(id) {
 var npsData = [];
 async function loadNPS() {
   var r = await apiFetch('/api/investments/nps');
-  npsData = r && r.nps_accounts ? r.nps_accounts : [];
+  npsData = (r && r.nps_accounts) || MOCK.nps;
   renderNPS();
 }
 function renderNPS() {
@@ -2582,7 +2613,7 @@ var advTaxData = [];
 async function loadAdvTax() {
   var year = document.getElementById('atYearFilter') ? document.getElementById('atYearFilter').value : '2026-27';
   var r = await apiFetch('/api/tax/advance?year='+encodeURIComponent(year));
-  advTaxData = r && r.advance_tax ? r.advance_tax : [];
+  advTaxData = (r && r.advance_tax) || MOCK.advTax;
   renderAdvTax();
 }
 function renderAdvTax() {
@@ -2645,7 +2676,7 @@ function calcAnnualIncome() {
 var earningsData = [];
 async function loadEarnings() {
   var r = await apiFetch('/api/earnings');
-  earningsData = r && r.earnings ? r.earnings : [];
+  earningsData = (r && r.earnings) || MOCK.earnings;
   renderEarnings();
 }
 function renderEarnings() {
@@ -2698,7 +2729,7 @@ var paymentsData = [];
 var paymentsFilter = 'all';
 async function loadPayments() {
   var r = await apiFetch('/api/payments');
-  paymentsData = r && r.scheduled_payments ? r.scheduled_payments : [];
+  paymentsData = (r && r.scheduled_payments) || MOCK.payments;
   renderPayments();
 }
 function filterPayments(f, btn) {
