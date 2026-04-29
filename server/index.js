@@ -51,8 +51,10 @@ app.use('/api/earnings', earningsRoutes);
 
 const authMiddleware = require('./middleware/auth');
 const vaultRoutes = require('./routes/vault');
+const adminRoutes = require('./routes/admin');
 app.use('/api/vault', authMiddleware, vaultRoutes);
 app.get('/api/vault/ca/:token', vaultRoutes.caAccess);
+app.use('/api/admin', authMiddleware, adminRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
