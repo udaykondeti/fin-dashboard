@@ -2713,7 +2713,8 @@ function renderEarnings() {
   if (!tbody) return;
   var totalMonthly = 0, totalAnnual = 0, salaryAnnual = 0;
   var TYPE_ICONS = {Salary:'💼', Rent:'🏠', Interest:'🏦', Dividends:'📈', Freelance:'💻', Business:'🏢', Other:'💰'};
-  tbody.innerHTML = earningsData.map(function(e){
+  var rowsHtml = '';
+  earningsData.forEach(function(e){
     var share = (e.share_percentage||100);
     var perMonth = e.frequency==='Monthly' ? e.amount*share/100
                  : e.frequency==='Annual'  ? e.amount*share/100/12
@@ -2725,7 +2726,11 @@ function renderEarnings() {
     if (e.source_type==='Salary') salaryAnnual += perYear;
     var icon = TYPE_ICONS[e.source_type]||'💰';
     var autoClass = e.is_auto ? ' earn-auto' : '';
-    return '<tr class="'+autoClass+'">'
+    var actionsCell = e.is_auto
+      ? '<span style="font-size:11px;color:var(--text-secondary)">auto</span>'
+      : '<button class="action-btn" onclick="toggleSharePanel('+e.id+')" style="margin-right:4px">+ Share</button>'
+        +'<button class="action-btn del" onclick="deleteEarning(\''+e.id+'\')">Del</button>';
+    rowsHtml += '<tr class="'+autoClass+'">'
       +'<td><strong>'+(e.is_auto?'<span title="Auto-populated">⚙️ </span>':'')+icon+' '+e.source_name+'</strong></td>'
       +'<td><span style="font-size:11px;background:rgba(99,102,241,.1);color:#818cf8;padding:2px 7px;border-radius:4px">'+e.source_type+'</span></td>'
       +'<td>'+fmt(e.amount)+'</td>'
@@ -2733,12 +2738,98 @@ function renderEarnings() {
       +'<td>'+share+'%</td>'
       +'<td style="color:var(--accent-green);font-weight:600">'+fmt(Math.round(perMonth))+'/mo</td>'
       +'<td style="font-size:12px;color:var(--text-secondary)">'+(e.notes||'--')+'</td>'
-      +'<td>'+(e.is_auto?'<span style="font-size:11px;color:var(--text-secondary)">auto</span>':'<button class="action-btn del" onclick="deleteEarning(\''+e.id+'\')">Del</button>')+'</td></tr>';
-  }).join('') || '<tr><td colspan="8" style="color:var(--text-secondary);text-align:center;padding:20px">No income sources added.</td></tr>';
+      +'<td>'+actionsCell+'</td></tr>';
+    // Render shares row immediately below for manual earnings that have shares OR an open form
+    if (!e.is_auto) {
+      rowsHtml += renderSharesRow(e);
+    }
+  });
+  tbody.innerHTML = rowsHtml || '<tr><td colspan="8" style="color:var(--text-secondary);text-align:center;padding:20px">No income sources added.</td></tr>';
   var el = document.getElementById('earnMonthly'); if(el) el.textContent=fmt(Math.round(totalMonthly));
   var ea = document.getElementById('earnAnnual'); if(ea) ea.textContent=fmt(Math.round(totalAnnual));
   var sp = document.getElementById('earnSalaryPct'); if(sp) sp.textContent=totalAnnual>0?Math.round(salaryAnnual/totalAnnual*100)+'%':'0%';
   var eo = document.getElementById('earnOtherAnnual'); if(eo) eo.textContent=fmt(Math.round(totalAnnual-salaryAnnual));
+}
+
+// Open/closed state per earning, keyed by earning id, for the inline "Add share" form
+var sharePanelOpen = {};
+function toggleSharePanel(earningId) {
+  sharePanelOpen[earningId] = !sharePanelOpen[earningId];
+  renderEarnings();
+}
+function renderSharesRow(e) {
+  var shares = e.shares || [];
+  var isOpen = !!sharePanelOpen[e.id];
+  if (!shares.length && !isOpen) return '';
+  var primaryShare = e.share_percentage || 0;
+  var sharesSum = shares.reduce(function(s,x){return s + (Number(x.share_percentage)||0)}, 0);
+  var totalSum = primaryShare + sharesSum;
+  var primaryAmt = Math.round((e.amount||0) * primaryShare / 100);
+  var splits = '<span style="background:rgba(251,191,36,.15);color:#fbbf24;padding:3px 8px;border-radius:4px;margin-right:6px">Primary '+primaryShare+'% = '+fmt(primaryAmt)+'</span>'
+    + shares.map(function(s){
+        var color = s.profile_color || '#818cf8';
+        return '<span style="background:'+color+'22;color:'+color+';padding:3px 8px;border-radius:4px;margin-right:6px">'
+          + (s.profile_name||('Profile '+s.profile_id)) + ' ' + s.share_percentage + '% = ' + fmt(Math.round(s.computed_amount||0))
+          + ' <a href="#" onclick="deleteEarningShare(event,'+e.id+','+s.id+')" style="color:inherit;margin-left:4px;text-decoration:none" title="Remove">✕</a>'
+          +'</span>';
+      }).join('');
+  var totalLabel = '<span style="font-size:11px;color:var(--text-secondary);margin-left:6px">Total allocated: '+totalSum+'%</span>';
+  var formHtml = '';
+  if (isOpen) {
+    var existingProfileIds = {};
+    shares.forEach(function(s){existingProfileIds[s.profile_id]=1});
+    var profileOpts = (typeof profilesData !== 'undefined' ? profilesData : [])
+      .filter(function(p){return !existingProfileIds[p.id]})
+      .map(function(p){return '<option value="'+p.id+'">'+(p.icon||'')+' '+p.name+'</option>'}).join('');
+    formHtml = '<div style="margin-top:8px;padding:10px;background:rgba(99,102,241,.06);border-radius:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">'
+      +'<div><label style="font-size:11px;color:var(--text-secondary);display:block">Profile</label>'
+      +'<select id="share-profile-'+e.id+'" style="padding:6px;background:var(--bg-card,#1f2937);color:inherit;border:1px solid #334155;border-radius:4px">'
+      +(profileOpts || '<option value="">-- no eligible profiles --</option>')+'</select></div>'
+      +'<div><label style="font-size:11px;color:var(--text-secondary);display:block">Share %</label>'
+      +'<input type="number" id="share-pct-'+e.id+'" min="0.01" max="100" step="0.01" style="width:90px;padding:6px;background:var(--bg-card,#1f2937);color:inherit;border:1px solid #334155;border-radius:4px"></div>'
+      +'<div style="flex:1;min-width:160px"><label style="font-size:11px;color:var(--text-secondary);display:block">Notes</label>'
+      +'<input type="text" id="share-notes-'+e.id+'" placeholder="Optional" style="width:100%;padding:6px;background:var(--bg-card,#1f2937);color:inherit;border:1px solid #334155;border-radius:4px"></div>'
+      +'<button class="action-btn" onclick="addEarningShare('+e.id+')">Save</button>'
+      +'<button class="action-btn" onclick="toggleSharePanel('+e.id+')">Cancel</button>'
+      +'</div>';
+  }
+  return '<tr class="earn-shares-row"><td colspan="8" style="padding:8px 12px;background:rgba(255,255,255,.02)">'
+    + '<div style="font-size:12px">'+splits+totalLabel+'</div>'
+    + formHtml
+    + '</td></tr>';
+}
+async function addEarningShare(earningId) {
+  var profileSel = document.getElementById('share-profile-'+earningId);
+  var pctInput = document.getElementById('share-pct-'+earningId);
+  var notesInput = document.getElementById('share-notes-'+earningId);
+  var profileId = profileSel && profileSel.value;
+  var pct = parseFloat(pctInput && pctInput.value);
+  if (!profileId) { showToast('Choose a profile','error'); return; }
+  if (!Number.isFinite(pct) || pct <= 0 || pct > 100) { showToast('Share % must be between 0 and 100','error'); return; }
+  // Client-side sum-check so we surface the error before hitting the server
+  var earning = earningsData.find(function(x){return x.id===earningId});
+  if (earning) {
+    var existingSum = (earning.share_percentage||0) + (earning.shares||[]).reduce(function(s,x){return s+(Number(x.share_percentage)||0)},0);
+    if (existingSum + pct > 100 + 1e-6) {
+      showToast('Share total would be '+Math.round(existingSum+pct)+'% (max 100)','error');
+      return;
+    }
+  }
+  var r = await apiPost('/api/earnings/'+earningId+'/shares', {
+    profile_id: Number(profileId),
+    share_percentage: pct,
+    notes: (notesInput && notesInput.value) || null
+  });
+  if (r && r.id) {
+    sharePanelOpen[earningId] = false;
+    showToast('Share added','success');
+    await loadEarnings();
+  }
+}
+async function deleteEarningShare(ev, earningId, shareId) {
+  if (ev && ev.preventDefault) ev.preventDefault();
+  var r = await apiDel('/api/earnings/'+earningId+'/shares/'+shareId);
+  if (r && r.success) { showToast('Share removed','info'); await loadEarnings(); }
 }
 async function saveEarning(e) {
   e.preventDefault();
