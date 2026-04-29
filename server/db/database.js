@@ -411,6 +411,14 @@ function runMigrations() {
     { table: 'us_stocks', column: 'current_price_usd', sql: 'ALTER TABLE us_stocks ADD COLUMN current_price_usd REAL' },
     // Add last4 to credit_cards if missing
     { table: 'credit_cards', column: 'last4', sql: "ALTER TABLE credit_cards ADD COLUMN last4 TEXT DEFAULT '0000'" },
+    // Profile identity fields
+    { table: 'profiles', column: 'legal_name', sql: 'ALTER TABLE profiles ADD COLUMN legal_name TEXT' },
+    { table: 'profiles', column: 'name_on_aadhaar', sql: 'ALTER TABLE profiles ADD COLUMN name_on_aadhaar TEXT' },
+    { table: 'profiles', column: 'name_on_pan', sql: 'ALTER TABLE profiles ADD COLUMN name_on_pan TEXT' },
+    { table: 'profiles', column: 'pan_number', sql: 'ALTER TABLE profiles ADD COLUMN pan_number TEXT' },
+    // Only last 4 digits of Aadhaar are stored — UIDAI guidelines forbid storing the full 12-digit number.
+    { table: 'profiles', column: 'aadhaar_last4', sql: 'ALTER TABLE profiles ADD COLUMN aadhaar_last4 TEXT' },
+    { table: 'profiles', column: 'other_ids', sql: 'ALTER TABLE profiles ADD COLUMN other_ids TEXT' },
   ];
 
   for (const m of migrations) {

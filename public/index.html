@@ -2264,6 +2264,24 @@ checkAuth();
           <div class="form-row"><label>Profile Name</label><input type="text" id="newProfileName" placeholder="Mother, Joint, etc."></div>
           <div class="form-row"><label>Color</label><input type="color" id="newProfileColor" value="#60a5fa" style="height:38px;width:100%"></div>
         </div>
+        <div class="form-2col">
+          <div class="form-row"><label>Legal Name</label><input type="text" id="newProfileLegalName" placeholder="As per official records"></div>
+          <div class="form-row"><label>Name on Aadhaar</label><input type="text" id="newProfileNameAadhaar" placeholder="Exactly as printed"></div>
+        </div>
+        <div class="form-2col">
+          <div class="form-row"><label>Name on PAN</label><input type="text" id="newProfileNamePan" placeholder="Exactly as printed"></div>
+          <div class="form-row"><label>PAN Number</label><input type="text" id="newProfilePan" placeholder="ABCDE1234F" maxlength="10" style="text-transform:uppercase"></div>
+        </div>
+        <div class="form-row">
+          <label>Aadhaar (last 4 digits)</label>
+          <input type="text" id="newProfileAadhaar4" placeholder="1234" maxlength="4" inputmode="numeric">
+          <div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Only the last 4 digits — never enter the full 12-digit number.</div>
+        </div>
+        <div class="form-row">
+          <label>Other IDs (JSON)</label>
+          <textarea id="newProfileOtherIds" rows="3" placeholder='{"passport":"M1234567","driving_licence":"DL-0420110012345"}' style="font-family:monospace;font-size:12px;width:100%;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--text-primary);resize:vertical"></textarea>
+          <div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Optional. Valid JSON object, e.g. <code>{"passport":"...", "voter_id":"..."}</code></div>
+        </div>
         <button class="btn-save" onclick="createProfile()" style="margin-top:8px">+ Create Profile</button>
       </div>
     </div>
@@ -2402,24 +2420,64 @@ document.addEventListener('click', function(e){
   if (!e.target.closest('.profile-switcher')) closeProfileMenu();
 });
 
+function maskPan(pan) {
+  if (!pan || typeof pan !== 'string' || pan.length < 10) return pan || '';
+  return 'XXXXX' + pan.substring(5).toUpperCase();
+}
+
 function renderProfileManage() {
   var el = document.getElementById('profileListManage');
   if (!el) return;
   el.innerHTML = profilesData.map(function(p){
+    var meta = '';
+    if (p.legal_name) meta += '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px">'+p.legal_name+'</div>';
+    if (p.pan_number) meta += '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px">PAN: '+maskPan(p.pan_number)+'</div>';
     return '<div class="profile-manage-item">'
-      +'<span><span class="profile-color-dot" style="background:'+p.color+'"></span>'+p.icon+' '+p.name+(p.is_default?' <span style="font-size:10px;color:var(--accent-gold)">(default)</span>':'')+'</span>'
+      +'<span><span class="profile-color-dot" style="background:'+p.color+'"></span>'+p.icon+' '+p.name+(p.is_default?' <span style="font-size:10px;color:var(--accent-gold)">(default)</span>':'')+meta+'</span>'
       +(p.is_default?'':'<button class="action-btn del" onclick="deleteProfile('+p.id+')">Delete</button>')
       +'</div>';
   }).join('');
 }
 
+var PAN_RE = /^[A-Z]{5}\d{4}[A-Z]$/i;
+var AADHAAR4_RE = /^\d{4}$/;
+
 async function createProfile() {
   var name = document.getElementById('newProfileName').value.trim();
   var color = document.getElementById('newProfileColor').value;
   if (!name) return showToast('Enter a profile name','error');
-  var r = await apiPost('/api/profiles',{name,color,icon:'👤'});
+
+  var legalName = document.getElementById('newProfileLegalName').value.trim();
+  var nameAadhaar = document.getElementById('newProfileNameAadhaar').value.trim();
+  var namePan = document.getElementById('newProfileNamePan').value.trim();
+  var pan = document.getElementById('newProfilePan').value.trim();
+  var aadhaar4 = document.getElementById('newProfileAadhaar4').value.trim();
+  var otherIdsRaw = document.getElementById('newProfileOtherIds').value.trim();
+
+  if (pan && !PAN_RE.test(pan)) return showToast('PAN must look like ABCDE1234F','error');
+  if (aadhaar4 && !AADHAAR4_RE.test(aadhaar4)) return showToast('Aadhaar must be exactly 4 digits','error');
+  if (otherIdsRaw) {
+    try { JSON.parse(otherIdsRaw); }
+    catch (e) { return showToast('Other IDs must be valid JSON','error'); }
+  }
+
+  var payload = {name:name, color:color, icon:'👤'};
+  if (legalName) payload.legal_name = legalName;
+  if (nameAadhaar) payload.name_on_aadhaar = nameAadhaar;
+  if (namePan) payload.name_on_pan = namePan;
+  if (pan) payload.pan_number = pan.toUpperCase();
+  if (aadhaar4) payload.aadhaar_last4 = aadhaar4;
+  if (otherIdsRaw) payload.other_ids = otherIdsRaw;
+
+  var r = await apiPost('/api/profiles', payload);
   if (r && r.id) {
     document.getElementById('newProfileName').value='';
+    document.getElementById('newProfileLegalName').value='';
+    document.getElementById('newProfileNameAadhaar').value='';
+    document.getElementById('newProfileNamePan').value='';
+    document.getElementById('newProfilePan').value='';
+    document.getElementById('newProfileAadhaar4').value='';
+    document.getElementById('newProfileOtherIds').value='';
     await loadProfiles();
     renderProfileManage();
     showToast('Profile created','success');
