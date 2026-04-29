@@ -65,7 +65,19 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files from the public directory
+// No browser caching anywhere in the app. Every refresh must hit the server
+// and re-query — both for HTML/static assets AND for API JSON responses.
+// This is intentional: the dashboard surfaces live financial data and we
+// never want a stale page or stale net-worth figures behind a cached
+// response.
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+
+// Serve static files from the public directory.
 app.use(express.static(path.join(__dirname, '../public')));
 
 // API routes
@@ -99,7 +111,9 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'fin.kirakon.com', timestamp: new Date().toISOString() });
 });
 
-// Catch-all: serve the frontend for any non-API route
+// Catch-all: serve the frontend for any non-API route. The global no-cache
+// middleware above applies, so this path also instructs the browser to
+// revalidate on every refresh.
 app.get('*', (req, res) => {
   const indexPath = path.join(__dirname, '../public/index.html');
   res.sendFile(indexPath, (err) => {
