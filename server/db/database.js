@@ -277,6 +277,79 @@ function initializeDatabase() {
       UNIQUE(earning_id, profile_id)
     );
 
+    CREATE TABLE IF NOT EXISTS properties (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      profile_id INTEGER,
+      name TEXT NOT NULL,
+      property_type TEXT DEFAULT 'Flat' CHECK(property_type IN ('Flat','Plot','Land','Commercial','Villa','Other')),
+      address TEXT,
+      city TEXT,
+      state TEXT,
+      area REAL,
+      area_unit TEXT DEFAULT 'sqft',
+      purchase_price REAL,
+      purchase_date TEXT,
+      current_value REAL,
+      ownership_percentage REAL DEFAULT 100,
+      co_owner_name TEXT,
+      registration_number TEXT,
+      loan_outstanding REAL DEFAULT 0,
+      loan_interest_rate REAL DEFAULT 0,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS rental_agreements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      property_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      tenant_name TEXT NOT NULL,
+      tenant_phone TEXT,
+      tenant_email TEXT,
+      rent_amount REAL NOT NULL,
+      security_deposit REAL DEFAULT 0,
+      start_date TEXT NOT NULL,
+      end_date TEXT,
+      lock_in_months INTEGER DEFAULT 0,
+      payment_day INTEGER DEFAULT 1,
+      status TEXT DEFAULT 'active' CHECK(status IN ('active','expired','terminated')),
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS property_tax_payments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      property_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      assessment_year TEXT NOT NULL,
+      amount REAL NOT NULL,
+      payment_date TEXT NOT NULL,
+      receipt_number TEXT,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS property_expenses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      property_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      expense_type TEXT DEFAULT 'Maintenance' CHECK(expense_type IN ('Maintenance','Repair','Legal','Society','Other')),
+      description TEXT NOT NULL,
+      amount REAL NOT NULL,
+      date TEXT NOT NULL,
+      receipt_number TEXT,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS agent_calls (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER,

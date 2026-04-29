@@ -16,7 +16,7 @@ const npsRoutes = require('./routes/nps');
 const paymentsRoutes = require('./routes/payments');
 const taxRoutes = require('./routes/tax');
 const earningsRoutes = require('./routes/earnings');
-const notificationsRoutes = require('./routes/notifications');
+const propertiesRoutes = require('./routes/properties');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -49,7 +49,7 @@ app.use('/api/profiles', profileRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/tax', taxRoutes);
 app.use('/api/earnings', earningsRoutes);
-app.use('/api/notifications', notificationsRoutes);
+app.use('/api/properties', propertiesRoutes);
 
 const authMiddleware = require('./middleware/auth');
 const vaultRoutes = require('./routes/vault');

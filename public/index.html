@@ -342,6 +342,7 @@ body{background:var(--bg-primary);color:var(--text-primary);overflow-x:hidden}
       <button class="nav-tab" onclick="navigateTo('payments')">&#x1F4C5; Payments</button>
       <button class="nav-tab" onclick="navigateTo('analytics')">Analytics</button>
       <button class="nav-tab" onclick="navigateTo('vault')">&#x1F4C1; Vault</button>
+      <button class="nav-tab" onclick="navigateTo('properties')">&#x1F3E0; Properties</button>
     </div>
     <div class="topnav-right">
       <div class="profile-switcher" id="profileSwitcher" onclick="toggleProfileMenu()">
@@ -383,6 +384,7 @@ body{background:var(--bg-primary);color:var(--text-primary);overflow-x:hidden}
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('payments');closeMobileMenu()">&#x1F4C5; Payments</button>
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('analytics');closeMobileMenu()">Analytics</button>
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('vault');closeMobileMenu()">&#x1F4C1; Vault</button>
+      <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('properties');closeMobileMenu()">&#x1F3E0; Properties</button>
     </div>
   </div>
 
@@ -1996,6 +1998,318 @@ checkAuth();
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════════
+     PROPERTIES PAGE
+══════════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-properties" style="display:none">
+  <div class="section-header">
+    <div>
+      <div class="section-title">&#x1F3E0; Properties</div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">Flats, plots, land — rental income, tax &amp; Section 24 summary</div>
+    </div>
+    <button class="add-btn" onclick="openPropModal()">+ Add Property</button>
+  </div>
+
+  <!-- Property Cards -->
+  <div id="propCardsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:28px"></div>
+
+  <!-- Property Detail Panel (shown when a property is selected) -->
+  <div id="propDetailPanel" style="display:none">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap">
+      <button onclick="closePropDetail()" style="background:none;border:1px solid var(--border);color:var(--text-secondary);padding:6px 12px;border-radius:7px;cursor:pointer;font-size:12px">&#x2190; Back</button>
+      <div id="propDetailName" style="font-size:18px;font-weight:700;color:var(--text-primary)"></div>
+      <div id="propDetailBadge" style="font-size:11px;padding:3px 9px;border-radius:5px;background:rgba(59,130,246,.12);color:var(--accent-blue);border:1px solid rgba(59,130,246,.2)"></div>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchPropTab('overview',this)">Overview</button>
+      <button class="tab-btn" onclick="switchPropTab('agreements',this)">Rental Agreements</button>
+      <button class="tab-btn" onclick="switchPropTab('tax',this)">Property Tax</button>
+      <button class="tab-btn" onclick="switchPropTab('expenses',this)">Expenses</button>
+      <button class="tab-btn" onclick="switchPropTab('section24',this)">&#x1F4CA; Section 24</button>
+    </div>
+
+    <!-- Overview -->
+    <div class="tab-content active" id="prop-tab-overview">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:20px" id="propOverviewGrid"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+        <button class="add-btn" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border)" onclick="editCurrentProp()">&#x270F; Edit Property</button>
+        <button class="add-btn" style="background:rgba(239,68,68,.1);color:var(--accent-red);border:1px solid rgba(239,68,68,.3)" onclick="deleteCurrentProp()">&#x1F5D1; Delete</button>
+      </div>
+    </div>
+
+    <!-- Rental Agreements -->
+    <div class="tab-content" id="prop-tab-agreements">
+      <div class="section-header" style="margin-bottom:12px">
+        <div class="section-title" style="font-size:14px">Rental Agreements</div>
+        <button class="add-btn" onclick="openAgreementModal()">+ Add Agreement</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Tenant</th><th>Phone</th><th>Rent/mo</th><th>Deposit</th><th>From</th><th>To</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="agreementsTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Property Tax -->
+    <div class="tab-content" id="prop-tab-tax">
+      <div class="section-header" style="margin-bottom:12px">
+        <div class="section-title" style="font-size:14px">Property Tax Payments</div>
+        <button class="add-btn" onclick="openTaxPayModal()">+ Add Payment</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Assessment Year</th><th>Amount</th><th>Date</th><th>Receipt</th><th>Notes</th><th>Actions</th></tr></thead>
+          <tbody id="propTaxTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Expenses -->
+    <div class="tab-content" id="prop-tab-expenses">
+      <div class="section-header" style="margin-bottom:12px">
+        <div class="section-title" style="font-size:14px">Maintenance &amp; Expenses</div>
+        <button class="add-btn" onclick="openExpenseModal()">+ Add Expense</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Type</th><th>Description</th><th>Amount</th><th>Date</th><th>Receipt</th><th>Actions</th></tr></thead>
+          <tbody id="propExpensesTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Section 24 Summary -->
+    <div class="tab-content" id="prop-tab-section24">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        <div style="font-size:14px;font-weight:600;color:var(--text-primary)">Financial Year:</div>
+        <select id="sec24FYSelect" onchange="loadSection24()" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:13px">
+          <option value="2023-24">FY 2023-24</option>
+          <option value="2024-25">FY 2024-25</option>
+          <option value="2025-26" selected>FY 2025-26</option>
+          <option value="2026-27">FY 2026-27</option>
+        </select>
+      </div>
+      <div id="sec24Summary" style="max-width:540px"></div>
+      <div style="margin-top:20px;padding:14px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:10px;font-size:12px;color:var(--text-secondary)">
+        <strong style="color:var(--accent-blue)">Section 24 — Income from House Property</strong><br><br>
+        GAV = Annual rent received &nbsp;|&nbsp; NAV = GAV − Municipal taxes paid<br>
+        Sec 24(a) standard deduction = 30% of NAV (for maintenance, covers repairs etc.)<br>
+        Sec 24(b) = Home loan interest (up to ₹2L for self-occupied; unlimited for let-out)<br>
+        <em>Net income from house property = NAV − 30% − loan interest</em>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Property Add/Edit Modal -->
+<div class="modal-overlay" id="modal-addProperty">
+  <div class="modal-box" style="max-width:600px">
+    <div class="modal-title" id="propModalTitle">Add Property</div>
+    <div class="modal-form" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-row" style="grid-column:1/-1">
+        <label>Property Name *</label>
+        <input type="text" id="prop-name" placeholder="e.g. Flat at Hitech City">
+      </div>
+      <div class="form-row">
+        <label>Type</label>
+        <select id="prop-type">
+          <option>Flat</option><option>Plot</option><option>Land</option>
+          <option>Commercial</option><option>Villa</option><option>Other</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>State</label>
+        <input type="text" id="prop-state" placeholder="e.g. Telangana">
+      </div>
+      <div class="form-row" style="grid-column:1/-1">
+        <label>Address</label>
+        <input type="text" id="prop-address" placeholder="Street / Flat no / Building">
+      </div>
+      <div class="form-row">
+        <label>City</label>
+        <input type="text" id="prop-city" placeholder="e.g. Hyderabad">
+      </div>
+      <div class="form-row">
+        <label>Area</label>
+        <input type="number" id="prop-area" placeholder="e.g. 1200">
+      </div>
+      <div class="form-row">
+        <label>Area Unit</label>
+        <select id="prop-area-unit"><option>sqft</option><option>sqyd</option><option>acres</option><option>guntas</option></select>
+      </div>
+      <div class="form-row">
+        <label>Purchase Price (₹)</label>
+        <input type="number" id="prop-purchase-price" placeholder="e.g. 6500000">
+      </div>
+      <div class="form-row">
+        <label>Purchase Date</label>
+        <input type="date" id="prop-purchase-date">
+      </div>
+      <div class="form-row">
+        <label>Current Value (₹)</label>
+        <input type="number" id="prop-current-value" placeholder="e.g. 8500000">
+      </div>
+      <div class="form-row">
+        <label>Your Ownership %</label>
+        <input type="number" id="prop-ownership" value="100" min="1" max="100">
+      </div>
+      <div class="form-row">
+        <label>Co-owner Name</label>
+        <input type="text" id="prop-coowner" placeholder="Leave blank if sole owner">
+      </div>
+      <div class="form-row">
+        <label>Registration Number</label>
+        <input type="text" id="prop-reg-no" placeholder="Document/Registration No.">
+      </div>
+      <div class="form-row">
+        <label>Loan Outstanding (₹)</label>
+        <input type="number" id="prop-loan-outstanding" value="0">
+      </div>
+      <div class="form-row">
+        <label>Loan Interest Rate (%)</label>
+        <input type="number" id="prop-loan-rate" value="0" step="0.01">
+      </div>
+      <div class="form-row" style="grid-column:1/-1">
+        <label>Notes</label>
+        <input type="text" id="prop-notes" placeholder="Any extra details">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('addProperty')">Cancel</button>
+      <button class="btn-save" onclick="saveProp()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Rental Agreement Modal -->
+<div class="modal-overlay" id="modal-addAgreement">
+  <div class="modal-box" style="max-width:520px">
+    <div class="modal-title">Rental Agreement</div>
+    <div class="modal-form" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-row">
+        <label>Tenant Name *</label>
+        <input type="text" id="agr-tenant">
+      </div>
+      <div class="form-row">
+        <label>Phone</label>
+        <input type="text" id="agr-phone">
+      </div>
+      <div class="form-row">
+        <label>Email</label>
+        <input type="email" id="agr-email">
+      </div>
+      <div class="form-row">
+        <label>Rent/Month (₹) *</label>
+        <input type="number" id="agr-rent">
+      </div>
+      <div class="form-row">
+        <label>Security Deposit (₹)</label>
+        <input type="number" id="agr-deposit" value="0">
+      </div>
+      <div class="form-row">
+        <label>Start Date *</label>
+        <input type="date" id="agr-start">
+      </div>
+      <div class="form-row">
+        <label>End Date</label>
+        <input type="date" id="agr-end">
+      </div>
+      <div class="form-row">
+        <label>Lock-in (months)</label>
+        <input type="number" id="agr-lockin" value="0">
+      </div>
+      <div class="form-row">
+        <label>Payment Day</label>
+        <input type="number" id="agr-payday" value="1" min="1" max="31">
+      </div>
+      <div class="form-row">
+        <label>Status</label>
+        <select id="agr-status"><option>active</option><option>expired</option><option>terminated</option></select>
+      </div>
+      <div class="form-row" style="grid-column:1/-1">
+        <label>Notes</label>
+        <input type="text" id="agr-notes">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('addAgreement')">Cancel</button>
+      <button class="btn-save" onclick="saveAgreement()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Property Tax Payment Modal -->
+<div class="modal-overlay" id="modal-addTaxPay">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-title">Property Tax Payment</div>
+    <div class="modal-form" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-row">
+        <label>Assessment Year *</label>
+        <input type="text" id="taxp-ay" placeholder="e.g. 2025-26">
+      </div>
+      <div class="form-row">
+        <label>Amount (₹) *</label>
+        <input type="number" id="taxp-amount">
+      </div>
+      <div class="form-row">
+        <label>Payment Date *</label>
+        <input type="date" id="taxp-date">
+      </div>
+      <div class="form-row">
+        <label>Receipt Number</label>
+        <input type="text" id="taxp-receipt">
+      </div>
+      <div class="form-row" style="grid-column:1/-1">
+        <label>Notes</label>
+        <input type="text" id="taxp-notes">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('addTaxPay')">Cancel</button>
+      <button class="btn-save" onclick="saveTaxPayment()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Expense Modal -->
+<div class="modal-overlay" id="modal-addPropExpense">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-title">Add Expense</div>
+    <div class="modal-form" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-row">
+        <label>Type</label>
+        <select id="exp-type"><option>Maintenance</option><option>Repair</option><option>Legal</option><option>Society</option><option>Other</option></select>
+      </div>
+      <div class="form-row">
+        <label>Amount (₹) *</label>
+        <input type="number" id="exp-amount">
+      </div>
+      <div class="form-row" style="grid-column:1/-1">
+        <label>Description *</label>
+        <input type="text" id="exp-desc" placeholder="e.g. Plumbing repair">
+      </div>
+      <div class="form-row">
+        <label>Date *</label>
+        <input type="date" id="exp-date">
+      </div>
+      <div class="form-row">
+        <label>Receipt No.</label>
+        <input type="text" id="exp-receipt">
+      </div>
+      <div class="form-row" style="grid-column:1/-1">
+        <label>Notes</label>
+        <input type="text" id="exp-notes">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('addPropExpense')">Cancel</button>
+      <button class="btn-save" onclick="saveExpense()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
      EARNINGS PAGE
 ══════════════════════════════════════════════════════════════════════ -->
 <div class="page" id="page-earnings" style="display:none">
@@ -2916,7 +3230,7 @@ loadAllData = async function() {
 var _origNavigateTo = navigateTo;
 navigateTo = function(page) {
   _origNavigateTo(page);
-  var pages = ['dashboard','investments','liabilities','handloans','analytics','vault','earnings','payments'];
+  var pages = ['dashboard','investments','liabilities','handloans','analytics','vault','earnings','payments','properties'];
   pages.forEach(function(p){
     var el = document.getElementById('page-'+p);
     if (el) el.style.display = p===page ? '' : 'none';
@@ -2925,6 +3239,7 @@ navigateTo = function(page) {
   });
   if (page==='earnings') { renderEarnings(); }
   if (page==='payments') { renderPayments(); }
+  if (page==='properties') { loadProperties(); }
   if (page==='investments') { /* tabs handled by switchInvTab */ }
 };
 
@@ -2967,6 +3282,372 @@ tryLogin = async function(email, password) {
   if (result) await loadProfiles();
   return result;
 };
+
+// ─── PROPERTIES MODULE ──────────────────────────────────────────────────────
+var propertiesData = [];
+var currentPropId = null;
+var editingPropId = null;
+var editingAgrId = null;
+
+function fmt(n){ return n == null ? '—' : '₹'+Number(n).toLocaleString('en-IN'); }
+function fmtN(n){ return n == null ? '—' : Number(n).toLocaleString('en-IN'); }
+
+async function loadProperties() {
+  var r = await apiFetch('/api/properties');
+  propertiesData = (r && r.properties) ? r.properties : [];
+  renderPropCards();
+}
+
+function renderPropCards() {
+  var grid = document.getElementById('propCardsGrid');
+  var panel = document.getElementById('propDetailPanel');
+  if (!grid) return;
+  if (!propertiesData.length) {
+    grid.innerHTML = '<div style="color:var(--text-secondary);font-size:14px;padding:20px">No properties yet. Click "+ Add Property" to get started.</div>';
+    return;
+  }
+  grid.innerHTML = propertiesData.map(function(p){
+    var rent = p.active_rent ? fmt(p.active_rent)+'/mo' : '<span style="color:var(--text-secondary)">Not rented</span>';
+    var value = p.current_value || p.purchase_price;
+    return '<div class="fd-card" style="cursor:pointer" onclick="openPropDetail('+p.id+')">'
+      +'<div class="fd-card-top">'
+        +'<div class="fd-bank">'+escHtml(p.name)+'</div>'
+        +'<span class="fd-type">'+escHtml(p.property_type)+'</span>'
+      +'</div>'
+      +(p.city ? '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">&#x1F4CD; '+escHtml(p.city)+(p.state?', '+escHtml(p.state):'')+'</div>' : '')
+      +'<div class="fd-row"><span class="lbl">Value</span><span class="val">'+(value ? fmt(value) : '—')+'</span></div>'
+      +'<div class="fd-row"><span class="lbl">Ownership</span><span class="val">'+(p.ownership_percentage||100)+'%</span></div>'
+      +'<div class="fd-row"><span class="lbl">Rent</span><span class="val">'+rent+'</span></div>'
+      +(p.area ? '<div class="fd-row"><span class="lbl">Area</span><span class="val">'+fmtN(p.area)+' '+escHtml(p.area_unit||'sqft')+'</span></div>' : '')
+    +'</div>';
+  }).join('');
+}
+
+function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+async function openPropDetail(id) {
+  currentPropId = id;
+  var prop = propertiesData.find(function(p){return p.id===id});
+  if (!prop) return;
+  document.getElementById('propCardsGrid').style.display = 'none';
+  document.getElementById('propDetailPanel').style.display = '';
+  document.getElementById('propDetailName').textContent = prop.name;
+  document.getElementById('propDetailBadge').textContent = prop.property_type;
+
+  // Overview grid
+  var grid = document.getElementById('propOverviewGrid');
+  var fields = [
+    ['Type', prop.property_type],
+    ['City / State', [prop.city, prop.state].filter(Boolean).join(', ') || '—'],
+    ['Address', prop.address || '—'],
+    ['Area', prop.area ? fmtN(prop.area)+' '+(prop.area_unit||'sqft') : '—'],
+    ['Purchase Price', fmt(prop.purchase_price)],
+    ['Purchase Date', prop.purchase_date || '—'],
+    ['Current Value', fmt(prop.current_value)],
+    ['Ownership', (prop.ownership_percentage||100)+'%'],
+    ['Co-owner', prop.co_owner_name || '—'],
+    ['Reg. No.', prop.registration_number || '—'],
+    ['Loan Outstanding', fmt(prop.loan_outstanding)],
+    ['Loan Interest', prop.loan_interest_rate ? prop.loan_interest_rate+'%' : '—'],
+    ['Notes', prop.notes || '—'],
+  ];
+  grid.innerHTML = fields.map(function(f){
+    return '<div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:12px">'
+      +'<div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">'+escHtml(f[0])+'</div>'
+      +'<div style="font-size:14px;font-weight:600;color:var(--text-primary)">'+escHtml(String(f[1]))+'</div>'
+    +'</div>';
+  }).join('');
+
+  switchPropTab('overview', document.querySelector('#prop-tab-overview'));
+  document.querySelectorAll('#propDetailPanel .tab-btn').forEach(function(b,i){b.classList.toggle('active',i===0)});
+  loadAgreements();
+}
+
+function closePropDetail() {
+  currentPropId = null;
+  document.getElementById('propCardsGrid').style.display = '';
+  document.getElementById('propDetailPanel').style.display = 'none';
+}
+
+function switchPropTab(tab, btn) {
+  document.querySelectorAll('#propDetailPanel .tab-content').forEach(function(c){c.classList.remove('active')});
+  document.getElementById('prop-tab-'+tab).classList.add('active');
+  document.querySelectorAll('#propDetailPanel .tab-btn').forEach(function(b){b.classList.remove('active')});
+  if (btn && btn.classList) btn.classList.add('active');
+  if (tab==='agreements') loadAgreements();
+  if (tab==='tax') loadPropTax();
+  if (tab==='expenses') loadPropExpenses();
+  if (tab==='section24') loadSection24();
+}
+
+// ── Property CRUD ─────────────────────────────────────────────────────────
+function openPropModal(prop) {
+  editingPropId = prop ? prop.id : null;
+  document.getElementById('propModalTitle').textContent = prop ? 'Edit Property' : 'Add Property';
+  document.getElementById('prop-name').value = prop ? prop.name : '';
+  document.getElementById('prop-type').value = prop ? prop.property_type : 'Flat';
+  document.getElementById('prop-state').value = prop ? (prop.state||'') : '';
+  document.getElementById('prop-address').value = prop ? (prop.address||'') : '';
+  document.getElementById('prop-city').value = prop ? (prop.city||'') : '';
+  document.getElementById('prop-area').value = prop ? (prop.area||'') : '';
+  document.getElementById('prop-area-unit').value = prop ? (prop.area_unit||'sqft') : 'sqft';
+  document.getElementById('prop-purchase-price').value = prop ? (prop.purchase_price||'') : '';
+  document.getElementById('prop-purchase-date').value = prop ? (prop.purchase_date||'') : '';
+  document.getElementById('prop-current-value').value = prop ? (prop.current_value||'') : '';
+  document.getElementById('prop-ownership').value = prop ? (prop.ownership_percentage||100) : 100;
+  document.getElementById('prop-coowner').value = prop ? (prop.co_owner_name||'') : '';
+  document.getElementById('prop-reg-no').value = prop ? (prop.registration_number||'') : '';
+  document.getElementById('prop-loan-outstanding').value = prop ? (prop.loan_outstanding||0) : 0;
+  document.getElementById('prop-loan-rate').value = prop ? (prop.loan_interest_rate||0) : 0;
+  document.getElementById('prop-notes').value = prop ? (prop.notes||'') : '';
+  openModal('addProperty');
+}
+
+async function saveProp() {
+  var body = {
+    name: document.getElementById('prop-name').value.trim(),
+    property_type: document.getElementById('prop-type').value,
+    state: document.getElementById('prop-state').value.trim(),
+    address: document.getElementById('prop-address').value.trim(),
+    city: document.getElementById('prop-city').value.trim(),
+    area: parseFloat(document.getElementById('prop-area').value)||null,
+    area_unit: document.getElementById('prop-area-unit').value,
+    purchase_price: parseFloat(document.getElementById('prop-purchase-price').value)||null,
+    purchase_date: document.getElementById('prop-purchase-date').value||null,
+    current_value: parseFloat(document.getElementById('prop-current-value').value)||null,
+    ownership_percentage: parseFloat(document.getElementById('prop-ownership').value)||100,
+    co_owner_name: document.getElementById('prop-coowner').value.trim()||null,
+    registration_number: document.getElementById('prop-reg-no').value.trim()||null,
+    loan_outstanding: parseFloat(document.getElementById('prop-loan-outstanding').value)||0,
+    loan_interest_rate: parseFloat(document.getElementById('prop-loan-rate').value)||0,
+    notes: document.getElementById('prop-notes').value.trim()||null,
+  };
+  if (!body.name) { showToast('Property name is required','error'); return; }
+  var token = localStorage.getItem('fin_token');
+  var url = editingPropId ? '/api/properties/'+editingPropId : '/api/properties';
+  var method = editingPropId ? 'PUT' : 'POST';
+  var res = await fetch(url, {method:method, headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body:JSON.stringify(body)});
+  if (!res.ok) { showToast('Save failed','error'); return; }
+  showToast(editingPropId ? 'Property updated' : 'Property added');
+  closeModal('addProperty');
+  loadProperties();
+  if (editingPropId && currentPropId === editingPropId) {
+    setTimeout(function(){ openPropDetail(editingPropId); }, 300);
+  }
+}
+
+function editCurrentProp() {
+  var prop = propertiesData.find(function(p){return p.id===currentPropId});
+  if (prop) openPropModal(prop);
+}
+
+async function deleteCurrentProp() {
+  if (!confirm('Delete this property and all its data?')) return;
+  var token = localStorage.getItem('fin_token');
+  var res = await fetch('/api/properties/'+currentPropId, {method:'DELETE',headers:{'Authorization':'Bearer '+token}});
+  if (!res.ok) { showToast('Delete failed','error'); return; }
+  showToast('Property deleted');
+  closePropDetail();
+  loadProperties();
+}
+
+// ── Agreements ────────────────────────────────────────────────────────────
+async function loadAgreements() {
+  if (!currentPropId) return;
+  var r = await apiFetch('/api/properties/'+currentPropId+'/agreements');
+  var rows = r && r.agreements ? r.agreements : [];
+  var statusColor = {active:'var(--accent-green)',expired:'var(--text-secondary)',terminated:'var(--accent-red)'};
+  document.getElementById('agreementsTbody').innerHTML = rows.length ? rows.map(function(a){
+    return '<tr>'
+      +'<td>'+escHtml(a.tenant_name)+'</td>'
+      +'<td>'+(a.tenant_phone||'—')+'</td>'
+      +'<td>'+fmt(a.rent_amount)+'</td>'
+      +'<td>'+fmt(a.security_deposit)+'</td>'
+      +'<td>'+escHtml(a.start_date)+'</td>'
+      +'<td>'+(a.end_date||'—')+'</td>'
+      +'<td><span style="color:'+statusColor[a.status]+';font-weight:600">'+a.status+'</span></td>'
+      +'<td><button class="action-btn del" onclick="deleteAgreement('+a.id+')">Delete</button></td>'
+    +'</tr>';
+  }).join('') : '<tr><td colspan="8" style="color:var(--text-secondary);text-align:center;padding:20px">No agreements yet.</td></tr>';
+}
+
+function openAgreementModal() {
+  editingAgrId = null;
+  ['agr-tenant','agr-phone','agr-email','agr-notes'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('agr-rent').value = '';
+  document.getElementById('agr-deposit').value = '0';
+  document.getElementById('agr-start').value = new Date().toISOString().split('T')[0];
+  document.getElementById('agr-end').value = '';
+  document.getElementById('agr-lockin').value = '0';
+  document.getElementById('agr-payday').value = '1';
+  document.getElementById('agr-status').value = 'active';
+  openModal('addAgreement');
+}
+
+async function saveAgreement() {
+  var body = {
+    tenant_name: document.getElementById('agr-tenant').value.trim(),
+    tenant_phone: document.getElementById('agr-phone').value.trim()||null,
+    tenant_email: document.getElementById('agr-email').value.trim()||null,
+    rent_amount: parseFloat(document.getElementById('agr-rent').value)||0,
+    security_deposit: parseFloat(document.getElementById('agr-deposit').value)||0,
+    start_date: document.getElementById('agr-start').value,
+    end_date: document.getElementById('agr-end').value||null,
+    lock_in_months: parseInt(document.getElementById('agr-lockin').value)||0,
+    payment_day: parseInt(document.getElementById('agr-payday').value)||1,
+    status: document.getElementById('agr-status').value,
+    notes: document.getElementById('agr-notes').value.trim()||null,
+  };
+  if (!body.tenant_name || !body.rent_amount || !body.start_date) {
+    showToast('Tenant name, rent and start date are required','error'); return;
+  }
+  var token = localStorage.getItem('fin_token');
+  var res = await fetch('/api/properties/'+currentPropId+'/agreements',
+    {method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
+  if (!res.ok) { showToast('Save failed','error'); return; }
+  showToast('Agreement saved');
+  closeModal('addAgreement');
+  loadAgreements();
+}
+
+async function deleteAgreement(id) {
+  if (!confirm('Delete this agreement?')) return;
+  var token = localStorage.getItem('fin_token');
+  await fetch('/api/properties/'+currentPropId+'/agreements/'+id, {method:'DELETE',headers:{'Authorization':'Bearer '+token}});
+  loadAgreements();
+}
+
+// ── Property Tax ──────────────────────────────────────────────────────────
+async function loadPropTax() {
+  if (!currentPropId) return;
+  var r = await apiFetch('/api/properties/'+currentPropId+'/tax-payments');
+  var rows = r && r.tax_payments ? r.tax_payments : [];
+  document.getElementById('propTaxTbody').innerHTML = rows.length ? rows.map(function(t){
+    return '<tr>'
+      +'<td>'+escHtml(t.assessment_year)+'</td>'
+      +'<td>'+fmt(t.amount)+'</td>'
+      +'<td>'+escHtml(t.payment_date)+'</td>'
+      +'<td>'+(t.receipt_number||'—')+'</td>'
+      +'<td>'+(t.notes||'—')+'</td>'
+      +'<td><button class="action-btn del" onclick="deleteTaxPay('+t.id+')">Delete</button></td>'
+    +'</tr>';
+  }).join('') : '<tr><td colspan="6" style="color:var(--text-secondary);text-align:center;padding:20px">No tax payments yet.</td></tr>';
+}
+
+function openTaxPayModal() {
+  ['taxp-amount','taxp-receipt','taxp-notes'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('taxp-ay').value = '2025-26';
+  document.getElementById('taxp-date').value = new Date().toISOString().split('T')[0];
+  openModal('addTaxPay');
+}
+
+async function saveTaxPayment() {
+  var body = {
+    assessment_year: document.getElementById('taxp-ay').value.trim(),
+    amount: parseFloat(document.getElementById('taxp-amount').value)||0,
+    payment_date: document.getElementById('taxp-date').value,
+    receipt_number: document.getElementById('taxp-receipt').value.trim()||null,
+    notes: document.getElementById('taxp-notes').value.trim()||null,
+  };
+  if (!body.assessment_year || !body.amount || !body.payment_date) {
+    showToast('Assessment year, amount and date are required','error'); return;
+  }
+  var token = localStorage.getItem('fin_token');
+  var res = await fetch('/api/properties/'+currentPropId+'/tax-payments',
+    {method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
+  if (!res.ok) { showToast('Save failed','error'); return; }
+  showToast('Tax payment saved');
+  closeModal('addTaxPay');
+  loadPropTax();
+}
+
+async function deleteTaxPay(id) {
+  if (!confirm('Delete this record?')) return;
+  var token = localStorage.getItem('fin_token');
+  await fetch('/api/properties/'+currentPropId+'/tax-payments/'+id, {method:'DELETE',headers:{'Authorization':'Bearer '+token}});
+  loadPropTax();
+}
+
+// ── Expenses ──────────────────────────────────────────────────────────────
+async function loadPropExpenses() {
+  if (!currentPropId) return;
+  var r = await apiFetch('/api/properties/'+currentPropId+'/expenses');
+  var rows = r && r.expenses ? r.expenses : [];
+  document.getElementById('propExpensesTbody').innerHTML = rows.length ? rows.map(function(e){
+    return '<tr>'
+      +'<td>'+escHtml(e.expense_type)+'</td>'
+      +'<td>'+escHtml(e.description)+'</td>'
+      +'<td>'+fmt(e.amount)+'</td>'
+      +'<td>'+escHtml(e.date)+'</td>'
+      +'<td>'+(e.receipt_number||'—')+'</td>'
+      +'<td><button class="action-btn del" onclick="deleteExpense('+e.id+')">Delete</button></td>'
+    +'</tr>';
+  }).join('') : '<tr><td colspan="6" style="color:var(--text-secondary);text-align:center;padding:20px">No expenses yet.</td></tr>';
+}
+
+function openExpenseModal() {
+  ['exp-amount','exp-desc','exp-receipt','exp-notes'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('exp-type').value = 'Maintenance';
+  document.getElementById('exp-date').value = new Date().toISOString().split('T')[0];
+  openModal('addPropExpense');
+}
+
+async function saveExpense() {
+  var body = {
+    expense_type: document.getElementById('exp-type').value,
+    description: document.getElementById('exp-desc').value.trim(),
+    amount: parseFloat(document.getElementById('exp-amount').value)||0,
+    date: document.getElementById('exp-date').value,
+    receipt_number: document.getElementById('exp-receipt').value.trim()||null,
+    notes: document.getElementById('exp-notes').value.trim()||null,
+  };
+  if (!body.description || !body.amount || !body.date) {
+    showToast('Description, amount and date are required','error'); return;
+  }
+  var token = localStorage.getItem('fin_token');
+  var res = await fetch('/api/properties/'+currentPropId+'/expenses',
+    {method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
+  if (!res.ok) { showToast('Save failed','error'); return; }
+  showToast('Expense saved');
+  closeModal('addPropExpense');
+  loadPropExpenses();
+}
+
+async function deleteExpense(id) {
+  if (!confirm('Delete this expense?')) return;
+  var token = localStorage.getItem('fin_token');
+  await fetch('/api/properties/'+currentPropId+'/expenses/'+id, {method:'DELETE',headers:{'Authorization':'Bearer '+token}});
+  loadPropExpenses();
+}
+
+// ── Section 24 ────────────────────────────────────────────────────────────
+async function loadSection24() {
+  if (!currentPropId) return;
+  var fy = document.getElementById('sec24FYSelect') ? document.getElementById('sec24FYSelect').value : '2025-26';
+  var r = await apiFetch('/api/properties/'+currentPropId+'/section24?fy='+fy);
+  var el = document.getElementById('sec24Summary');
+  if (!r) { el.innerHTML = '<div style="color:var(--accent-red)">Failed to load.</div>'; return; }
+  function row(label, value, highlight) {
+    return '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">'
+      +'<span style="color:var(--text-secondary);font-size:13px">'+label+'</span>'
+      +'<span style="font-weight:600;color:'+(highlight||'var(--text-primary)')+';font-size:14px">'+value+'</span>'
+    +'</div>';
+  }
+  var net = r.net_income_from_house_property;
+  var netColor = net >= 0 ? 'var(--accent-red)' : 'var(--accent-green)';
+  el.innerHTML = '<div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:16px">'
+    + row('Gross Annual Value (GAV)', fmt(r.gross_annual_value))
+    + row('Less: Municipal Tax Paid', '('+fmt(r.municipal_tax_paid)+')', 'var(--accent-red)')
+    + row('Net Annual Value (NAV)', fmt(r.net_annual_value))
+    + row('Less: Sec 24(a) — 30% std deduction', '('+fmt(r.section_24a_deduction)+')', 'var(--accent-red)')
+    + row('Less: Sec 24(b) — Loan Interest', '('+fmt(r.section_24b_interest)+')', 'var(--accent-red)')
+    + '<div style="display:flex;justify-content:space-between;padding:12px 0;margin-top:4px">'
+      +'<span style="font-weight:700;font-size:14px;color:var(--text-primary)">Net Income from House Property</span>'
+      +'<span style="font-weight:800;font-size:16px;color:'+netColor+'">'+fmt(net)+'</span>'
+    +'</div>'
+    + '<div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Actual maintenance expenses this FY: '+fmt(r.actual_expenses)+' (informational — covered by Sec 24a flat deduction)</div>'
+  +'</div>';
+}
 </script>
 
 </body>
