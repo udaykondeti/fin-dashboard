@@ -4239,8 +4239,13 @@ async function previewImport(content) {
   importDetectedType = r.detected_type !== 'unknown' ? r.detected_type : 'stocks';
   var section = document.getElementById('importPreviewSection');
   section.style.display = '';
-  document.getElementById('importDetectedType').textContent = 'Detected: ' + {stocks:'Indian Stocks', mutual_funds:'Mutual Funds', earnings:'Earnings', unknown:'Unknown (select below)'}[r.detected_type] || r.detected_type;
-  document.getElementById('importRowCount').textContent = r.row_count + ' rows in file, ' + importRows.length + ' importable';
+  var TYPE_LABEL = {stocks:'Indian Stocks', mutual_funds:'Mutual Funds', earnings:'Earnings', unknown:'Unknown (select below)'};
+  document.getElementById('importDetectedType').textContent = 'Detected: ' + (TYPE_LABEL[r.detected_type] || r.detected_type || 'Unknown');
+  var hint = '';
+  if (r.detected_type === 'unknown' || !importRows.length) {
+    hint = '<div style="color:var(--accent-red);font-size:12px;margin-top:6px">Couldn\'t auto-detect this format. Headers seen: <code>'+esc((r.headers||[]).join(', '))+'</code>. Pick a type below to import anyway.</div>';
+  }
+  document.getElementById('importRowCount').innerHTML = (r.row_count||0) + ' rows in file, ' + importRows.length + ' importable.' + hint;
   document.getElementById('importTypeOverride').value = importDetectedType;
   document.getElementById('importResultMsg').innerHTML = '';
   renderImportPreview(importRows, importDetectedType);
@@ -4274,10 +4279,11 @@ async function commitImport() {
     +(r.skipped?' <span style="color:var(--text-secondary)">· '+r.skipped+' skipped</span>':'')
     +(r.errors&&r.errors.length?'<div style="color:var(--accent-red);font-size:11px;margin-top:6px">Errors: '+r.errors.join(', ')+'</div>':'');
   showToast('Imported '+r.inserted+' rows', 'success');
-  // Refresh relevant data
-  if (type==='stocks') loadInvestments();
-  if (type==='mutual_funds') loadInvestments();
-  if (type==='earnings') loadEarnings();
+  // Refresh relevant data — loadAllData re-fetches stocks/MFs/etc.
+  if (type==='stocks' || type==='mutual_funds') {
+    if (typeof loadAllData === 'function') loadAllData();
+  }
+  if (type==='earnings' && typeof loadEarnings === 'function') loadEarnings();
 }
 
 function clearImport() {
