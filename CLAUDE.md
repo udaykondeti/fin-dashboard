@@ -56,6 +56,8 @@ The mounting in `server/index.js` is non-trivial: `savings`, `insurance`, and `n
 
 If AWS env vars are missing, vault endpoints return `503` via the `requireS3` helper rather than crashing — preserve that behavior so the app still runs locally without S3.
 
+**Slack notifications (outgoing only).** `server/services/slack.js` exposes `isSlackConfigured()` and `notify(message)` (string or `{text, blocks}` object) which POSTs to `SLACK_WEBHOOK_URL` (the kirakon app's incoming webhook). When the env var is unset, `notify()` returns `{ok: false, status: 503, ...}` rather than throwing — same graceful-degradation pattern as `services/s3.js`. The admin test surface is `server/routes/notifications.js` (`GET /slack/status`, `POST /slack/test`). No domain triggers are wired up yet — those land in a follow-up. Bidirectional Slack → server (event subscriptions, slash commands, signing-secret verification) requires a separate follow-up PR with bot token + signing secret.
+
 **Two `package.json` files.** The root `package.json` is the canonical one — it's what `npm install`, `npm run dev`, and `ecosystem.config.js` (`script: 'server/index.js'`) all use. `server/package.json` exists but is not installed by the deploy/dev flow; treat the root one as the source of truth for dependencies.
 
 ## Configuration
