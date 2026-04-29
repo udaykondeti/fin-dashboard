@@ -4656,6 +4656,51 @@ function agentStopStream() {
   agentState.streaming = false;
   agentUpdateInputState();
 }
+
+async function agentConfirmProposal() {
+  if (!agentState.pendingProposal) return;
+  var p = agentState.pendingProposal;
+  // Optimistic UI
+  var card = document.querySelector('.agent-proposal');
+  if (card) { card.classList.add('applied'); card.querySelector('.actions').innerHTML = '<span>✓ Working...</span>'; }
+
+  var r = await apiPost('/api/chat/threads/'+agentState.activeId+'/confirm', {
+    tool_use_id: p.tool_use_id,
+    message_id:  p.message_id,
+    decision:    'confirm',
+    mutation:    p.mutation
+  });
+  if (!r || (r.applied === false && r.error)) {
+    showToast((r && r.error) || 'Confirmation failed', 'error');
+    if (card) { card.classList.remove('applied'); card.classList.add('rejected'); card.querySelector('.actions').innerHTML = '<span>✗ Failed</span>'; }
+  }
+  agentState.pendingProposal = null;
+  // Re-fetch the thread to pick up the new tool message
+  if (agentState.activeId) {
+    var t = await apiFetch('/api/chat/threads/'+agentState.activeId);
+    if (t && t.messages) { agentState.messages = t.messages; agentRenderMessages(); }
+  }
+  agentUpdateInputState();
+}
+
+async function agentRejectProposal() {
+  if (!agentState.pendingProposal) return;
+  var p = agentState.pendingProposal;
+  var card = document.querySelector('.agent-proposal');
+  if (card) { card.classList.add('rejected'); card.querySelector('.actions').innerHTML = '<span>✗ Rejected</span>'; }
+
+  await apiPost('/api/chat/threads/'+agentState.activeId+'/confirm', {
+    tool_use_id: p.tool_use_id,
+    message_id:  p.message_id,
+    decision:    'reject'
+  });
+  agentState.pendingProposal = null;
+  if (agentState.activeId) {
+    var t = await apiFetch('/api/chat/threads/'+agentState.activeId);
+    if (t && t.messages) { agentState.messages = t.messages; agentRenderMessages(); }
+  }
+  agentUpdateInputState();
+}
 </script>
 
 </body>

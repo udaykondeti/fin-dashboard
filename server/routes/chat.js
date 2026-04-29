@@ -106,13 +106,24 @@ router.post('/threads/:id/confirm', async (req, res) => {
   // route handler in-process. We use a small request-scoped fetch against
   // our own server (auth header reused from this request) for simplicity
   // and to keep route logic the single source of truth.
-  if (!mutation || !mutation.method || !mutation.path) return res.status(400).json({ error: 'mutation missing on confirm' });
+  // Rebuild the mutation from the stored proposal input if the client
+  // lost it (e.g., after a reload restored a pending-proposal thread).
+  var effMutation = mutation;
+  if (!effMutation || !effMutation.method || !effMutation.path) {
+    var tools = require('../services/chatTools');
+    var stored = tu.find(function(u){ return u.id === tool_use_id; });
+    if (!stored) return res.status(400).json({ error: 'mutation missing and tool_use not found' });
+    try {
+      var rebuilt = tools.buildProposal(stored.name, stored.input, { userId: req.user.id });
+      effMutation = rebuilt.mutation;
+    } catch (e) { return res.status(400).json({ error: 'Could not rebuild mutation: ' + e.message }); }
+  }
   let result, isError = false;
   try {
-    const r = await fetch(`http://127.0.0.1:${process.env.PORT || 3001}${mutation.path}`, {
-      method: mutation.method,
+    const r = await fetch(`http://127.0.0.1:${process.env.PORT || 3001}${effMutation.path}`, {
+      method: effMutation.method,
       headers: { 'Content-Type': 'application/json', 'Authorization': req.headers.authorization || '' },
-      body: mutation.body ? JSON.stringify(mutation.body) : undefined
+      body: effMutation.body ? JSON.stringify(effMutation.body) : undefined
     });
     result = await r.json().catch(() => ({}));
     if (!r.ok) { isError = true; result = { error: result.error || `HTTP ${r.status}` }; }
