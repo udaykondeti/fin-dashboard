@@ -98,6 +98,24 @@ router.get('/', async (req, res) => {
     // ── Net Worth ──
     const netWorth = totalAssets - totalLiabilities;
 
+    // Persist today's snapshot so the trend chart shows real history. The
+    // primary key (user_id, snapshot_date) makes this a no-op if a snapshot
+    // already exists for today; we still UPDATE so intra-day price moves are
+    // reflected on the same calendar day.
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      db.prepare(`
+        INSERT INTO networth_snapshots (user_id, snapshot_date, total_assets, total_liabilities, net_worth)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(user_id, snapshot_date) DO UPDATE SET
+          total_assets = excluded.total_assets,
+          total_liabilities = excluded.total_liabilities,
+          net_worth = excluded.net_worth
+      `).run(userId, today, totalAssets, totalLiabilities, netWorth);
+    } catch (snapErr) {
+      console.error('[networth] Failed to record snapshot:', snapErr.message);
+    }
+
     res.json({
       net_worth: {
         total_assets: Math.round(totalAssets),
@@ -156,6 +174,30 @@ router.get('/', async (req, res) => {
   } catch (err) {
     console.error('Net worth error:', err);
     res.status(500).json({ error: 'Failed to compute net worth', message: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/networth/history?months=12
+// Returns a sparse time series of net worth snapshots — one row per calendar
+// day on which a snapshot was recorded. Caller decides how to bucket (e.g.
+// last value per month for the dashboard line chart).
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/history', (req, res) => {
+  const userId = req.user.id;
+  const months = Math.max(1, Math.min(60, parseInt(req.query.months, 10) || 12));
+  try {
+    const rows = db.prepare(`
+      SELECT snapshot_date, total_assets, total_liabilities, net_worth
+      FROM networth_snapshots
+      WHERE user_id = ?
+        AND snapshot_date >= date('now', '-' || ? || ' months')
+      ORDER BY snapshot_date ASC
+    `).all(userId, months);
+    res.json({ history: rows, months });
+  } catch (err) {
+    console.error('[networth] history error:', err);
+    res.status(500).json({ error: 'Failed to fetch history' });
   }
 });
 

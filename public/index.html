@@ -1354,6 +1354,48 @@ var CDEF={
 
 function destroyCharts(){Object.values(charts).forEach(function(c){try{c.destroy()}catch(e){}});charts={}}
 
+// Returns a Promise<Array<{label, net_worth, total_assets, total_liabilities}>>
+// where each entry is the LAST snapshot recorded in that calendar month over
+// the last `months` months. Empty array if the user has no snapshots yet.
+function fetchNetWorthHistoryMonthly(months) {
+  return apiFetch('/api/networth/history?months=' + (months || 12)).then(function(r){
+    var rows = (r && r.history) || [];
+    if (!rows.length) return [];
+    // Bucket by YYYY-MM, keep the last snapshot in each month.
+    var byMonth = {};
+    rows.forEach(function(row){
+      var key = (row.snapshot_date || '').slice(0, 7); // YYYY-MM
+      if (!key) return;
+      byMonth[key] = row;
+    });
+    var keys = Object.keys(byMonth).sort();
+    var monthLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return keys.map(function(k){
+      var snap = byMonth[k];
+      var monthIdx = parseInt(k.slice(5,7), 10) - 1;
+      return {
+        label: monthLabels[monthIdx] + " '" + k.slice(2,4),
+        net_worth: snap.net_worth,
+        total_assets: snap.total_assets,
+        total_liabilities: snap.total_liabilities
+      };
+    });
+  }).catch(function(){ return []; });
+}
+
+// Replace the chart canvas with a centred message. Used when there isn't
+// enough recorded history to draw a meaningful trend line.
+function renderChartEmptyState(canvasId, msg) {
+  var canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  var parent = canvas.parentElement;
+  if (!parent) return;
+  // Remove the canvas; replace with a placeholder div so we don't disturb
+  // adjacent layout. Re-rendering the chart will skip the canvas branch and
+  // continue showing this message until snapshots accumulate.
+  parent.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-secondary);font-size:13px;text-align:center;padding:20px">'+esc(msg)+'</div>';
+}
+
 function renderDashboardCharts(){
   var t=calcTotals();
   renderActivity();
@@ -1363,15 +1405,33 @@ function renderDashboardCharts(){
     data:{labels:['Indian Stocks','Mutual Funds','FD/RD','US Stocks'],datasets:[{data:[Math.round(t.stocksVal),Math.round(t.mfVal),Math.round(t.fdVal),Math.round(t.usVal)],backgroundColor:['#10b981','#3b82f6','#f59e0b','#8b5cf6'],borderColor:'#0f172a',borderWidth:3}]},
     options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{...CDEF.plugins,legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:11},padding:12}}}}
   });
-  var months=['May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr'];
-  var base=t.netWorth*0.72;
-  var nwData=months.map(function(m,i){return Math.round(base+((t.netWorth-base)/11)*i)});
-  nwData[11]=Math.round(t.netWorth);
+  // Real trend from networth_snapshots. The previous version fabricated a
+  // linear interpolation from `netWorth * 0.72` to today, which displayed as
+  // a perfectly straight line that didn't reflect anything real.
   if(charts.networth)charts.networth.destroy();
-  charts.networth=new Chart(document.getElementById('networthChart').getContext('2d'),{
-    type:'line',
-    data:{labels:months,datasets:[{label:'Net Worth',data:nwData,borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,.08)',tension:.4,fill:true,pointBackgroundColor:'#f59e0b',pointRadius:3}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:CDEF.plugins,scales:{x:CDEF.scales.x,y:{...CDEF.scales.y,ticks:{color:'#64748b',callback:function(v){return '₹'+Math.round(v/100000)+'L'}}}}}
+  fetchNetWorthHistoryMonthly(12).then(function(series){
+    var canvas = document.getElementById('networthChart');
+    if (!canvas) return;
+    if (series.length < 2) {
+      renderChartEmptyState('networthChart',
+        'Net worth history will appear here after a few days of activity.');
+      return;
+    }
+    charts.networth = new Chart(canvas.getContext('2d'),{
+      type:'line',
+      data:{
+        labels: series.map(function(p){return p.label}),
+        datasets:[{
+          label:'Net Worth',
+          data: series.map(function(p){return Math.round(p.net_worth)}),
+          borderColor:'#f59e0b',
+          backgroundColor:'rgba(245,158,11,.08)',
+          tension:.4, fill:true,
+          pointBackgroundColor:'#f59e0b', pointRadius:3
+        }]
+      },
+      options:{responsive:true,maintainAspectRatio:false,plugins:CDEF.plugins,scales:{x:CDEF.scales.x,y:{...CDEF.scales.y,ticks:{color:'#64748b',callback:function(v){return '₹'+Math.round(v/100000)+'L'}}}}}
+    });
   });
   var invMonths=['Nov','Dec','Jan','Feb','Mar','Apr'];
   if(charts.invest)charts.invest.destroy();
@@ -1385,14 +1445,27 @@ function renderDashboardCharts(){
 function renderAnalyticsCharts(){
   var t=calcTotals();
   if(charts.nwGrowth)charts.nwGrowth.destroy();
-  var months=['May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr'];
-  var base=t.netWorth*0.72;
-  var nwData=months.map(function(m,i){return Math.round(base+((t.netWorth-base)/11)*i)});
-  nwData[11]=Math.round(t.netWorth);
-  charts.nwGrowth=new Chart(document.getElementById('nwGrowthChart').getContext('2d'),{
-    type:'line',
-    data:{labels:months,datasets:[{label:'Net Worth',data:nwData,borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,.1)',tension:.4,fill:true,pointBackgroundColor:'#f59e0b'}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:CDEF.plugins,scales:{x:CDEF.scales.x,y:{...CDEF.scales.y,ticks:{color:'#64748b',callback:function(v){return '₹'+Math.round(v/100000)+'L'}}}}}
+  fetchNetWorthHistoryMonthly(12).then(function(series){
+    var canvas = document.getElementById('nwGrowthChart');
+    if (!canvas) return;
+    if (series.length < 2) {
+      renderChartEmptyState('nwGrowthChart',
+        'Net worth history will appear here after a few days of activity.');
+      return;
+    }
+    charts.nwGrowth = new Chart(canvas.getContext('2d'),{
+      type:'line',
+      data:{
+        labels: series.map(function(p){return p.label}),
+        datasets:[{
+          label:'Net Worth',
+          data: series.map(function(p){return Math.round(p.net_worth)}),
+          borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.1)',
+          tension:.4, fill:true, pointBackgroundColor:'#f59e0b'
+        }]
+      },
+      options:{responsive:true,maintainAspectRatio:false,plugins:CDEF.plugins,scales:{x:CDEF.scales.x,y:{...CDEF.scales.y,ticks:{color:'#64748b',callback:function(v){return '₹'+Math.round(v/100000)+'L'}}}}}
+    });
   });
   if(charts.invBreak)charts.invBreak.destroy();
   charts.invBreak=new Chart(document.getElementById('invBreakChart').getContext('2d'),{
@@ -1401,13 +1474,27 @@ function renderAnalyticsCharts(){
     options:{responsive:true,maintainAspectRatio:false,plugins:{...CDEF.plugins,legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:11}}}}}
   });
   if(charts.assetsLiab)charts.assetsLiab.destroy();
-  charts.assetsLiab=new Chart(document.getElementById('assetsLiabChart').getContext('2d'),{
-    type:'bar',
-    data:{labels:['Nov','Dec','Jan','Feb','Mar','Apr'],datasets:[
-      {label:'Assets',data:[4200000,4450000,4650000,4800000,4950000,Math.round(t.totalAssets)],backgroundColor:'rgba(16,185,129,.7)',borderRadius:4},
-      {label:'Liabilities',data:[4300000,4250000,4200000,4150000,4100000,Math.round(t.totalLiab)],backgroundColor:'rgba(239,68,68,.7)',borderRadius:4}
-    ]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:CDEF.plugins,scales:{x:CDEF.scales.x,y:{...CDEF.scales.y,ticks:{color:'#64748b',callback:function(v){return '₹'+Math.round(v/100000)+'L'}}}}}
+  // Same treatment as the net-worth trend: pull from snapshots, show an
+  // empty state until enough history accumulates.
+  fetchNetWorthHistoryMonthly(6).then(function(series){
+    var canvas = document.getElementById('assetsLiabChart');
+    if (!canvas) return;
+    if (series.length < 2) {
+      renderChartEmptyState('assetsLiabChart',
+        'Assets vs liabilities trend will appear here after a few days of activity.');
+      return;
+    }
+    charts.assetsLiab = new Chart(canvas.getContext('2d'),{
+      type:'bar',
+      data:{
+        labels: series.map(function(p){return p.label}),
+        datasets:[
+          {label:'Assets',     data: series.map(function(p){return Math.round(p.total_assets)}),       backgroundColor:'rgba(16,185,129,.7)', borderRadius:4},
+          {label:'Liabilities',data: series.map(function(p){return Math.round(p.total_liabilities)}), backgroundColor:'rgba(239,68,68,.7)', borderRadius:4}
+        ]
+      },
+      options:{responsive:true,maintainAspectRatio:false,plugins:CDEF.plugins,scales:{x:CDEF.scales.x,y:{...CDEF.scales.y,ticks:{color:'#64748b',callback:function(v){return '₹'+Math.round(v/100000)+'L'}}}}}
+    });
   });
   var performers=stocksData.map(function(s){return{symbol:s.symbol,pnlp:((s.currentPrice-s.avgPrice)/s.avgPrice)*100}}).concat(usStocksData.map(function(s){return{symbol:s.symbol+' (US)',pnlp:((s.currentPrice-s.avgPrice)/s.avgPrice)*100}})).sort(function(a,b){return b.pnlp-a.pnlp}).slice(0,5);
   document.getElementById('topPerformers').innerHTML=performers.map(function(p,i){
