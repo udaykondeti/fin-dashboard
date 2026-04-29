@@ -56,6 +56,8 @@ The mounting in `server/index.js` is non-trivial: `savings`, `insurance`, and `n
 
 If AWS env vars are missing, vault endpoints return `503` via the `requireS3` helper rather than crashing — preserve that behavior so the app still runs locally without S3.
 
+**Local-first Claude agent.** `server/services/agent.js` is the single entry point for any LLM-backed feature: callers invoke `runTask({ userId, taskType, systemPrompt, userInput, maxTokens })` which proxies to the Anthropic SDK and writes one row to the `agent_calls` audit table per call (success or error). The module degrades gracefully like the vault — `isAgentConfigured()` mirrors `isS3Configured()`, and `getClient()` throws a descriptive error if `ANTHROPIC_API_KEY` is unset, so feature endpoints can guard with the same `requireAgent`-style 503 pattern. Privacy: only minimal task-specific context is sent to Anthropic, and full prompts are never persisted — the audit row stores a SHA-256 of (system+user) input plus a 200-char preview, plus token counts, latency, cost, and any error. Admin views at `GET /api/admin/agent-usage` and `GET /api/admin/agent-calls` (mounted in `server/index.js` under `authMiddleware`) read this table for cost/usage observability. New task types extend the `TASK_TYPES` enum in `agent.js`; new model prices go in the `PRICE_TABLE` constant in the same file.
+
 **Two `package.json` files.** The root `package.json` is the canonical one — it's what `npm install`, `npm run dev`, and `ecosystem.config.js` (`script: 'server/index.js'`) all use. `server/package.json` exists but is not installed by the deploy/dev flow; treat the root one as the source of truth for dependencies.
 
 ## Configuration
