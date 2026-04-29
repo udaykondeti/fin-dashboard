@@ -1,0 +1,70 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Commands
+
+```bash
+# Local dev (also installs deps + creates .env from .env.example + ensures data/)
+bash scripts/setup-local-dev.sh
+
+# Manual equivalents
+npm install
+npm run dev      # nodemon server/index.js
+npm start        # node server/index.js
+```
+
+The app listens on `PORT` (default 3001) and serves both the API and the static frontend from the same Express process. There is no build step, no test suite, and no linter configured.
+
+Deployment scripts (run on EC2 from `/var/www/fin-dashboard`):
+- `bash scripts/ec2-first-time-setup.sh` — provisions the box
+- `bash scripts/deploy.sh` — installs Node 20, PM2, Nginx, Certbot, then starts via `ecosystem.config.js`
+- `bash scripts/update.sh` — sync + `npm install --production` + `pm2 restart fin-dashboard`
+
+Default seeded admin (created automatically on first DB init): `kondetiudaykiran@gmail.com` / `Admin@123`.
+
+## Architecture
+
+**Single-process monolith.** `server/index.js` is the entry point: it mounts all `/api/*` routers, serves `public/` as static, and falls through to `public/index.html` for any non-API path (SPA catch-all). The frontend is one ~2800-line `public/index.html` file (vanilla JS + Chart.js via CDN) that talks to the same origin via `fetch('/api/...')` with `Authorization: Bearer <jwt>`.
+
+**Auth model.** `server/middleware/auth.js` verifies a JWT (HS256, 7-day expiry, signed with `JWT_SECRET`) from the `Authorization: Bearer` header and attaches `req.user = { id, email, name }`. Most routers call `router.use(authMiddleware)` at the top, so every handler in that file is authenticated. Two exceptions:
+- `POST /api/auth/login` — public
+- `GET /api/vault/ca/:token` — public CA (chartered accountant) download link, gated by a one-off token row in `ca_access_tokens`. It is mounted directly in `server/index.js` *outside* the auth middleware as `vaultRoutes.caAccess` (a named export bolted onto the router); don't move it under the auth-protected `/api/vault` prefix.
+
+**Database.** `server/db/database.js` opens a `better-sqlite3` handle (synchronous API, WAL mode, FK enforcement) at `DB_PATH`. On module load it runs `initializeDatabase()` (idempotent `CREATE TABLE IF NOT EXISTS`), `seedData()` (inserts a default user + sample portfolio only if the admin email isn't present), and `runMigrations()` (an array of "add this column if missing" `ALTER TABLE` statements — this is how new columns are introduced; append to the `migrations` array rather than editing existing `CREATE TABLE` statements). The exported `db` is a shared singleton. All routes use prepared statements via `db.prepare(...)`.
+
+**Domain entities and routes.** Each financial concept gets its own table + router file:
+- `server/routes/investments.js` — stocks (NSE/BSE), mutual_funds, fixed_deposits, us_stocks; also exposes `GET /prices` (Yahoo Finance proxy) and `GET /summary`
+- `server/routes/liabilities.js` — credit_cards, loans
+- `server/routes/loans.js` — `hand_loans` (informal IOUs, `direction` is `given|taken`)
+- `server/routes/savings.js`, `insurance.js`, `nps.js`, `payments.js` (scheduled), `tax.js` (advance tax), `earnings.js`, `profiles.js`
+- `server/routes/networth.js` — aggregates everything into a single `/api/networth` response, fetching live prices for stocks
+- `server/routes/vault.js` — S3-backed document storage (see below)
+
+The mounting in `server/index.js` is non-trivial: `savings`, `insurance`, and `nps` are all mounted under `/api/investments/*` (not their own top-level prefix), so changes to those routers must keep paths consistent with that nesting.
+
+**Profiles.** Many tables (`savings_accounts`, `insurance_policies`, `nps_accounts`, `scheduled_payments`, `advance_tax_payments`, `earnings`, `vault_files`, `ca_access_tokens`) carry a nullable `profile_id`, letting one user partition data across personas (e.g. "Kiran" vs "Joint"). When filtering by profile, queries should typically include `(profile_id = ? OR profile_id IS NULL)` to keep shared rows visible — see `vault.js` `GET /files` for the canonical pattern.
+
+**Live prices.** Stock and US-stock valuation is computed on the fly by proxying `https://query1.finance.yahoo.com/v8/finance/chart/{symbol}` server-side (see `fetchPrice`/`fetchYahooPrice` in `routes/networth.js` and `routes/investments.js`). Yahoo failure falls back to `avg_buy_price`. A hardcoded `usdInrRate = 84.0` is used for USD→INR conversion.
+
+**S3 vault.** `server/services/s3.js` wraps `@aws-sdk/client-s3`. The upload flow is presigned-URL based, not server-proxied:
+1. Client calls `POST /api/vault/upload-url` with filename + metadata.
+2. Server calls `classifyDocument` (`services/smartRouter.js`) if no category was provided — keyword matching against filename+description, falling back to a `linkedType` map, falling back to `receipts/other`.
+3. Server returns a presigned PUT URL keyed at `{userId}/p{profileId}/FY{YYYY-YY}/{category}/{subcategory}/{timestamp}-{safeFilename}`. `getFYFolder()` computes the Indian financial year (April–March), so a date in Jan 2026 lives under `FY2025-26`.
+4. Client `PUT`s directly to S3, then calls `POST /api/vault/confirm-upload` to register the row in `vault_files`.
+5. `ensureBucketExists` is called lazily on first upload — it creates the bucket, sets CORS, and applies a deny-public bucket policy scoped to `AWS_ACCOUNT_ID` if set.
+
+If AWS env vars are missing, vault endpoints return `503` via the `requireS3` helper rather than crashing — preserve that behavior so the app still runs locally without S3.
+
+**Two `package.json` files.** The root `package.json` is the canonical one — it's what `npm install`, `npm run dev`, and `ecosystem.config.js` (`script: 'server/index.js'`) all use. `server/package.json` exists but is not installed by the deploy/dev flow; treat the root one as the source of truth for dependencies.
+
+## Configuration
+
+Environment variables (root `.env`, copied from `.env.example` on first setup):
+- `PORT` (default 3001), `NODE_ENV`, `JWT_SECRET`, `DB_PATH` (default `./data/finance.db`)
+- `CORS_ORIGIN` — passed to both Express CORS and the S3 bucket CORS rule
+- `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME` (default `fin-kirakon-vault`), `AWS_ACCOUNT_ID`, `BASE_URL` — all optional; only required for vault features
+
+`JWT_SECRET` and the production secret in `ecosystem.config.js` both have insecure fallback strings. Production secrets are expected to be set via the EC2 environment, not committed.
+
+Production stack: PM2 (single instance, 512M memory cap) → Express on `localhost:3001` ← Nginx reverse proxy at `nginx/fin.kirakon.com.conf` with Let's Encrypt SSL provisioned by `deploy.sh`.
