@@ -370,6 +370,7 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
       <button class="nav-tab" onclick="navigateTo('analytics')">Analytics</button>
       <button class="nav-tab" onclick="navigateTo('vault')">&#x1F4C1; Vault</button>
       <button class="nav-tab" onclick="navigateTo('properties')">&#x1F3E0; Properties</button>
+      <button class="nav-tab" onclick="navigateTo('incometax')">&#x1F4CB; Income Tax</button>
     </div>
     <div class="topnav-right">
       <div class="profile-switcher" id="profileSwitcher" onclick="toggleProfileMenu()">
@@ -412,6 +413,7 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('analytics');closeMobileMenu()">Analytics</button>
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('vault');closeMobileMenu()">&#x1F4C1; Vault</button>
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('properties');closeMobileMenu()">&#x1F3E0; Properties</button>
+      <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('incometax');closeMobileMenu()">&#x1F4CB; Income Tax</button>
     </div>
   </div>
 
@@ -483,7 +485,7 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
         <button class="tab-btn" onclick="switchInvTab('savings',this)">💰 Savings</button>
         <button class="tab-btn" onclick="switchInvTab('insurance',this)">🛡️ Insurance</button>
         <button class="tab-btn" onclick="switchInvTab('nps',this)">🏛️ NPS</button>
-        <button class="tab-btn" onclick="switchInvTab('tax',this)">📋 Advance Tax</button>
+        <button class="tab-btn" onclick="switchInvTab('import',this)">&#x1F4E5; Import</button>
       </div>
       <div class="tab-content active" id="inv-tab-stocks">
         <div class="section-header">
@@ -574,39 +576,58 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
         <div class="nps-grid" id="npsGrid"></div>
       </div>
 
-      <!-- ADVANCE TAX TAB -->
-      <div class="tab-content" id="inv-tab-tax">
-        <div class="section-header">
-          <div style="font-size:13px;color:var(--text-secondary)">Advance Tax Payments</div>
-          <button class="add-btn" onclick="openModal('addAdvTax')">+ Add Payment</button>
-        </div>
-        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px">
-          <div class="summary-card green" style="flex:1;min-width:160px">
-            <div class="summary-card-label">Total Paid (FY)</div>
-            <div class="summary-card-value green" id="atTotalPaid">₹0</div>
+      <!-- IMPORT TAB -->
+      <div class="tab-content" id="inv-tab-import">
+        <div style="max-width:680px">
+          <div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:6px">&#x1F4E5; Import Investments / Earnings from CSV</div>
+          <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">Upload a CSV export from your broker (Zerodha, Groww, CAMS, KFintech) to bulk-import holdings. Supported: Indian Stocks, Mutual Funds, Earnings.</div>
+
+          <div class="import-dropzone" id="importDropzone" onclick="document.getElementById('importFileInput').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleImportDrop(event)">
+            <div style="font-size:36px;margin-bottom:10px">&#x1F4C2;</div>
+            <div style="font-size:14px;font-weight:600;color:var(--text-primary)">Click or drag &amp; drop CSV file here</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:6px">Zerodha Console · Groww · CAMS · KFintech · Generic CSV</div>
+            <input type="file" id="importFileInput" accept=".csv,.tsv,.txt" style="display:none" onchange="handleImportFile(event)">
           </div>
-          <div class="summary-card gold" style="flex:1;min-width:160px">
-            <div class="summary-card-label">Est. Tax Liability</div>
-            <div class="summary-card-value gold" id="atEstLiability">₹0</div>
+
+          <div id="importPreviewSection" style="display:none;margin-top:20px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+              <div>
+                <span style="font-size:14px;font-weight:600;color:var(--text-primary)" id="importDetectedType">Detected: —</span>
+                <span style="font-size:12px;color:var(--text-secondary);margin-left:10px" id="importRowCount"></span>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <label style="font-size:12px;color:var(--text-secondary)">Import as:</label>
+                <select id="importTypeOverride" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);padding:5px 9px;border-radius:6px;font-size:12px">
+                  <option value="stocks">Indian Stocks</option>
+                  <option value="mutual_funds">Mutual Funds</option>
+                  <option value="earnings">Earnings</option>
+                </select>
+              </div>
+            </div>
+            <div class="table-wrap" style="max-height:280px;overflow-y:auto">
+              <table class="data-table" id="importPreviewTable"></table>
+            </div>
+            <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+              <button class="add-btn" onclick="commitImport()">&#x2714; Import All</button>
+              <button class="add-btn" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border)" onclick="clearImport()">&#x2715; Clear</button>
+            </div>
+            <div id="importResultMsg" style="margin-top:12px;font-size:13px"></div>
           </div>
-          <div class="summary-card blue" style="flex:1;min-width:160px">
-            <div class="summary-card-label">Balance to Pay</div>
-            <div class="summary-card-value blue" id="atBalance">₹0</div>
+
+          <div style="margin-top:28px;padding:16px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;font-size:12px;color:var(--text-secondary)">
+            <div style="font-weight:700;color:var(--text-primary);margin-bottom:8px">&#x1F4D6; Supported Formats</div>
+            <table style="width:100%;border-collapse:collapse">
+              <tr><td style="padding:4px 8px;font-weight:600;color:var(--text-primary)">Zerodha Console</td><td style="padding:4px 8px">Holdings export: Instrument, ISIN, Qty, Avg cost, LTP...</td></tr>
+              <tr><td style="padding:4px 8px;font-weight:600;color:var(--text-primary)">Groww Stocks</td><td style="padding:4px 8px">Symbol, Company Name, Quantity, Average Price...</td></tr>
+              <tr><td style="padding:4px 8px;font-weight:600;color:var(--text-primary)">Groww / CAMS MF</td><td style="padding:4px 8px">Scheme Name, Units, Avg NAV, Fund Type...</td></tr>
+              <tr><td style="padding:4px 8px;font-weight:600;color:var(--text-primary)">Generic Earnings</td><td style="padding:4px 8px">Source Name, Amount, Frequency, Source Type</td></tr>
+            </table>
+          </div>
+
+          <div style="margin-top:16px;padding:12px 16px;background:rgba(198,134,66,.08);border:1px solid rgba(198,134,66,.25);border-radius:10px;font-size:12px;color:var(--text-secondary)">
+            &#x26A0;&#xFE0F; Import adds new rows — it does not update or deduplicate existing holdings. Review the preview before confirming.
           </div>
         </div>
-        <div class="section-header" style="margin-bottom:8px">
-          <span style="font-size:13px;color:var(--text-secondary)">Assessment Year</span>
-          <select id="atYearFilter" onchange="renderAdvTax()" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);padding:6px 10px;border-radius:6px;font-size:13px">
-            <option>2026-27</option><option>2025-26</option><option>2024-25</option>
-          </select>
-        </div>
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead><tr><th>Installment</th><th>Amount Paid</th><th>Date</th><th>Notes</th><th>Actions</th></tr></thead>
-            <tbody id="advTaxTbody"></tbody>
-          </table>
-        </div>
-        <div class="tax-estimate-card" id="taxEstCard" style="display:none"></div>
       </div>
     </div>
 
@@ -2173,6 +2194,76 @@ checkAuth();
     <button class="add-btn" onclick="openPropModal()">+ Add Property</button>
   </div>
 
+  <!-- Research / Buying Guide (collapsible) -->
+  <div style="margin-bottom:22px">
+    <button onclick="togglePropResearch()" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:0;margin-bottom:10px">
+      <span style="font-size:13px;font-weight:600;color:var(--caramel)">&#x1F4D6; Property Research &amp; Buying Guide</span>
+      <span id="propResearchChevron" style="font-size:11px;color:var(--text-secondary)">▼</span>
+    </button>
+    <div id="propResearchPanel" style="display:none">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
+
+        <!-- Flat / Apartment checklist -->
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
+          <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px">🏢 Flat / Apartment — Due Diligence</div>
+          <ul style="font-size:12px;color:var(--text-secondary);padding-left:18px;line-height:1.9;margin:0">
+            <li>Verify RERA registration number on state RERA portal</li>
+            <li>Check builder track record &amp; delivery history</li>
+            <li>Confirm Completion Certificate (CC) / OC issued</li>
+            <li>Verify title deed — free of encumbrance (EC from sub-registrar)</li>
+            <li>Check approved building plan matches actual construction</li>
+            <li>Confirm khata / property tax registration in builder/seller name</li>
+            <li>Check home loan eligibility — bank technical valuation</li>
+            <li>Stamp duty + registration: ~5–7% of agreement value (state-specific)</li>
+            <li>Society maintenance + sinking fund — get last 3 years accounts</li>
+            <li>Confirm GST rate: 5% (under-construction), exempt (OC obtained)</li>
+          </ul>
+        </div>
+
+        <!-- Plot / Land checklist -->
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
+          <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px">🌱 Plot / Land — Due Diligence</div>
+          <ul style="font-size:12px;color:var(--text-secondary);padding-left:18px;line-height:1.9;margin:0">
+            <li>Obtain and verify patta / record of rights (RoR) / khata</li>
+            <li>Check conversion: agricultural land needs NA (non-agricultural) order</li>
+            <li>Confirm survey number on government land records portal</li>
+            <li>Get Encumbrance Certificate (EC) for 30 years minimum</li>
+            <li>Verify no revenue dues / Betterment Charges pending</li>
+            <li>Check layout approval from HMDA / BDA / local authority</li>
+            <li>Confirm UDS (Undivided Share) matches sale deed if gated layout</li>
+            <li>Enquire about CLU (Change of Land Use) if planning construction</li>
+            <li>Check proximity to water bodies / low-lying areas (flood risk)</li>
+            <li>Stamp duty + registration for plots: 5–7% (state-specific)</li>
+          </ul>
+        </div>
+
+        <!-- Key metrics & ratios -->
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
+          <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px">📊 Key Valuation Metrics</div>
+          <table style="width:100%;font-size:12px;border-collapse:collapse">
+            <tr style="color:var(--text-secondary)"><td style="padding:5px 0;border-bottom:1px solid var(--border)"><strong style="color:var(--text-primary)">Gross Yield</strong></td><td style="padding:5px 0;border-bottom:1px solid var(--border)">Annual Rent ÷ Property Value × 100<br><em>Healthy: ≥3% in metros, ≥4% in Tier-2</em></td></tr>
+            <tr style="color:var(--text-secondary)"><td style="padding:5px 6px;border-bottom:1px solid var(--border)"><strong style="color:var(--text-primary)">Price-to-Rent</strong></td><td style="padding:5px 0;border-bottom:1px solid var(--border)">Price ÷ Annual Rent<br><em>Under 20× = buy; 20–30× = neutral; 30×+ = overpriced</em></td></tr>
+            <tr style="color:var(--text-secondary)"><td style="padding:5px 0;border-bottom:1px solid var(--border)"><strong style="color:var(--text-primary)">EMI / Income</strong></td><td style="padding:5px 0;border-bottom:1px solid var(--border)">Keep EMI ≤ 40% of net monthly income</td></tr>
+            <tr style="color:var(--text-secondary)"><td style="padding:5px 0"><strong style="color:var(--text-primary)">Total Cost</strong></td><td style="padding:5px 0">Base price + stamp duty + registration + GST + society charges + interior</td></tr>
+          </table>
+        </div>
+
+        <!-- Tax implications -->
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
+          <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px">💸 Tax Implications</div>
+          <ul style="font-size:12px;color:var(--text-secondary);padding-left:18px;line-height:1.9;margin:0">
+            <li><strong style="color:var(--text-primary)">Home Loan Interest (Sec 24b):</strong> Up to ₹2L deduction (self-occupied); unlimited for let-out</li>
+            <li><strong style="color:var(--text-primary)">Principal repayment (Sec 80C):</strong> Up to ₹1.5L within the 80C limit</li>
+            <li><strong style="color:var(--text-primary)">LTCG on sale:</strong> &gt;2 years held → 12.5% (no indexation post Jul 2024 budget)</li>
+            <li><strong style="color:var(--text-primary)">STCG on sale:</strong> ≤2 years → taxed at slab rate</li>
+            <li><strong style="color:var(--text-primary)">Reinvestment exemption (Sec 54):</strong> Buy new residential property within 2 years to defer LTCG</li>
+            <li><strong style="color:var(--text-primary)">Annual Value (let-out):</strong> 30% standard deduction on net rent (Sec 24a)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Property Cards -->
   <div id="propCardsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:28px"></div>
 
@@ -2262,6 +2353,172 @@ checkAuth();
         Sec 24(b) = Home loan interest (up to ₹2L for self-occupied; unlimited for let-out)<br>
         <em>Net income from house property = NAV − 30% − loan interest</em>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- INCOME TAX PAGE -->
+<div class="page" id="page-incometax" style="display:none">
+  <div class="section-header">
+    <div>
+      <div class="section-title">&#x1F4CB; Income Tax</div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">Advance tax payments, estimated liability &amp; tax-saving strategies</div>
+    </div>
+    <button class="add-btn" onclick="openModal('addAdvTax')">+ Add Tax Payment</button>
+  </div>
+
+  <!-- Summary cards -->
+  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px">
+    <div class="summary-card green" style="flex:1;min-width:150px">
+      <div class="summary-card-label">Total Paid (FY)</div>
+      <div class="summary-card-value green" id="atTotalPaid">₹0</div>
+    </div>
+    <div class="summary-card gold" style="flex:1;min-width:150px">
+      <div class="summary-card-label">Est. Tax Liability</div>
+      <div class="summary-card-value gold" id="atEstLiability">₹0</div>
+    </div>
+    <div class="summary-card blue" style="flex:1;min-width:150px">
+      <div class="summary-card-label">Balance to Pay</div>
+      <div class="summary-card-value blue" id="atBalance">₹0</div>
+    </div>
+    <div class="summary-card" style="flex:1;min-width:150px">
+      <div class="summary-card-label">Gross Annual Income</div>
+      <div class="summary-card-value" id="itAnnualIncome">₹0</div>
+    </div>
+  </div>
+
+  <div class="tab-bar" style="margin-bottom:20px">
+    <button class="tab-btn active" onclick="switchITTab('payments',this)">&#x1F4B3; Advance Tax Payments</button>
+    <button class="tab-btn" onclick="switchITTab('categories',this)">&#x1F4CA; Tax-Saving Categories</button>
+    <button class="tab-btn" onclick="switchITTab('strategies',this)">&#x1F4A1; Strategies</button>
+    <button class="tab-btn" onclick="switchITTab('slabs',this)">&#x1F4CB; Tax Slabs</button>
+  </div>
+
+  <!-- Payments tab -->
+  <div class="tab-content active" id="it-tab-payments">
+    <div class="section-header" style="margin-bottom:10px">
+      <span style="font-size:13px;color:var(--text-secondary)">Assessment Year</span>
+      <select id="atYearFilter" onchange="renderAdvTax()" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);padding:6px 10px;border-radius:6px;font-size:13px">
+        <option>2026-27</option><option>2025-26</option><option>2024-25</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Installment</th><th>Amount Paid</th><th>Date</th><th>Notes</th><th>Actions</th></tr></thead>
+        <tbody id="advTaxTbody"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:16px;padding:12px 16px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:10px;font-size:12px;color:var(--text-secondary)">
+      <strong style="color:var(--accent-blue)">Advance Tax Due Dates (FY 2026-27)</strong><br><br>
+      15 Jun — 15% &nbsp;|&nbsp; 15 Sep — 45% cumulative &nbsp;|&nbsp; 15 Dec — 75% cumulative &nbsp;|&nbsp; 15 Mar — 100%<br>
+      Interest u/s 234B &amp; 234C applies if payments are missed or delayed.
+    </div>
+  </div>
+
+  <!-- Tax-saving categories tab -->
+  <div class="tab-content" id="it-tab-categories">
+    <div id="itCategoriesGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px"></div>
+  </div>
+
+  <!-- Strategies tab -->
+  <div class="tab-content" id="it-tab-strategies">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
+      <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--accent-gold);margin-bottom:10px">📌 Section 80C — ₹1.5L limit</div>
+        <ul style="font-size:12px;color:var(--text-secondary);padding-left:16px;line-height:1.9;margin:0">
+          <li>ELSS Mutual Funds (best for equity exposure + lock-in 3y)</li>
+          <li>PPF — 15-year tenure, EEE tax status, 7.1% interest</li>
+          <li>NPS Tier-I (own contribution) — up to ₹1.5L within 80C</li>
+          <li>Life Insurance Premium (traditional/term)</li>
+          <li>Home Loan Principal repayment</li>
+          <li>Sukanya Samriddhi / NSC / SCSS / Tax-saver FD (5yr)</li>
+        </ul>
+      </div>
+      <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--accent-blue);margin-bottom:10px">💊 Section 80D — Health Insurance</div>
+        <ul style="font-size:12px;color:var(--text-secondary);padding-left:16px;line-height:1.9;margin:0">
+          <li>Self + family (below 60): up to <strong>₹25,000</strong></li>
+          <li>Parents (below 60): additional ₹25,000 = total ₹50,000</li>
+          <li>Parents (senior citizen): additional ₹50,000 = total ₹75,000</li>
+          <li>Preventive health check-up: ₹5,000 within limits</li>
+          <li>Note: 80D benefit available in both Old &amp; New regimes (partially)</li>
+        </ul>
+      </div>
+      <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--accent-green);margin-bottom:10px">🏛️ Section 80CCD(1B) — NPS Bonus</div>
+        <ul style="font-size:12px;color:var(--text-secondary);padding-left:16px;line-height:1.9;margin:0">
+          <li>Additional NPS Tier-I investment: up to <strong>₹50,000</strong> over &amp; above 80C limit</li>
+          <li>Effective saving: ₹15,600 at 30% slab + cess</li>
+          <li>Available under Old Tax Regime only</li>
+          <li>Employer NPS contribution (80CCD(2)): available in New Regime too</li>
+        </ul>
+      </div>
+      <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--caramel);margin-bottom:10px">🏠 Home Loan Deductions</div>
+        <ul style="font-size:12px;color:var(--text-secondary);padding-left:16px;line-height:1.9;margin:0">
+          <li>Sec 24(b): Interest up to <strong>₹2L</strong> (self-occupied property)</li>
+          <li>Sec 80C: Principal up to ₹1.5L (within 80C limit)</li>
+          <li>First home buyers — additional ₹50,000 u/s 80EEA (if stamp duty ≤45L)</li>
+          <li>For let-out property: full interest deductible under Sec 24</li>
+          <li>Available in Old Regime; not in New Regime (except 80CCD2)</li>
+        </ul>
+      </div>
+      <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px">⚖️ Old vs New Tax Regime</div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse;color:var(--text-secondary)">
+          <tr><th style="text-align:left;padding:4px 0;color:var(--text-primary);border-bottom:1px solid var(--border)">Feature</th><th style="padding:4px 6px;color:var(--accent-gold);border-bottom:1px solid var(--border)">Old</th><th style="padding:4px 6px;color:var(--accent-blue);border-bottom:1px solid var(--border)">New (Default)</th></tr>
+          <tr><td style="padding:4px 0">80C / 80D / 80CCD</td><td style="padding:4px 6px;color:var(--accent-green)">Yes</td><td style="padding:4px 6px;color:var(--accent-red)">No*</td></tr>
+          <tr><td style="padding:4px 0">HRA / LTA</td><td style="padding:4px 6px;color:var(--accent-green)">Yes</td><td style="padding:4px 6px;color:var(--accent-red)">No</td></tr>
+          <tr><td style="padding:4px 0">Std Deduction</td><td style="padding:4px 6px">₹50K</td><td style="padding:4px 6px">₹75K</td></tr>
+          <tr><td style="padding:4px 0">Sec 24(b) interest</td><td style="padding:4px 6px;color:var(--accent-green)">Yes</td><td style="padding:4px 6px;color:var(--accent-red)">No</td></tr>
+          <tr><td style="padding:4px 0">Rebate u/s 87A</td><td style="padding:4px 6px">≤5L</td><td style="padding:4px 6px">≤7L</td></tr>
+        </table>
+        <div style="margin-top:8px;font-size:11px;color:var(--text-secondary)">*80CCD(2) employer NPS is available in New Regime</div>
+      </div>
+      <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px">📅 Advance Tax Schedule</div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse;color:var(--text-secondary)">
+          <tr><th style="text-align:left;padding:4px 0;color:var(--text-primary);border-bottom:1px solid var(--border)">Due Date</th><th style="padding:4px 6px;color:var(--text-primary);border-bottom:1px solid var(--border)">Cumulative %</th></tr>
+          <tr><td style="padding:4px 0">15 June</td><td style="padding:4px 6px">15%</td></tr>
+          <tr><td style="padding:4px 0">15 September</td><td style="padding:4px 6px">45%</td></tr>
+          <tr><td style="padding:4px 0">15 December</td><td style="padding:4px 6px">75%</td></tr>
+          <tr><td style="padding:4px 0">15 March</td><td style="padding:4px 6px">100%</td></tr>
+        </table>
+        <div style="margin-top:8px;font-size:11px;color:var(--text-secondary)">Interest u/s 234B (1%/mo) + 234C applies on shortfall</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slabs tab -->
+  <div class="tab-content" id="it-tab-slabs">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:860px;flex-wrap:wrap">
+      <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:18px">
+        <div style="font-size:13px;font-weight:700;color:var(--accent-blue);margin-bottom:12px">New Tax Regime — FY 2026-27 (Default)</div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse;color:var(--text-secondary)">
+          <thead><tr><th style="text-align:left;padding:5px 0;color:var(--text-primary);border-bottom:1px solid var(--border)">Income Slab</th><th style="padding:5px 6px;color:var(--text-primary);border-bottom:1px solid var(--border)">Rate</th></tr></thead>
+          <tr><td style="padding:5px 0">Up to ₹3,00,000</td><td style="padding:5px 6px">Nil</td></tr>
+          <tr><td style="padding:5px 0">₹3L – ₹6L</td><td style="padding:5px 6px">5%</td></tr>
+          <tr><td style="padding:5px 0">₹6L – ₹9L</td><td style="padding:5px 6px">10%</td></tr>
+          <tr><td style="padding:5px 0">₹9L – ₹12L</td><td style="padding:5px 6px">15%</td></tr>
+          <tr><td style="padding:5px 0">₹12L – ₹15L</td><td style="padding:5px 6px">20%</td></tr>
+          <tr><td style="padding:5px 0">Above ₹15L</td><td style="padding:5px 6px">30%</td></tr>
+        </table>
+        <div style="margin-top:10px;font-size:11px;color:var(--text-secondary)">+ 4% health &amp; education cess. Rebate u/s 87A: full rebate if income ≤ ₹7L (New Regime from FY2024-25).<br>Standard deduction: ₹75,000 for salaried.</div>
+      </div>
+      <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:18px">
+        <div style="font-size:13px;font-weight:700;color:var(--accent-gold);margin-bottom:12px">Old Tax Regime — FY 2026-27</div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse;color:var(--text-secondary)">
+          <thead><tr><th style="text-align:left;padding:5px 0;color:var(--text-primary);border-bottom:1px solid var(--border)">Income Slab</th><th style="padding:5px 6px;color:var(--text-primary);border-bottom:1px solid var(--border)">Rate</th></tr></thead>
+          <tr><td style="padding:5px 0">Up to ₹2,50,000</td><td style="padding:5px 6px">Nil</td></tr>
+          <tr><td style="padding:5px 0">₹2.5L – ₹5L</td><td style="padding:5px 6px">5%</td></tr>
+          <tr><td style="padding:5px 0">₹5L – ₹10L</td><td style="padding:5px 6px">20%</td></tr>
+          <tr><td style="padding:5px 0">Above ₹10L</td><td style="padding:5px 6px">30%</td></tr>
+        </table>
+        <div style="margin-top:10px;font-size:11px;color:var(--text-secondary)">+ 4% cess. Surcharge above ₹50L. Rebate u/s 87A for income ≤ ₹5L.<br>Standard deduction: ₹50,000 for salaried.</div>
+      </div>
+    </div>
+    <div style="margin-top:18px;padding:14px 16px;background:rgba(198,134,66,.08);border:1px solid rgba(198,134,66,.25);border-radius:10px;font-size:12px;color:var(--text-secondary);max-width:860px">
+      <strong style="color:var(--caramel)">Tip:</strong> The estimated tax liability shown in this page uses the <em>New Tax Regime slabs</em> as the default from FY2024-25 onwards. Actual liability may differ — consult a CA for your specific deductions and surcharges.
     </div>
   </div>
 </div>
@@ -2838,6 +3095,8 @@ tr.earn-auto td{color:var(--text-secondary);font-style:italic}
 
 /* Tax estimate card */
 .tax-estimate-card{background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:18px;margin-top:20px}
+.import-dropzone{border:2px dashed var(--caramel);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:background .2s,border-color .2s}
+.import-dropzone:hover,.import-dropzone.drag-over{background:rgba(198,134,66,.08);border-color:var(--caramel)}
 
 /* Profile manage */
 .profile-manage-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
@@ -3412,20 +3671,19 @@ navigateTo = function(page) {
 // Patch switchInvTab to handle new tabs
 var _origSwitchInvTab = switchInvTab;
 switchInvTab = function(tab, btn) {
-  var newTabs = ['savings','insurance','nps','tax'];
+  var newTabs = ['savings','insurance','nps','import'];
   if (newTabs.indexOf(tab) === -1) {
     _origSwitchInvTab(tab, btn);
     return;
   }
-  document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active')});
-  document.querySelectorAll('.tab-content').forEach(function(c){c.classList.remove('active')});
+  document.querySelectorAll('#page-investments .tab-btn').forEach(function(b){b.classList.remove('active')});
+  document.querySelectorAll('#page-investments .tab-content').forEach(function(c){c.classList.remove('active')});
   if (btn) btn.classList.add('active');
   var el = document.getElementById('inv-tab-'+tab);
   if (el) el.classList.add('active');
   if (tab==='savings') renderSavings();
   if (tab==='insurance') renderInsurance();
   if (tab==='nps') renderNPS();
-  if (tab==='tax') renderAdvTax();
 };
 
 // Patch openModal to handle profile modal
@@ -3813,6 +4071,183 @@ async function loadSection24() {
     +'</div>'
     + '<div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Actual maintenance expenses this FY: '+fmt(r.actual_expenses)+' (informational — covered by Sec 24a flat deduction)</div>'
   +'</div>';
+}
+
+// ─── INCOME TAX PAGE ──────────────────────────────────────────────────────────
+function switchITTab(tab, btn) {
+  document.querySelectorAll('#page-incometax .tab-btn').forEach(function(b){b.classList.remove('active')});
+  document.querySelectorAll('#page-incometax .tab-content').forEach(function(c){c.classList.remove('active')});
+  if (btn) btn.classList.add('active');
+  var el = document.getElementById('it-tab-'+tab);
+  if (el) el.classList.add('active');
+  if (tab==='categories') renderITCategories();
+}
+
+function renderITCategories() {
+  var g = document.getElementById('itCategoriesGrid');
+  if (!g) return;
+  var annualIncome = calcAnnualIncome();
+  var grossTax = calcIncomeTax(annualIncome);
+
+  // Gather data from loaded state
+  var npsInvested = (npsData||[]).reduce(function(s,n){return s+(n.total_invested||0)},0);
+  var lifePremiums = (insuranceData||[]).filter(function(i){return /life|term/i.test(i.policy_type||'')}).reduce(function(s,i){return s+(i.premium_amount||0)},0);
+  var healthPremiums = (insuranceData||[]).filter(function(i){return /health|medical/i.test(i.policy_type||'')}).reduce(function(s,i){return s+(i.premium_amount||0)},0);
+  var elssInvested = (mfData||[]).filter(function(m){return /elss/i.test(m.fund_type||m.fund_name||'')}).reduce(function(s,m){return s+(m.units||0)*(m.avg_nav||0)},0);
+
+  var categories = [
+    { section:'80C', label:'Section 80C', limit:150000, color:'var(--accent-gold)',
+      items:[
+        {name:'ELSS Mutual Funds', value:elssInvested},
+        {name:'NPS Own Contribution', value:Math.min(npsInvested,150000)},
+        {name:'Life Insurance Premium', value:lifePremiums}
+      ],
+      note:'Overall limit ₹1.5L. Add PPF, home loan principal, tax-saver FDs manually.'
+    },
+    { section:'80D', label:'Section 80D — Health Insurance', limit:25000, color:'var(--accent-blue)',
+      items:[{name:'Health Insurance Premiums', value:healthPremiums}],
+      note:'₹25K self+family; additional ₹25K/₹50K for parents depending on their age.'
+    },
+    { section:'80CCD(1B)', label:'80CCD(1B) — NPS Extra', limit:50000, color:'var(--accent-green)',
+      items:[{name:'NPS Extra Contribution', value:0}],
+      note:'Up to ₹50K over &amp; above 80C. Old regime only.'
+    },
+    { section:'24b', label:'Sec 24(b) — Home Loan Interest', limit:200000, color:'var(--caramel)',
+      items:[{name:'Home Loan Interest', value:0}],
+      note:'Up to ₹2L deduction for self-occupied property. Old regime only.'
+    }
+  ];
+
+  g.innerHTML = categories.map(function(cat){
+    var total = cat.items.reduce(function(s,i){return s+(i.value||0)},0);
+    var pct = Math.min(100, cat.limit>0 ? (total/cat.limit)*100 : 0);
+    return '<div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+        +'<span style="font-size:13px;font-weight:700;color:var(--text-primary)">'+cat.label+'</span>'
+        +'<span style="font-size:11px;color:var(--text-secondary)">Limit: ₹'+Number(cat.limit).toLocaleString('en-IN')+'</span>'
+      +'</div>'
+      +'<div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin-bottom:10px">'
+        +'<div style="height:100%;width:'+pct+'%;background:'+cat.color+';border-radius:4px;transition:width .5s"></div>'
+      +'</div>'
+      +'<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:10px">'
+        +'<span style="color:var(--text-secondary)">Invested / Paid</span>'
+        +'<span style="font-weight:700;color:'+cat.color+'">₹'+Number(Math.round(total)).toLocaleString('en-IN')+'</span>'
+      +'</div>'
+      +cat.items.filter(function(i){return i.value>0}).map(function(i){
+        return '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:4px">'
+          +'<span>'+i.name+'</span><span>₹'+Number(Math.round(i.value)).toLocaleString('en-IN')+'</span></div>';
+      }).join('')
+      +'<div style="font-size:11px;color:var(--text-secondary);margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">'+cat.note+'</div>'
+    +'</div>';
+  }).join('');
+}
+
+// Update navigateTo to include incometax
+var _prevNavigateTo2 = navigateTo;
+navigateTo = function(page) {
+  var allPages = ['dashboard','investments','liabilities','handloans','analytics','vault','earnings','payments','properties','incometax'];
+  allPages.forEach(function(p){
+    var el = document.getElementById('page-'+p);
+    if (el) el.style.display = p===page ? '' : 'none';
+    var mt = document.getElementById('mtab-'+p);
+    if (mt) mt.classList.toggle('active', p===page);
+  });
+  // Update desktop nav-tab active state
+  document.querySelectorAll('.topnav-tabs .nav-tab').forEach(function(b){
+    var onclick = b.getAttribute('onclick')||'';
+    b.classList.toggle('active', onclick.indexOf("'"+page+"'")>-1 || onclick.indexOf('"'+page+'"')>-1);
+  });
+  if (page==='earnings') { loadEarnings(); }
+  if (page==='payments') { loadPayments(); }
+  if (page==='properties') { loadProperties(); }
+  if (page==='incometax') { loadAdvTax(); document.getElementById('itAnnualIncome').textContent = fmt(calcAnnualIncome()); }
+  if (page==='analytics') { setTimeout(renderAnalyticsCharts,120); }
+};
+
+// ─── PROPERTIES RESEARCH PANEL ───────────────────────────────────────────────
+function togglePropResearch() {
+  var panel = document.getElementById('propResearchPanel');
+  var chevron = document.getElementById('propResearchChevron');
+  if (!panel) return;
+  var open = panel.style.display !== 'none';
+  panel.style.display = open ? 'none' : '';
+  if (chevron) chevron.textContent = open ? '▼' : '▲';
+}
+
+// ─── CSV IMPORT ───────────────────────────────────────────────────────────────
+var importRows = [];
+var importDetectedType = 'stocks';
+
+function handleImportFile(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) { previewImport(ev.target.result); };
+  reader.readAsText(file);
+}
+
+function handleImportDrop(e) {
+  e.preventDefault();
+  document.getElementById('importDropzone').classList.remove('drag-over');
+  var file = e.dataTransfer.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) { previewImport(ev.target.result); };
+  reader.readAsText(file);
+}
+
+async function previewImport(content) {
+  var r = await apiPost('/api/import/preview', {content: content});
+  if (!r || r.error) { showToast(r ? r.error : 'Parse failed', 'error'); return; }
+  importRows = r.all_rows || [];
+  importDetectedType = r.detected_type !== 'unknown' ? r.detected_type : 'stocks';
+  var section = document.getElementById('importPreviewSection');
+  section.style.display = '';
+  document.getElementById('importDetectedType').textContent = 'Detected: ' + {stocks:'Indian Stocks', mutual_funds:'Mutual Funds', earnings:'Earnings', unknown:'Unknown (select below)'}[r.detected_type] || r.detected_type;
+  document.getElementById('importRowCount').textContent = r.row_count + ' rows in file, ' + importRows.length + ' importable';
+  document.getElementById('importTypeOverride').value = importDetectedType;
+  document.getElementById('importResultMsg').innerHTML = '';
+  renderImportPreview(importRows, importDetectedType);
+}
+
+function renderImportPreview(rows, type) {
+  var t = document.getElementById('importPreviewTable');
+  if (!rows.length) { t.innerHTML = '<tr><td>No rows detected</td></tr>'; return; }
+  var keys = Object.keys(rows[0]);
+  t.innerHTML = '<thead><tr>'+keys.map(function(k){return '<th>'+k+'</th>'}).join('')+'</tr></thead>'
+    +'<tbody>'+rows.slice(0,10).map(function(r){
+      return '<tr>'+keys.map(function(k){return '<td>'+esc(String(r[k]||''))+'</td>'}).join('')+'</tr>';
+    }).join('')+(rows.length>10?'<tr><td colspan="'+keys.length+'" style="color:var(--text-secondary);text-align:center">... and '+(rows.length-10)+' more rows</td></tr>':'')
+    +'</tbody>';
+}
+
+document.addEventListener('change', function(e){
+  if (e.target.id==='importTypeOverride') {
+    importDetectedType = e.target.value;
+    renderImportPreview(importRows, importDetectedType);
+  }
+});
+
+async function commitImport() {
+  if (!importRows.length) { showToast('No rows to import','error'); return; }
+  var type = document.getElementById('importTypeOverride').value || importDetectedType;
+  var r = await apiPost('/api/import/commit', {type: type, rows: importRows});
+  var msg = document.getElementById('importResultMsg');
+  if (!r || r.error) { showToast(r?r.error:'Import failed','error'); return; }
+  msg.innerHTML = '<span style="color:var(--accent-green);font-weight:700">&#x2714; Imported '+r.inserted+' rows</span>'
+    +(r.skipped?' <span style="color:var(--text-secondary)">· '+r.skipped+' skipped</span>':'')
+    +(r.errors&&r.errors.length?'<div style="color:var(--accent-red);font-size:11px;margin-top:6px">Errors: '+r.errors.join(', ')+'</div>':'');
+  showToast('Imported '+r.inserted+' rows', 'success');
+  // Refresh relevant data
+  if (type==='stocks') loadInvestments();
+  if (type==='mutual_funds') loadInvestments();
+  if (type==='earnings') loadEarnings();
+}
+
+function clearImport() {
+  importRows = [];
+  document.getElementById('importPreviewSection').style.display = 'none';
+  document.getElementById('importFileInput').value = '';
 }
 </script>
 
