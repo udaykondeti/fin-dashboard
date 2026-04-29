@@ -532,6 +532,8 @@ function runMigrations() {
         );
       `);
     } },
+    { id: 19, name: 'vault_files.processed_at',     run: () => addColumnIfMissing('vault_files', 'processed_at',     'ALTER TABLE vault_files ADD COLUMN processed_at DATETIME') },
+    { id: 20, name: 'vault_files.processing_error', run: () => addColumnIfMissing('vault_files', 'processing_error', 'ALTER TABLE vault_files ADD COLUMN processing_error TEXT') },
   ];
 
   const appliedIds = new Set(
