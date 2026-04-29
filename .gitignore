@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Environment variables (NEVER commit these)
+.env
+.env.local
+.env.production
+
+# Database
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Terraform state (contains secrets)
+aws/terraform/.terraform/
+aws/terraform/*.tfstate
+aws/terraform/*.tfstate.backup
+aws/terraform/.terraform.lock.hcl
