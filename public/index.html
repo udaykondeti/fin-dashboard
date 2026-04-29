@@ -162,7 +162,7 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
 .loan-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
 .loan-person{font-size:15px;font-weight:700;color:var(--mocha)}
 .loan-status{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;border:1px solid}
-.loan-status.pending{background:#FFF8E1;color:#F57C00;border-color:#FFD54F}
+.loan-status.active,.loan-status.pending{background:#FFF8E1;color:#F57C00;border-color:#FFD54F}
 .loan-status.partial{background:#E3F2FD;color:var(--accent-blue);border-color:#90CAF9}
 .loan-status.settled{background:#E8F5E9;color:var(--accent-green);border-color:#A5D6A7}
 .loan-amount{font-size:22px;font-weight:800;color:var(--caramel);margin-bottom:10px}
@@ -1370,7 +1370,7 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
         <div class="form-row"><label>Date</label><input type="date" id="hl-date" required></div>
         <div class="form-row"><label>Due Date</label><input type="date" id="hl-due"></div>
         <div class="form-row"><label>Status</label>
-          <select id="hl-status"><option>Pending</option><option>Partial</option><option>Settled</option></select>
+          <select id="hl-status"><option value="active">Pending</option><option value="partial">Partial</option><option value="settled">Settled</option></select>
         </div>
       </div>
       <div class="form-row"><label>Notes</label><textarea id="hl-notes" placeholder="Optional notes..."></textarea></div>
@@ -1442,13 +1442,13 @@ const MOCK = {
     {id:3,type:'Personal Loan',lender:'Bajaj Finance',outstanding:125000,emi:5500,rate:14.0,end:'2027-01-01'},
   ],
   handLoansGiven: [
-    {id:1,person:'Rahul Sharma',phone:'9876543210',amount:50000,rate:0,date:'2025-09-15',due:'2026-03-15',status:'Pending',notes:'For house renovation'},
-    {id:2,person:'Priya Rao',phone:'8765432109',amount:25000,rate:0,date:'2026-01-10',due:'2026-07-10',status:'Partial',notes:'Returned 10,000 so far'},
-    {id:3,person:'Arun Kumar',phone:'7654321098',amount:15000,rate:0,date:'2025-05-01',due:'2025-11-01',status:'Settled',notes:'Settled in full'},
+    {id:1,person:'Rahul Sharma',phone:'9876543210',amount:50000,rate:0,date:'2025-09-15',due:'2026-03-15',status:'active',notes:'For house renovation'},
+    {id:2,person:'Priya Rao',phone:'8765432109',amount:25000,rate:0,date:'2026-01-10',due:'2026-07-10',status:'partial',notes:'Returned 10,000 so far'},
+    {id:3,person:'Arun Kumar',phone:'7654321098',amount:15000,rate:0,date:'2025-05-01',due:'2025-11-01',status:'settled',notes:'Settled in full'},
   ],
   handLoansTaken: [
-    {id:1,person:'Suresh Kondeti',phone:'9988776655',amount:100000,rate:0,date:'2025-11-01',due:'2026-05-01',status:'Pending',notes:'Emergency funds'},
-    {id:2,person:'Venkateswara Rao',phone:'9123456780',amount:30000,rate:0,date:'2026-02-14',due:'2026-08-14',status:'Partial',notes:''},
+    {id:1,person:'Suresh Kondeti',phone:'9988776655',amount:100000,rate:0,date:'2025-11-01',due:'2026-05-01',status:'active',notes:'Emergency funds'},
+    {id:2,person:'Venkateswara Rao',phone:'9123456780',amount:30000,rate:0,date:'2026-02-14',due:'2026-08-14',status:'partial',notes:''},
   ],
   savings: [
     {id:1,bank_name:'HDFC Bank',account_type:'Savings',account_number:'XXXX1234',balance:185000,interest_rate:3.5,notes:'Primary salary account'},
@@ -1649,7 +1649,7 @@ function calcTotals(){
   var totalAssets=stocksVal+mfVal+fdVal+usVal;
   var ccLiab=ccData.reduce(function(s,x){return s+x.outstanding},0);
   var loanLiab=loansData.reduce(function(s,x){return s+x.outstanding},0);
-  var handLiab=handLoansTaken.filter(function(l){return l.status!=='Settled'}).reduce(function(s,x){return s+x.amount},0);
+  var handLiab=handLoansTaken.filter(function(l){return l.status!=='settled'}).reduce(function(s,x){return s+x.amount},0);
   var totalLiab=ccLiab+loanLiab+handLiab;
   var netWorth=totalAssets-totalLiab;
   var stocksInv=stocksData.reduce(function(s,x){return s+x.qty*x.avgPrice},0);
@@ -1784,8 +1784,8 @@ function deleteLoan(id){loansData=loansData.filter(function(l){return l.id!==id}
 function renderHandLoans(){
   renderLoanGrid('givenGrid',handLoansGiven);
   renderLoanGrid('takenGrid',handLoansTaken);
-  var tg=handLoansGiven.filter(function(h){return h.status!=='Settled'}).reduce(function(s,h){return s+h.amount},0);
-  var tt=handLoansTaken.filter(function(h){return h.status!=='Settled'}).reduce(function(s,h){return s+h.amount},0);
+  var tg=handLoansGiven.filter(function(h){return h.status!=='settled'}).reduce(function(s,h){return s+h.amount},0);
+  var tt=handLoansTaken.filter(function(h){return h.status!=='settled'}).reduce(function(s,h){return s+h.amount},0);
   document.getElementById('givenSummary').innerHTML='<div class="summary-stat"><div class="summary-stat-label">Total Lent (Pending)</div><div class="summary-stat-value" style="color:var(--accent-green)">'+fmt(tg)+'</div></div>';
   document.getElementById('takenSummary').innerHTML='<div class="summary-stat"><div class="summary-stat-label">Total Borrowed (Pending)</div><div class="summary-stat-value" style="color:var(--accent-red)">'+fmt(tt)+'</div></div>';
 }
@@ -1793,26 +1793,37 @@ function renderLoanGrid(id,loans){
   var el=document.getElementById(id);
   if(!loans.length){el.innerHTML='<div style="color:var(--text-secondary);font-size:14px;padding:20px 0">No entries yet.</div>';return;}
   el.innerHTML=loans.map(function(l){
-    return '<div class="loan-card"><div class="loan-card-top"><div class="loan-person">'+esc(l.person)+'</div><span class="loan-status '+esc(l.status.toLowerCase())+'">'+esc(l.status)+'</span></div><div class="loan-amount">'+fmt(l.amount)+'</div>'+(l.rate>0?'<div class="loan-row"><span class="lbl">Interest</span><span class="val">'+l.rate+'% p.a.</span></div>':'')+'<div class="loan-row"><span class="lbl">Date</span><span class="val">'+dateFmt(l.date)+'</span></div>'+(l.due?'<div class="loan-row"><span class="lbl">Due</span><span class="val">'+dateFmt(l.due)+'</span></div>':'')+(l.phone?'<div class="loan-row"><span class="lbl">Phone</span><span class="val">'+esc(l.phone)+'</span></div>':'')+(l.notes?'<div class="loan-notes">'+esc(l.notes)+'</div>':'')+'<div style="display:flex;gap:6px;margin-top:12px"><button class="action-btn" onclick="cycleStatus(\''+id+'\','+l.id+')">Cycle Status</button><button class="action-btn del" onclick="deleteHandLoan(\''+id+'\','+l.id+')">Del</button></div></div>';
+    var sk=String(l.status||'active').toLowerCase();
+    return '<div class="loan-card"><div class="loan-card-top"><div class="loan-person">'+esc(l.person)+'</div><span class="loan-status '+esc(sk)+'">'+esc(hlStatusLabel(sk))+'</span></div><div class="loan-amount">'+fmt(l.amount)+'</div>'+(l.rate>0?'<div class="loan-row"><span class="lbl">Interest</span><span class="val">'+l.rate+'% p.a.</span></div>':'')+'<div class="loan-row"><span class="lbl">Date</span><span class="val">'+dateFmt(l.date)+'</span></div>'+(l.due?'<div class="loan-row"><span class="lbl">Due</span><span class="val">'+dateFmt(l.due)+'</span></div>':'')+(l.phone?'<div class="loan-row"><span class="lbl">Phone</span><span class="val">'+esc(l.phone)+'</span></div>':'')+(l.notes?'<div class="loan-notes">'+esc(l.notes)+'</div>':'')+'<div style="display:flex;gap:6px;margin-top:12px"><button class="action-btn" onclick="cycleStatus(\''+id+'\','+l.id+')">Cycle Status</button><button class="action-btn del" onclick="deleteHandLoan(\''+id+'\','+l.id+')">Del</button></div></div>';
   }).join('');
 }
-function cycleStatus(gridId,id){
+// Canonical hand-loan status is lowercase ('active'|'partial'|'settled') to
+// match the DB CHECK constraint. UI label uses 'Pending' for 'active'.
+function hlStatusLabel(s){var k=String(s||'').toLowerCase();return k==='active'?'Pending':k.charAt(0).toUpperCase()+k.slice(1);}
+async function cycleStatus(gridId,id){
   var arr=gridId==='givenGrid'?handLoansGiven:handLoansTaken;
   var item=arr.find(function(l){return l.id===id});
   if(!item)return;
-  var states=['Pending','Partial','Settled'];
-  item.status=states[(states.indexOf(item.status)+1)%3];
+  var states=['active','partial','settled'];
+  var next=states[(states.indexOf(String(item.status||'active').toLowerCase())+1)%3];
+  item.status=next;
+  if(typeof item.id==='number'&&item.id<1e12){await apiPut('/api/loans/hand-loans/'+item.id,{status:next});}
   renderHandLoans();
 }
-function deleteHandLoan(gridId,id){
+async function deleteHandLoan(gridId,id){
+  var arr=gridId==='givenGrid'?handLoansGiven:handLoansTaken;
+  var item=arr.find(function(l){return l.id===id});
+  if(item&&typeof item.id==='number'&&item.id<1e12){await apiDel('/api/loans/hand-loans/'+item.id);}
   if(gridId==='givenGrid')handLoansGiven=handLoansGiven.filter(function(l){return l.id!==id});
   else handLoansTaken=handLoansTaken.filter(function(l){return l.id!==id});
   renderHandLoans();showToast('Entry removed','info');
 }
-function saveHandLoan(e){
+async function saveHandLoan(e){
   e.preventDefault();
   var dir=document.getElementById('hl-direction').value;
-  var entry={id:Date.now(),person:document.getElementById('hl-name').value,phone:document.getElementById('hl-phone').value,amount:parseFloat(document.getElementById('hl-amount').value),rate:parseFloat(document.getElementById('hl-rate').value)||0,date:document.getElementById('hl-date').value,due:document.getElementById('hl-due').value,status:document.getElementById('hl-status').value,notes:document.getElementById('hl-notes').value};
+  var payload={person_name:document.getElementById('hl-name').value,phone:document.getElementById('hl-phone').value||null,direction:dir,amount:parseFloat(document.getElementById('hl-amount').value),date:document.getElementById('hl-date').value,due_date:document.getElementById('hl-due').value||null,interest_rate:parseFloat(document.getElementById('hl-rate').value)||0,status:document.getElementById('hl-status').value,notes:document.getElementById('hl-notes').value||null};
+  var r=await apiPost('/api/loans/hand-loans',payload);
+  var entry=r&&r.hand_loan?normHandLoan(r.hand_loan):{id:Date.now(),person:payload.person_name,phone:payload.phone,amount:payload.amount,rate:payload.interest_rate,date:payload.date,due:payload.due_date,status:payload.status,notes:payload.notes,direction:dir};
   if(dir==='given')handLoansGiven.push(entry);else handLoansTaken.push(entry);
   renderHandLoans();closeModal('addHandLoan');e.target.reset();showToast('Entry added','success');
 }
