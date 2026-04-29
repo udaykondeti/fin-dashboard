@@ -452,6 +452,25 @@ function runMigrations() {
       if (!email) return;
       db.prepare('UPDATE users SET is_admin = 1 WHERE email = ?').run(email);
     } },
+    { id: 17, name: 'create_networth_snapshots', run: () => {
+      // Daily net worth snapshot, one row per (user_id, snapshot_date). The
+      // dashboard trend chart reads from here instead of fabricating a linear
+      // interpolation. Populated lazily by GET /api/networth (at most one
+      // upsert per user per day).
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS networth_snapshots (
+          user_id INTEGER NOT NULL,
+          snapshot_date TEXT NOT NULL,
+          total_assets REAL NOT NULL,
+          total_liabilities REAL NOT NULL,
+          net_worth REAL NOT NULL,
+          PRIMARY KEY (user_id, snapshot_date),
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_networth_snapshots_user_date
+          ON networth_snapshots(user_id, snapshot_date DESC);
+      `);
+    } },
   ];
 
   const appliedIds = new Set(
