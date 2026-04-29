@@ -51,8 +51,11 @@ app.use('/api/earnings', earningsRoutes);
 
 const authMiddleware = require('./middleware/auth');
 const vaultRoutes = require('./routes/vault');
-app.use('/api/vault', authMiddleware, vaultRoutes);
+// Public CA-access route MUST be registered before the auth-protected mount;
+// otherwise app.use('/api/vault', authMiddleware, ...) intercepts every
+// /api/vault/* request and rejects the unauthenticated CA share link.
 app.get('/api/vault/ca/:token', vaultRoutes.caAccess);
+app.use('/api/vault', authMiddleware, vaultRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
