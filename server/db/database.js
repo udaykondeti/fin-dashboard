@@ -264,6 +264,18 @@ function initializeDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS earning_shares (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      earning_id INTEGER NOT NULL,
+      profile_id INTEGER NOT NULL,
+      share_percentage REAL NOT NULL,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (earning_id) REFERENCES earnings(id) ON DELETE CASCADE,
+      FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE,
+      UNIQUE(earning_id, profile_id)
+    );
   `);
 
   console.log('Database tables initialized.');
