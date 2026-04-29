@@ -73,10 +73,15 @@ function rowsToMessages(rows) {
       for (const t of tu) blocks.push({ type: 'tool_use', id: t.id, name: t.name, input: t.input });
       out.push({ role: 'assistant', content: blocks });
     } else if (r.role === 'tool') {
-      // tool_result blocks are user-role per Anthropic API
+      // tool_result blocks are user-role per Anthropic API. The content
+      // field accepts either a string or content blocks; pass strings
+      // through verbatim so error messages don't get double-JSON-encoded.
       const parsed = JSON.parse(r.content);
+      const resultStr = typeof parsed.result === 'string'
+        ? parsed.result
+        : JSON.stringify(parsed.result);
       out.push({ role: 'user', content: [
-        { type: 'tool_result', tool_use_id: parsed.tool_use_id, content: JSON.stringify(parsed.result), is_error: !!parsed.is_error }
+        { type: 'tool_result', tool_use_id: parsed.tool_use_id, content: resultStr, is_error: !!parsed.is_error }
       ]});
     }
   }
