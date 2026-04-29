@@ -926,6 +926,19 @@ body{background:var(--bg-primary);color:var(--text-primary);overflow-x:hidden}
 <script>
 'use strict';
 
+// HTML-escape user-provided strings before interpolating into innerHTML.
+// All template literals that splice in API/user data should wrap the
+// value with esc(...). Numbers/booleans are passed through.
+function esc(v) {
+  if (v === null || v === undefined) return '';
+  return String(v)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const USD_INR = 84;
 let charts = {};
 let priceRefreshTimer = null;
@@ -1268,7 +1281,7 @@ function renderLoansTable(){
   var today=new Date();
   var nm=new Date(today.getFullYear(),today.getMonth()+1,1);
   tbody.innerHTML=loansData.map(function(l){
-    return '<tr><td>'+l.type+'</td><td>'+l.lender+'</td><td style="color:var(--accent-red);font-weight:600">'+fmt(l.outstanding)+'</td><td>'+fmt(l.emi)+'/mo</td><td>'+l.rate+'%</td><td>'+dateFmt(nm.toISOString().split("T")[0])+'</td><td>'+dateFmt(l.end)+'</td><td><button class="action-btn del" onclick="deleteLoan('+l.id+')">Del</button></td></tr>';
+    return '<tr><td>'+esc(l.type)+'</td><td>'+esc(l.lender)+'</td><td style="color:var(--accent-red);font-weight:600">'+fmt(l.outstanding)+'</td><td>'+fmt(l.emi)+'/mo</td><td>'+l.rate+'%</td><td>'+dateFmt(nm.toISOString().split("T")[0])+'</td><td>'+dateFmt(l.end)+'</td><td><button class="action-btn del" onclick="deleteLoan('+l.id+')">Del</button></td></tr>';
   }).join('');
 }
 function saveLoan(e){
@@ -1290,7 +1303,7 @@ function renderLoanGrid(id,loans){
   var el=document.getElementById(id);
   if(!loans.length){el.innerHTML='<div style="color:var(--text-secondary);font-size:14px;padding:20px 0">No entries yet.</div>';return;}
   el.innerHTML=loans.map(function(l){
-    return '<div class="loan-card"><div class="loan-card-top"><div class="loan-person">'+l.person+'</div><span class="loan-status '+l.status.toLowerCase()+'">'+l.status+'</span></div><div class="loan-amount">'+fmt(l.amount)+'</div>'+(l.rate>0?'<div class="loan-row"><span class="lbl">Interest</span><span class="val">'+l.rate+'% p.a.</span></div>':'')+'<div class="loan-row"><span class="lbl">Date</span><span class="val">'+dateFmt(l.date)+'</span></div>'+(l.due?'<div class="loan-row"><span class="lbl">Due</span><span class="val">'+dateFmt(l.due)+'</span></div>':'')+(l.phone?'<div class="loan-row"><span class="lbl">Phone</span><span class="val">'+l.phone+'</span></div>':'')+(l.notes?'<div class="loan-notes">'+l.notes+'</div>':'')+'<div style="display:flex;gap:6px;margin-top:12px"><button class="action-btn" onclick="cycleStatus(\''+id+'\','+l.id+')">Cycle Status</button><button class="action-btn del" onclick="deleteHandLoan(\''+id+'\','+l.id+')">Del</button></div></div>';
+    return '<div class="loan-card"><div class="loan-card-top"><div class="loan-person">'+esc(l.person)+'</div><span class="loan-status '+esc(l.status.toLowerCase())+'">'+esc(l.status)+'</span></div><div class="loan-amount">'+fmt(l.amount)+'</div>'+(l.rate>0?'<div class="loan-row"><span class="lbl">Interest</span><span class="val">'+l.rate+'% p.a.</span></div>':'')+'<div class="loan-row"><span class="lbl">Date</span><span class="val">'+dateFmt(l.date)+'</span></div>'+(l.due?'<div class="loan-row"><span class="lbl">Due</span><span class="val">'+dateFmt(l.due)+'</span></div>':'')+(l.phone?'<div class="loan-row"><span class="lbl">Phone</span><span class="val">'+esc(l.phone)+'</span></div>':'')+(l.notes?'<div class="loan-notes">'+esc(l.notes)+'</div>':'')+'<div style="display:flex;gap:6px;margin-top:12px"><button class="action-btn" onclick="cycleStatus(\''+id+'\','+l.id+')">Cycle Status</button><button class="action-btn del" onclick="deleteHandLoan(\''+id+'\','+l.id+')">Del</button></div></div>';
   }).join('');
 }
 function cycleStatus(gridId,id){
@@ -1537,8 +1550,8 @@ function renderBrowseGrid() {
   grid.innerHTML = files.map(function(f){
     return '<div class="file-card">'
       +'<div class="file-card-icon">&#x1F4C4;</div>'
-      +'<div class="file-card-name">'+f.name+'</div>'
-      +'<div class="file-card-meta"><span>'+f.size+'</span><span>'+f.date+'</span></div>'
+      +'<div class="file-card-name">'+esc(f.name)+'</div>'
+      +'<div class="file-card-meta"><span>'+esc(f.size)+'</span><span>'+esc(f.date)+'</span></div>'
       +'<button class="file-card-dl" onclick="downloadVaultFile('+f.id+')">&#x2B07; Download</button>'
       +'</div>';
   }).join('');
@@ -1561,11 +1574,11 @@ function renderRecentUploads() {
     var catLabel = VAULT_CATS[f.category] ? VAULT_CATS[f.category].label : f.category;
     var subcatLabel = VAULT_SUBCAT_LABELS[f.subcategory]||f.subcategory;
     return '<tr>'
-      +'<td><span style="font-size:14px;margin-right:6px">&#x1F4C4;</span><strong>'+f.name+'</strong></td>'
-      +'<td>'+catLabel+' / '+subcatLabel+'</td>'
-      +'<td>'+f.fy+'</td>'
-      +'<td>'+f.size+'</td>'
-      +'<td>'+f.date+'</td>'
+      +'<td><span style="font-size:14px;margin-right:6px">&#x1F4C4;</span><strong>'+esc(f.name)+'</strong></td>'
+      +'<td>'+esc(catLabel)+' / '+esc(subcatLabel)+'</td>'
+      +'<td>'+esc(f.fy)+'</td>'
+      +'<td>'+esc(f.size)+'</td>'
+      +'<td>'+esc(f.date)+'</td>'
       +'<td>'
       +'<button class="action-btn" onclick="downloadVaultFile('+f.id+')" style="margin-right:4px">&#x2B07;</button>'
       +'<button class="action-btn del" onclick="deleteVaultFile('+f.id+')">Del</button>'
@@ -2848,11 +2861,11 @@ function renderSavings() {
   tbody.innerHTML = savingsData.map(function(s){
     var ann = Math.round(s.balance * (s.interest_rate||3.5) / 100);
     total += s.balance; totalInt += ann;
-    return '<tr><td><strong>'+s.bank_name+'</strong></td><td>'+s.account_type+'</td><td>'+fmt(s.balance)+'</td>'
+    return '<tr><td><strong>'+esc(s.bank_name)+'</strong></td><td>'+esc(s.account_type)+'</td><td>'+fmt(s.balance)+'</td>'
       +'<td>'+s.interest_rate+'% p.a.</td>'
       +'<td class="savings-int">+'+fmt(ann)+'/yr</td>'
-      +'<td style="font-size:12px;color:var(--text-secondary)">'+(s.account_number||'--')+'</td>'
-      +'<td style="font-size:12px;color:var(--text-secondary)">'+(s.notes||'--')+'</td>'
+      +'<td style="font-size:12px;color:var(--text-secondary)">'+esc(s.account_number||'--')+'</td>'
+      +'<td style="font-size:12px;color:var(--text-secondary)">'+esc(s.notes||'--')+'</td>'
       +'<td><button class="action-btn del" onclick="deleteSavings('+s.id+')">Del</button></td></tr>';
   }).join('');
   var bar = document.getElementById('savingsTotalBar');
@@ -2885,14 +2898,14 @@ function renderInsurance() {
     var type = p.policy_type || 'Term';
     return '<div class="ins-card">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
-      +'<span class="ins-type-badge '+type+'">'+type+'</span>'
+      +'<span class="ins-type-badge '+esc(type)+'">'+esc(type)+'</span>'
       +'<button class="action-btn del" onclick="deleteInsurance('+p.id+')">Del</button>'
       +'</div>'
-      +'<div class="ins-card-name">'+p.policy_name+'</div>'
-      +'<div class="ins-card-insurer">'+p.insurer+'</div>'
-      +'<div class="ins-row"><span style="color:var(--text-secondary)">Premium</span><span style="font-weight:700">'+fmt(p.premium_amount)+' / '+p.premium_frequency+'</span></div>'
+      +'<div class="ins-card-name">'+esc(p.policy_name)+'</div>'
+      +'<div class="ins-card-insurer">'+esc(p.insurer)+'</div>'
+      +'<div class="ins-row"><span style="color:var(--text-secondary)">Premium</span><span style="font-weight:700">'+fmt(p.premium_amount)+' / '+esc(p.premium_frequency)+'</span></div>'
       +(p.cover_amount>0?'<div class="ins-row"><span style="color:var(--text-secondary)">Cover</span><span style="color:var(--accent-green)">'+fmt(p.cover_amount)+'</span></div>':'')
-      +(p.nominee?'<div class="ins-row"><span style="color:var(--text-secondary)">Nominee</span><span>'+p.nominee+'</span></div>':'')
+      +(p.nominee?'<div class="ins-row"><span style="color:var(--text-secondary)">Nominee</span><span>'+esc(p.nominee)+'</span></div>':'')
       +(p.next_due_date?'<div class="ins-due-chip">📅 Due: '+dateFmt(p.next_due_date)+'</div>':'')
       +'</div>';
   }).join('');
@@ -2924,8 +2937,8 @@ function renderNPS() {
     var pl = n.current_value - n.total_invested, plp = n.total_invested > 0 ? (pl/n.total_invested)*100 : 0;
     var eq=n.equity_pct||75, cb=n.bonds_pct||15, gs=n.govt_pct||10;
     return '<div class="nps-card">'
-      +'<span class="nps-tier">'+n.tier+'</span>'
-      +(n.pran?'<div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px">PRAN: '+n.pran+'</div>':'')
+      +'<span class="nps-tier">'+esc(n.tier)+'</span>'
+      +(n.pran?'<div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px">PRAN: '+esc(n.pran)+'</div>':'')
       +'<div style="font-size:22px;font-weight:800;color:var(--accent-gold)">'+fmt(n.current_value)+'</div>'
       +'<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Invested: '+fmt(n.total_invested)+' <span class="'+(pl>=0?'pl-pos':'pl-neg')+'">('+(pl>=0?'+':'')+fmtPct(plp)+')</span></div>'
       +'<div class="nps-alloc">'
@@ -3045,13 +3058,13 @@ function renderEarnings() {
       : '<button class="action-btn" onclick="toggleSharePanel('+e.id+')" style="margin-right:4px">+ Share</button>'
         +'<button class="action-btn del" onclick="deleteEarning(\''+e.id+'\')">Del</button>';
     rowsHtml += '<tr class="'+autoClass+'">'
-      +'<td><strong>'+(e.is_auto?'<span title="Auto-populated">⚙️ </span>':'')+icon+' '+e.source_name+'</strong></td>'
-      +'<td><span style="font-size:11px;background:rgba(99,102,241,.1);color:#818cf8;padding:2px 7px;border-radius:4px">'+e.source_type+'</span></td>'
+      +'<td><strong>'+(e.is_auto?'<span title="Auto-populated">⚙️ </span>':'')+icon+' '+esc(e.source_name)+'</strong></td>'
+      +'<td><span style="font-size:11px;background:rgba(99,102,241,.1);color:#818cf8;padding:2px 7px;border-radius:4px">'+esc(e.source_type)+'</span></td>'
       +'<td>'+fmt(e.amount)+'</td>'
-      +'<td>'+e.frequency+'</td>'
+      +'<td>'+esc(e.frequency)+'</td>'
       +'<td>'+share+'%</td>'
       +'<td style="color:var(--accent-green);font-weight:600">'+fmt(Math.round(perMonth))+'/mo</td>'
-      +'<td style="font-size:12px;color:var(--text-secondary)">'+(e.notes||'--')+'</td>'
+      +'<td style="font-size:12px;color:var(--text-secondary)">'+esc(e.notes||'--')+'</td>'
       +'<td>'+actionsCell+'</td></tr>';
     // Render shares row immediately below for manual earnings that have shares OR an open form
     if (!e.is_auto) {
@@ -3198,10 +3211,10 @@ function renderPayments() {
     var daysUntil = p.next_due_date ? Math.round((new Date(p.next_due_date)-today)/(86400000)) : null;
     var urgentStyle = daysUntil!==null && daysUntil<=7 ? 'border-color:var(--accent-red)' : '';
     return '<div class="pay-card'+(p.is_active?'':' inactive')+'" style="'+urgentStyle+'">'
-      +'<span class="pay-cat-chip '+(p.category||'Other')+'">'+p.category+'</span>'
-      +'<div class="pay-name">'+p.name+'</div>'
+      +'<span class="pay-cat-chip '+esc(p.category||'Other')+'">'+esc(p.category)+'</span>'
+      +'<div class="pay-name">'+esc(p.name)+'</div>'
       +'<div class="pay-amount">'+fmt(p.amount)+'</div>'
-      +'<span class="pay-freq-chip">'+p.frequency+'</span>'
+      +'<span class="pay-freq-chip">'+esc(p.frequency)+'</span>'
       +(p.next_due_date?'<div class="pay-due-info">📅 '+dateFmt(p.next_due_date)+(daysUntil!==null?' · '+(daysUntil<0?'Overdue':daysUntil===0?'Today':'in '+daysUntil+'d'):'')+'</div>':'')
       +(p.auto_debit?'<span class="pay-auto-chip">⚡ Auto-debit</span>':'')
       +'<div class="pay-actions"><button class="action-btn del" onclick="deletePayment('+p.id+')">Del</button></div>'

@@ -2,7 +2,9 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const path = require('path');
+const { isProd, CORS_ORIGIN } = require('./config');
 
 const authRoutes = require('./routes/auth');
 const investmentRoutes = require('./routes/investments');
@@ -21,9 +23,33 @@ const propertiesRoutes = require('./routes/properties');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// CORS configuration
+// Security headers. CSP is intentionally permissive on inline because the
+// frontend is a single-file index.html with inline scripts; tighten when the
+// frontend is modularized.
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+}));
+
+// CORS — explicit allowlist. Defaults to same-origin only. Production must
+// set CORS_ORIGIN (comma-separated) if cross-origin clients are expected;
+// "*" is no longer allowed silently.
+const allowedOrigins = (CORS_ORIGIN || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
+if (isProd && allowedOrigins.length === 0) {
+  console.warn('[cors] CORS_ORIGIN not set in production — cross-origin requests will be blocked.');
+}
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: (origin, cb) => {
+    // Same-origin / non-browser requests have no Origin header.
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    return cb(new Error('Origin not allowed by CORS policy'));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
@@ -54,8 +80,11 @@ app.use('/api/properties', propertiesRoutes);
 const authMiddleware = require('./middleware/auth');
 const vaultRoutes = require('./routes/vault');
 const adminRoutes = require('./routes/admin');
-app.use('/api/vault', authMiddleware, vaultRoutes);
+// Public CA download endpoint must be registered BEFORE the authenticated
+// /api/vault router; otherwise Express's first-match routing sends it
+// through authMiddleware and the public link is unreachable.
 app.get('/api/vault/ca/:token', vaultRoutes.caAccess);
+app.use('/api/vault', authMiddleware, vaultRoutes);
 app.use('/api/admin', authMiddleware, adminRoutes);
 
 // Health check endpoint
@@ -73,10 +102,12 @@ app.get('*', (req, res) => {
   });
 });
 
-// Global error handler
+// Global error handler. Don't leak err.message to clients in production.
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
-  res.status(500).json({ error: 'Internal server error', message: err.message });
+  const body = { error: 'Internal server error' };
+  if (!isProd) body.message = err.message;
+  res.status(500).json(body);
 });
 
 app.listen(PORT, () => {

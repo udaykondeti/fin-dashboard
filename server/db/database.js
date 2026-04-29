@@ -376,59 +376,87 @@ function initializeDatabase() {
 }
 
 function seedData() {
-  const existingUser = db.prepare('SELECT id FROM users WHERE email = ?').get('kondetiudaykiran@gmail.com');
+  // Only seed in non-production environments. In production, the first
+  // admin must be created via a deliberate setup step (env-driven), never
+  // from a hardcoded credential.
+  if (process.env.NODE_ENV === 'production') {
+    return;
+  }
+
+  const seedEmail = process.env.SEED_ADMIN_EMAIL || 'admin@local';
+  const seedPassword = process.env.SEED_ADMIN_PASSWORD || 'ChangeMe!Local1';
+  const seedName = process.env.SEED_ADMIN_NAME || 'Admin';
+
+  const existingUser = db.prepare('SELECT id FROM users WHERE email = ?').get(seedEmail);
   if (existingUser) {
     return;
   }
 
-  const passwordHash = bcrypt.hashSync('Admin@123', 12);
+  const passwordHash = bcrypt.hashSync(seedPassword, 12);
   const userResult = db.prepare(
     'INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)'
-  ).run('kondetiudaykiran@gmail.com', passwordHash, 'Kiran');
+  ).run(seedEmail, passwordHash, seedName);
   const userId = userResult.lastInsertRowid;
 
   db.prepare(
     'INSERT INTO profiles (user_id, name, color, icon, is_default) VALUES (?,?,?,?,?)'
-  ).run(userId, 'Kiran', '#fbbf24', '👤', 1);
+  ).run(userId, seedName, '#fbbf24', '👤', 1);
 
-  console.log('Initialized admin user: kondetiudaykiran@gmail.com / Admin@123');
+  console.log(`Initialized dev admin user: ${seedEmail} (set SEED_ADMIN_* env vars to override)`);
 }
 
-// Run migrations for columns added after initial schema
+// Versioned migrations. Each migration has a stable numeric `id` and a `run`
+// function. We track applied IDs in `schema_migrations` so each one runs at
+// most once, in order. Add new migrations by appending to the array; never
+// renumber or edit a migration that has already shipped.
 function runMigrations() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      id INTEGER PRIMARY KEY,
+      name TEXT NOT NULL,
+      applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  const addColumnIfMissing = (table, column, sql) => {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all();
+    if (!cols.some(c => c.name === column)) {
+      db.prepare(sql).run();
+    }
+  };
+
   const migrations = [
-    // Add profile_id to vault_files if missing
-    { table: 'vault_files', column: 'profile_id', sql: 'ALTER TABLE vault_files ADD COLUMN profile_id INTEGER' },
-    // Add profile_id to ca_access_tokens if missing
-    { table: 'ca_access_tokens', column: 'profile_id', sql: 'ALTER TABLE ca_access_tokens ADD COLUMN profile_id INTEGER' },
-    // Add current_price to stocks if missing
-    { table: 'stocks', column: 'current_price', sql: 'ALTER TABLE stocks ADD COLUMN current_price REAL' },
-    // Add current_nav to mutual_funds if missing
-    { table: 'mutual_funds', column: 'current_nav', sql: 'ALTER TABLE mutual_funds ADD COLUMN current_nav REAL' },
-    // Add current_price_usd to us_stocks if missing
-    { table: 'us_stocks', column: 'current_price_usd', sql: 'ALTER TABLE us_stocks ADD COLUMN current_price_usd REAL' },
-    // Add last4 to credit_cards if missing
-    { table: 'credit_cards', column: 'last4', sql: "ALTER TABLE credit_cards ADD COLUMN last4 TEXT DEFAULT '0000'" },
-    // Profile identity fields
-    { table: 'profiles', column: 'legal_name', sql: 'ALTER TABLE profiles ADD COLUMN legal_name TEXT' },
-    { table: 'profiles', column: 'name_on_aadhaar', sql: 'ALTER TABLE profiles ADD COLUMN name_on_aadhaar TEXT' },
-    { table: 'profiles', column: 'name_on_pan', sql: 'ALTER TABLE profiles ADD COLUMN name_on_pan TEXT' },
-    { table: 'profiles', column: 'pan_number', sql: 'ALTER TABLE profiles ADD COLUMN pan_number TEXT' },
+    { id: 1,  name: 'vault_files.profile_id',         run: () => addColumnIfMissing('vault_files', 'profile_id', 'ALTER TABLE vault_files ADD COLUMN profile_id INTEGER') },
+    { id: 2,  name: 'ca_access_tokens.profile_id',    run: () => addColumnIfMissing('ca_access_tokens', 'profile_id', 'ALTER TABLE ca_access_tokens ADD COLUMN profile_id INTEGER') },
+    { id: 3,  name: 'stocks.current_price',           run: () => addColumnIfMissing('stocks', 'current_price', 'ALTER TABLE stocks ADD COLUMN current_price REAL') },
+    { id: 4,  name: 'mutual_funds.current_nav',       run: () => addColumnIfMissing('mutual_funds', 'current_nav', 'ALTER TABLE mutual_funds ADD COLUMN current_nav REAL') },
+    { id: 5,  name: 'us_stocks.current_price_usd',    run: () => addColumnIfMissing('us_stocks', 'current_price_usd', 'ALTER TABLE us_stocks ADD COLUMN current_price_usd REAL') },
+    { id: 6,  name: 'credit_cards.last4',             run: () => addColumnIfMissing('credit_cards', 'last4', "ALTER TABLE credit_cards ADD COLUMN last4 TEXT DEFAULT '0000'") },
+    { id: 7,  name: 'profiles.legal_name',            run: () => addColumnIfMissing('profiles', 'legal_name', 'ALTER TABLE profiles ADD COLUMN legal_name TEXT') },
+    { id: 8,  name: 'profiles.name_on_aadhaar',       run: () => addColumnIfMissing('profiles', 'name_on_aadhaar', 'ALTER TABLE profiles ADD COLUMN name_on_aadhaar TEXT') },
+    { id: 9,  name: 'profiles.name_on_pan',           run: () => addColumnIfMissing('profiles', 'name_on_pan', 'ALTER TABLE profiles ADD COLUMN name_on_pan TEXT') },
+    { id: 10, name: 'profiles.pan_number',            run: () => addColumnIfMissing('profiles', 'pan_number', 'ALTER TABLE profiles ADD COLUMN pan_number TEXT') },
     // Only last 4 digits of Aadhaar are stored — UIDAI guidelines forbid storing the full 12-digit number.
-    { table: 'profiles', column: 'aadhaar_last4', sql: 'ALTER TABLE profiles ADD COLUMN aadhaar_last4 TEXT' },
-    { table: 'profiles', column: 'other_ids', sql: 'ALTER TABLE profiles ADD COLUMN other_ids TEXT' },
+    { id: 11, name: 'profiles.aadhaar_last4',         run: () => addColumnIfMissing('profiles', 'aadhaar_last4', 'ALTER TABLE profiles ADD COLUMN aadhaar_last4 TEXT') },
+    { id: 12, name: 'profiles.other_ids',             run: () => addColumnIfMissing('profiles', 'other_ids', 'ALTER TABLE profiles ADD COLUMN other_ids TEXT') },
+    // CA token usage limits — null = unlimited (legacy rows); new tokens default to a finite cap.
+    { id: 13, name: 'ca_access_tokens.max_uses',      run: () => addColumnIfMissing('ca_access_tokens', 'max_uses', 'ALTER TABLE ca_access_tokens ADD COLUMN max_uses INTEGER') },
+    { id: 14, name: 'ca_access_tokens.revoked_at',    run: () => addColumnIfMissing('ca_access_tokens', 'revoked_at', 'ALTER TABLE ca_access_tokens ADD COLUMN revoked_at TEXT') },
   ];
 
-  for (const m of migrations) {
+  const appliedIds = new Set(
+    db.prepare('SELECT id FROM schema_migrations').all().map(r => r.id)
+  );
+  const recordStmt = db.prepare('INSERT INTO schema_migrations (id, name) VALUES (?, ?)');
+
+  for (const m of migrations.sort((a, b) => a.id - b.id)) {
+    if (appliedIds.has(m.id)) continue;
     try {
-      const cols = db.prepare(`PRAGMA table_info(${m.table})`).all();
-      const exists = cols.some(c => c.name === m.column);
-      if (!exists) {
-        db.prepare(m.sql).run();
-        console.log(`Migration: added ${m.table}.${m.column}`);
-      }
+      m.run();
+      recordStmt.run(m.id, m.name);
+      console.log(`Migration ${m.id} applied: ${m.name}`);
     } catch (err) {
-      console.warn(`Migration skipped (${m.table}.${m.column}):`, err.message);
+      console.warn(`Migration ${m.id} (${m.name}) failed:`, err.message);
     }
   }
 }

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db/database');
 const authMiddleware = require('../middleware/auth');
+const { assertProfileOwnership } = require('../middleware/profileGuard');
 
 router.use(authMiddleware);
 
@@ -53,6 +54,7 @@ function getOwnedManualEarning(earningId, userId) {
 router.get('/', (req, res) => {
   const userId = req.user.id;
   const { profile_id } = req.query;
+  if (!assertProfileOwnership(req, res, profile_id)) return;
 
   // Manual earnings
   let q = 'SELECT * FROM earnings WHERE user_id = ? AND is_auto = 0';
@@ -97,6 +99,7 @@ router.get('/', (req, res) => {
 router.post('/', (req, res) => {
   const { source_name, source_type, amount, frequency, share_percentage, profile_id, financial_year, notes } = req.body;
   if (!source_name || !amount) return res.status(400).json({ error: 'source_name and amount required' });
+  if (!assertProfileOwnership(req, res, profile_id)) return;
   const r = db.prepare('INSERT INTO earnings (user_id, profile_id, source_name, source_type, amount, frequency, share_percentage, financial_year, notes) VALUES (?,?,?,?,?,?,?,?,?)').run(req.user.id, profile_id || null, source_name, source_type || 'Other', amount, frequency || 'Monthly', share_percentage || 100, financial_year || null, notes || null);
   res.json({ id: r.lastInsertRowid });
 });

@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
-
-const JWT_SECRET = process.env.JWT_SECRET || 'fin-kirakon-secret-change-in-production';
+const { JWT_SECRET } = require('../config');
 
 /**
  * JWT authentication middleware.

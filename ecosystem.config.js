@@ -10,7 +10,8 @@ module.exports = {
     env: {
       NODE_ENV: 'production',
       PORT: 3001,
-      JWT_SECRET: 'CHANGE_THIS_SECRET_IN_PRODUCTION',
+      // JWT_SECRET must be supplied via the EC2 environment / .env file —
+      // never commit a default. The app will refuse to boot if it's missing.
       DB_PATH: '/var/www/fin-dashboard/data/finance.db'
     }
   }]

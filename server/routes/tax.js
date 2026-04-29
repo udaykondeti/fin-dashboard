@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db/database');
 const authMiddleware = require('../middleware/auth');
+const { assertProfileOwnership } = require('../middleware/profileGuard');
 
 router.use(authMiddleware);
 
@@ -17,6 +18,7 @@ router.get('/advance', (req, res) => {
 router.post('/advance', (req, res) => {
   const { assessment_year, installment, amount, date_paid, profile_id, notes } = req.body;
   if (!assessment_year || !installment || !amount || !date_paid) return res.status(400).json({ error: 'assessment_year, installment, amount and date_paid are required' });
+  if (!assertProfileOwnership(req, res, profile_id)) return;
   const r = db.prepare('INSERT INTO advance_tax_payments (user_id, profile_id, assessment_year, installment, amount, date_paid, notes) VALUES (?,?,?,?,?,?,?)').run(req.user.id, profile_id || null, assessment_year, installment, amount, date_paid, notes || null);
   res.json({ id: r.lastInsertRowid });
 });
