@@ -1689,6 +1689,7 @@ function navigateTo(page){
     var ai = document.getElementById('itAnnualIncome');
     if (ai && typeof calcAnnualIncome==='function') ai.textContent = fmt(calcAnnualIncome());
   }
+  if (page==='agent' && typeof agentLoadThreads === 'function') agentLoadThreads();
 }
 
 function toggleMobileMenu(){document.getElementById('mobileMenu').classList.toggle('open')}
@@ -4377,6 +4378,103 @@ function clearImport() {
   document.getElementById('importPreviewSection').style.display = 'none';
   document.getElementById('importFileInput').value = '';
 }
+
+// ─── AGENT CHAT PAGE ────────────────────────────────────────────────────────
+var agentState = {
+  threads: [],
+  activeId: null,
+  messages: [],          // current thread messages
+  streaming: false,
+  pendingProposal: null, // { tool_use_id, message_id, summary, mutation, name }
+  evtSource: null
+};
+
+async function agentLoadThreads() {
+  var r = await apiFetch('/api/chat/threads');
+  agentState.threads = (r && r.threads) || [];
+  agentRenderThreadList();
+}
+
+function agentRenderThreadList() {
+  var el = document.getElementById('agentThreadList');
+  if (!el) return;
+  if (!agentState.threads.length) {
+    el.innerHTML = '<div class="agent-empty-list">No chats yet — start one with + New Chat.</div>';
+    return;
+  }
+  el.innerHTML = agentState.threads.map(function(t){
+    var active = t.id === agentState.activeId ? ' active' : '';
+    return '<div class="agent-thread'+active+'" onclick="agentOpenThread('+t.id+')">'
+      + '<span class="title">'+esc(t.title || 'New chat')+'</span>'
+      + '<span class="menu" onclick="event.stopPropagation();agentThreadMenu('+t.id+')">⋯</span>'
+      + '</div>';
+  }).join('');
+}
+
+async function agentNewThread() {
+  var r = await apiPost('/api/chat/threads', {});
+  if (!r || !r.id) return;
+  await agentLoadThreads();
+  await agentOpenThread(r.id);
+}
+
+async function agentOpenThread(id) {
+  if (agentState.streaming) return;
+  agentState.activeId = id;
+  agentState.pendingProposal = null;
+  agentRenderThreadList();
+  var r = await apiFetch('/api/chat/threads/'+id);
+  if (!r || !r.thread) { showToast('Thread not found','error'); return; }
+  agentState.messages = r.messages || [];
+  // Restore selectors and title
+  document.getElementById('agentKindSelect').value = r.thread.agent_kind;
+  document.getElementById('agentModelSelect').value = r.thread.model;
+  document.getElementById('agentThreadTitle').textContent = r.thread.title || '';
+  // Restore pending proposal if the last assistant message is still streaming
+  var lastAsst = [...agentState.messages].reverse().find(function(m){return m.role==='assistant'});
+  if (lastAsst && lastAsst.status === 'streaming') {
+    var tu = lastAsst.tool_uses ? JSON.parse(lastAsst.tool_uses) : [];
+    var p = tu.find(function(u){return u.name && u.name.indexOf('propose_')===0});
+    if (p) {
+      // We don't have the mutation in DB; rebuild via PATCH-on-confirm flow.
+      // The mutation is rebuilt server-side from the stored input on confirm
+      // (handled by the confirm endpoint via tools.buildProposal lookup).
+      agentState.pendingProposal = { tool_use_id: p.id, message_id: lastAsst.id, name: p.name, input: p.input, summary: '(restored proposal)', mutation: null };
+    }
+  }
+  agentRenderMessages();
+  agentUpdateInputState();
+}
+
+async function agentThreadMenu(id) {
+  var name = prompt('Rename thread (or leave blank to delete):', '');
+  if (name === null) return;
+  if (name.trim()) {
+    await apiPut('/api/chat/threads/'+id, { title: name.trim() });
+  } else {
+    if (!confirm('Delete this chat?')) return;
+    await apiDel('/api/chat/threads/'+id);
+    if (agentState.activeId === id) {
+      agentState.activeId = null; agentState.messages = [];
+      document.getElementById('agentMessages').innerHTML = '';
+      document.getElementById('agentThreadTitle').textContent = '';
+    }
+  }
+  await agentLoadThreads();
+}
+
+async function agentOnKindChange() {
+  if (!agentState.activeId) return;
+  await apiPut('/api/chat/threads/'+agentState.activeId, { agent_kind: document.getElementById('agentKindSelect').value });
+}
+async function agentOnModelChange() {
+  if (!agentState.activeId) return;
+  await apiPut('/api/chat/threads/'+agentState.activeId, { model: document.getElementById('agentModelSelect').value });
+}
+
+// Stubs filled in by Task 9; safe no-ops to avoid crashes during partial deploys.
+if (!window.agentRenderMessages) window.agentRenderMessages = function() {};
+if (!window.agentUpdateInputState) window.agentUpdateInputState = function() {};
 </script>
 
 </body>
