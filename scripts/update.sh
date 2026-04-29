@@ -21,8 +21,26 @@ echo "  Dependencies up to date."
 
 # ── Restart app ───────────────────────────────────────────────────────────────
 echo "[3/3] Restarting fin-dashboard via PM2..."
-pm2 restart fin-dashboard
+# Use ecosystem.config.js + --update-env so new variables in .env (e.g.
+# JWT_SECRET, CORS_ORIGIN) are picked up. Plain `pm2 restart fin-dashboard`
+# would re-use the env captured when PM2 first started the process.
+cd "$APP_DIR"
+if pm2 list | grep -q 'fin-dashboard'; then
+  pm2 restart ecosystem.config.js --update-env
+else
+  pm2 start ecosystem.config.js
+fi
 pm2 save
+
+# Health check — confirm the process actually came back up. If JWT_SECRET is
+# missing the app now refuses to boot, so a silent crash-loop must surface here.
+sleep 2
+if ! pm2 describe fin-dashboard | grep -qE 'status\s+\│\s+online'; then
+  echo "  ERROR: fin-dashboard is not online after restart. Recent logs:"
+  pm2 logs fin-dashboard --lines 30 --nostream || true
+  exit 1
+fi
+echo "  fin-dashboard is online."
 
 echo ""
 echo "============================================================"
