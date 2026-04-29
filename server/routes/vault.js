@@ -203,6 +203,20 @@ router.post('/confirm-upload', (req, res) => {
     );
 
     const file = db.prepare('SELECT * FROM vault_files WHERE id = ?').get(result.lastInsertRowid);
+
+    // Fire-and-forget auto-processing. Failures are logged but don't block
+    // the upload response.
+    try {
+      const vaultProcessor = require('../services/vaultProcessor');
+      setImmediate(() => {
+        vaultProcessor.enqueue(userId, () =>
+          vaultProcessor.processUpload(file.id, userId)
+        ).catch(err => console.error('[vault] processor error:', err));
+      });
+    } catch (e) {
+      console.error('[vault] could not schedule processor:', e.message);
+    }
+
     res.status(201).json({ message: 'File registered successfully', file });
   } catch (err) {
     if (err.message && err.message.includes('UNIQUE constraint failed')) {
