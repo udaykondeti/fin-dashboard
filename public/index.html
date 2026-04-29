@@ -4472,9 +4472,190 @@ async function agentOnModelChange() {
   await apiPut('/api/chat/threads/'+agentState.activeId, { model: document.getElementById('agentModelSelect').value });
 }
 
-// Stubs filled in by Task 9; safe no-ops to avoid crashes during partial deploys.
-if (!window.agentRenderMessages) window.agentRenderMessages = function() {};
-if (!window.agentUpdateInputState) window.agentUpdateInputState = function() {};
+function agentRenderMessages() {
+  var el = document.getElementById('agentMessages');
+  if (!el) return;
+  if (!agentState.messages.length) {
+    el.innerHTML = '<div class="agent-empty-state">Send your first message to start the conversation.</div>';
+    return;
+  }
+  el.innerHTML = agentState.messages.map(agentRenderOneMessage).join('');
+  // Render pending proposal card after the last message if applicable
+  if (agentState.pendingProposal) {
+    el.insertAdjacentHTML('beforeend', agentRenderProposalCard(agentState.pendingProposal, 'pending'));
+  }
+  el.scrollTop = el.scrollHeight;
+}
+
+function agentRenderOneMessage(m) {
+  if (m.role === 'user') {
+    return '<div class="agent-msg user">'+esc(m.content || '')+'</div>';
+  }
+  if (m.role === 'tool') {
+    var t; try { t = JSON.parse(m.content); } catch (_) { t = { name: '?' }; }
+    var label = t.name === 'proposal_result'
+      ? (t.result && t.result.rejected ? '✗ Rejected' : (t.is_error ? '✗ Failed: ' + (t.result && t.result.error || '') : '✓ Applied'))
+      : '🛠 ' + (t.name || '');
+    return '<div class="agent-tool-chip" onclick="this.classList.toggle(\'open\')">'
+      + esc(label) + '<pre>' + esc(JSON.stringify(t.result, null, 2)) + '</pre></div>';
+  }
+  // assistant
+  var html = '<div class="agent-msg assistant" data-msg-id="'+m.id+'">'+esc(m.content || '');
+  if (m.status === 'streaming' && (!m.tool_uses || m.tool_uses === 'null')) {
+    html += '<div class="interrupted">(interrupted — send a new message to continue)</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function agentRenderProposalCard(p, state) {
+  var cls = state === 'applied' ? ' applied' : state === 'rejected' ? ' rejected' : '';
+  var actions = state === 'pending'
+    ? '<div class="actions"><button class="confirm" onclick="agentConfirmProposal()">Confirm</button>'
+      + '<button class="reject" onclick="agentRejectProposal()">Reject</button></div>'
+    : '<div class="actions"><span>'+(state === 'applied' ? '✓ Done' : '✗ Rejected')+'</span></div>';
+  return '<div class="agent-proposal'+cls+'" data-tool-use-id="'+esc(p.tool_use_id)+'">'
+    + '<div class="summary">🛠 '+esc(p.summary)+'</div>' + actions + '</div>';
+}
+
+function agentUpdateInputState() {
+  var btn = document.getElementById('agentSendBtn');
+  var input = document.getElementById('agentInput');
+  var hint = document.getElementById('agentPendingHint');
+  var blocked = agentState.streaming || !!agentState.pendingProposal || !agentState.activeId;
+  input.disabled = blocked;
+  btn.disabled = blocked;
+  if (agentState.streaming) btn.textContent = 'Stop';
+  else btn.textContent = 'Send';
+  hint.style.display = agentState.pendingProposal ? '' : 'none';
+}
+
+function agentOnKeyDown(e) {
+  // ⌘/Ctrl+Enter to send; plain Enter inserts newline.
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    e.preventDefault();
+    agentOnSend(e);
+  }
+}
+
+async function agentOnSend(e) {
+  e.preventDefault();
+  if (agentState.streaming) { agentStopStream(); return; }
+  if (!agentState.activeId) {
+    // Auto-create a thread on first send
+    var r = await apiPost('/api/chat/threads', {});
+    if (!r || !r.id) return;
+    agentState.activeId = r.id;
+    await agentLoadThreads();
+  }
+  var input = document.getElementById('agentInput');
+  var content = input.value.trim();
+  if (!content) return;
+  input.value = '';
+
+  // Optimistically append the user message
+  agentState.messages.push({ id: 'tmp_user_'+Date.now(), role: 'user', content: content, status: 'final' });
+  agentState.streaming = true;
+  agentUpdateInputState();
+  agentRenderMessages();
+
+  await agentRunStream(content);
+}
+
+async function agentRunStream(content) {
+  var token = localStorage.getItem('fin_token');
+  var url = '/api/chat/threads/'+agentState.activeId+'/stream';
+  // EventSource doesn't support POST or custom headers, so we use fetch + ReadableStream parsing.
+  try {
+    var resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+token },
+      body: JSON.stringify({ content: content })
+    });
+    if (!resp.ok) {
+      var err = await resp.json().catch(function(){return{};});
+      showToast(err.error || ('HTTP '+resp.status), 'error');
+      agentState.streaming = false; agentUpdateInputState(); return;
+    }
+    var reader = resp.body.getReader();
+    var decoder = new TextDecoder();
+    var buffer = '';
+    var assistantMsg = null;
+
+    while (true) {
+      var chunk = await reader.read();
+      if (chunk.done) break;
+      buffer += decoder.decode(chunk.value, { stream: true });
+      var events = buffer.split('\n\n');
+      buffer = events.pop(); // last partial
+      for (var i = 0; i < events.length; i++) {
+        var lines = events[i].split('\n');
+        var name = '', dataStr = '';
+        for (var j = 0; j < lines.length; j++) {
+          if (lines[j].indexOf('event:') === 0) name = lines[j].slice(6).trim();
+          else if (lines[j].indexOf('data:')  === 0) dataStr += lines[j].slice(5).trim();
+        }
+        if (!name) continue;
+        var data; try { data = JSON.parse(dataStr); } catch (_) { data = {}; }
+        if (name === 'thread_meta') {
+          // Replace the tmp_user_* id with the real one
+          var lastUser = [...agentState.messages].reverse().find(function(m){return m.role==='user'});
+          if (lastUser) lastUser.id = data.user_message_id;
+        } else if (name === 'assistant_start') {
+          assistantMsg = { id: data.message_id, role: 'assistant', content: '', tool_uses: null, status: 'streaming' };
+          agentState.messages.push(assistantMsg);
+          agentRenderMessages();
+        } else if (name === 'text') {
+          if (assistantMsg) { assistantMsg.content += data.delta; agentRenderMessages(); }
+        } else if (name === 'tool_use') {
+          // Insert a tool chip immediately so the user sees what was called
+          agentState.messages.push({ id: 'tmp_tu_'+data.id, role: 'tool', content: JSON.stringify({ tool_use_id: data.id, name: data.name, result: { running: true }, is_error: false }), status: 'final' });
+          agentRenderMessages();
+        } else if (name === 'tool_result') {
+          // Replace the running chip with the actual result
+          var idx = agentState.messages.findIndex(function(m){
+            if (m.role !== 'tool') return false;
+            try { return JSON.parse(m.content).tool_use_id === data.tool_use_id; } catch(_) { return false; }
+          });
+          if (idx >= 0) {
+            try {
+              var prev = JSON.parse(agentState.messages[idx].content);
+              agentState.messages[idx].content = JSON.stringify({ tool_use_id: prev.tool_use_id, name: prev.name, result: data.result, is_error: data.status === 'error' });
+            } catch(_){}
+          }
+          // Reset assistantMsg so next text deltas open a new bubble (the model
+          // will continue its turn after the read tools).
+          assistantMsg = null;
+          agentRenderMessages();
+        } else if (name === 'proposal') {
+          agentState.pendingProposal = data;
+          agentRenderMessages();
+        } else if (name === 'done') {
+          if (assistantMsg) assistantMsg.status = 'final';
+          agentState.streaming = false;
+          agentUpdateInputState();
+        } else if (name === 'error') {
+          showToast(data.message || 'Stream error', 'error');
+          agentState.streaming = false;
+          agentUpdateInputState();
+        }
+      }
+    }
+  } catch (err) {
+    showToast('Network error: '+err.message, 'error');
+  } finally {
+    agentState.streaming = false;
+    agentUpdateInputState();
+    agentLoadThreads();  // refresh sidebar (updated_at, possibly new title)
+  }
+}
+
+function agentStopStream() {
+  // Best-effort abort. We don't keep the AbortController in scope here for
+  // simplicity; closing the tab/page also terminates the read loop.
+  agentState.streaming = false;
+  agentUpdateInputState();
+}
 </script>
 
 </body>
