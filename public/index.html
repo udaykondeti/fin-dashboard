@@ -664,6 +664,73 @@ body{background:var(--bg-primary);color:var(--text-primary);overflow-x:hidden}
       </div>
     </div>
 
+    <!-- EARNINGS PAGE -->
+    <div class="page" id="page-earnings">
+      <div class="section-header">
+        <div>
+          <div class="section-title">&#x1F4B0; Earnings</div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">All income sources — auto-populated interest shown in grey</div>
+        </div>
+        <button class="add-btn" onclick="openModal('addEarning')">+ Add Source</button>
+      </div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px">
+        <div class="summary-card green" style="flex:1;min-width:140px">
+          <div class="summary-card-label">Monthly Income</div>
+          <div class="summary-card-value green" id="earnMonthly">&#x20B9;0</div>
+        </div>
+        <div class="summary-card gold" style="flex:1;min-width:140px">
+          <div class="summary-card-label">Annual Income</div>
+          <div class="summary-card-value gold" id="earnAnnual">&#x20B9;0</div>
+        </div>
+        <div class="summary-card blue" style="flex:1;min-width:140px">
+          <div class="summary-card-label">Salary Share</div>
+          <div class="summary-card-value blue" id="earnSalaryPct">0%</div>
+        </div>
+        <div class="summary-card" style="flex:1;min-width:140px">
+          <div class="summary-card-label">Other Income</div>
+          <div class="summary-card-value" id="earnOtherAnnual">&#x20B9;0</div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Source</th><th>Type</th><th>Amount</th><th>Frequency</th><th>Your Share %</th><th>Effective/Mo</th><th>Notes</th><th>Actions</th></tr></thead>
+          <tbody id="earningsTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PAYMENTS PAGE -->
+    <div class="page" id="page-payments">
+      <div class="section-header">
+        <div class="section-title">&#x1F4C5; Scheduled Payments</div>
+        <button class="add-btn" onclick="openModal('addPayment')">+ Add Payment</button>
+      </div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px">
+        <div class="summary-card red" style="flex:1;min-width:140px">
+          <div class="summary-card-label">Monthly Outflow</div>
+          <div class="summary-card-value red" id="payMonthly">&#x20B9;0</div>
+        </div>
+        <div class="summary-card gold" style="flex:1;min-width:140px">
+          <div class="summary-card-label">Annual Outflow</div>
+          <div class="summary-card-value gold" id="payAnnual">&#x20B9;0</div>
+        </div>
+        <div class="summary-card blue" style="flex:1;min-width:140px">
+          <div class="summary-card-label">Due This Month</div>
+          <div class="summary-card-value blue" id="payDueCount">0 payments</div>
+        </div>
+      </div>
+      <div class="payments-filter-bar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+        <button class="tab-btn active" onclick="filterPayments('all',this)" id="payFilter-all">All</button>
+        <button class="tab-btn" onclick="filterPayments('Monthly',this)" id="payFilter-Monthly">Monthly</button>
+        <button class="tab-btn" onclick="filterPayments('Annual',this)" id="payFilter-Annual">Annual</button>
+        <button class="tab-btn" onclick="filterPayments('One-time',this)" id="payFilter-One-time">One-time</button>
+        <button class="tab-btn" onclick="filterPayments('EMI',this)" id="payFilter-EMI">EMI</button>
+        <button class="tab-btn" onclick="filterPayments('SIP',this)" id="payFilter-SIP">SIP</button>
+        <button class="tab-btn" onclick="filterPayments('Insurance',this)" id="payFilter-Insurance">Insurance</button>
+      </div>
+      <div class="pay-grid" id="paymentsGrid"></div>
+    </div>
+
     <!-- VAULT PAGE -->
     <div class="page" id="page-vault">
       <div class="section-header">
@@ -1995,76 +2062,7 @@ checkAuth();
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════════════
-     EARNINGS PAGE
-══════════════════════════════════════════════════════════════════════ -->
-<div class="page" id="page-earnings" style="display:none">
-  <div class="section-header">
-    <div>
-      <div class="section-title">💰 Earnings</div>
-      <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">All income sources — auto-populated interest shown in grey</div>
-    </div>
-    <button class="add-btn" onclick="openModal('addEarning')">+ Add Source</button>
-  </div>
-  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px">
-    <div class="summary-card green" style="flex:1;min-width:140px">
-      <div class="summary-card-label">Monthly Income</div>
-      <div class="summary-card-value green" id="earnMonthly">₹0</div>
-    </div>
-    <div class="summary-card gold" style="flex:1;min-width:140px">
-      <div class="summary-card-label">Annual Income</div>
-      <div class="summary-card-value gold" id="earnAnnual">₹0</div>
-    </div>
-    <div class="summary-card blue" style="flex:1;min-width:140px">
-      <div class="summary-card-label">Salary Share</div>
-      <div class="summary-card-value blue" id="earnSalaryPct">0%</div>
-    </div>
-    <div class="summary-card" style="flex:1;min-width:140px">
-      <div class="summary-card-label">Other Income</div>
-      <div class="summary-card-value" id="earnOtherAnnual">₹0</div>
-    </div>
-  </div>
-  <div class="table-wrap">
-    <table class="data-table">
-      <thead><tr><th>Source</th><th>Type</th><th>Amount</th><th>Frequency</th><th>Your Share %</th><th>Effective/Mo</th><th>Notes</th><th>Actions</th></tr></thead>
-      <tbody id="earningsTbody"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════════════════════════════════════
-     PAYMENTS PAGE
-══════════════════════════════════════════════════════════════════════ -->
-<div class="page" id="page-payments" style="display:none">
-  <div class="section-header">
-    <div class="section-title">📅 Scheduled Payments</div>
-    <button class="add-btn" onclick="openModal('addPayment')">+ Add Payment</button>
-  </div>
-  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px">
-    <div class="summary-card red" style="flex:1;min-width:140px">
-      <div class="summary-card-label">Monthly Outflow</div>
-      <div class="summary-card-value red" id="payMonthly">₹0</div>
-    </div>
-    <div class="summary-card gold" style="flex:1;min-width:140px">
-      <div class="summary-card-label">Annual Outflow</div>
-      <div class="summary-card-value gold" id="payAnnual">₹0</div>
-    </div>
-    <div class="summary-card blue" style="flex:1;min-width:140px">
-      <div class="summary-card-label">Due This Month</div>
-      <div class="summary-card-value blue" id="payDueCount">0 payments</div>
-    </div>
-  </div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-    <button class="tab-btn active" onclick="filterPayments('all',this)" id="payFilter-all">All</button>
-    <button class="tab-btn" onclick="filterPayments('Monthly',this)" id="payFilter-Monthly">Monthly</button>
-    <button class="tab-btn" onclick="filterPayments('Annual',this)" id="payFilter-Annual">Annual</button>
-    <button class="tab-btn" onclick="filterPayments('One-time',this)" id="payFilter-One-time">One-time</button>
-    <button class="tab-btn" onclick="filterPayments('EMI',this)" id="payFilter-EMI">EMI</button>
-    <button class="tab-btn" onclick="filterPayments('SIP',this)" id="payFilter-SIP">SIP</button>
-    <button class="tab-btn" onclick="filterPayments('Insurance',this)" id="payFilter-Insurance">Insurance</button>
-  </div>
-  <div class="pay-grid" id="paymentsGrid"></div>
-</div>
+<!-- earnings & payments pages moved into .main-content above -->
 
 <!-- ══════════════════════════════════════════════════════════════════════
      NEW INVESTMENT MODALS
