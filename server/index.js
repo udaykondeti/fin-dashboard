@@ -40,28 +40,36 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// CORS — explicit allowlist. Defaults to same-origin only. Production must
-// set CORS_ORIGIN (comma-separated) if cross-origin clients are expected;
-// "*" is no longer allowed silently.
+// CORS — explicit allowlist for cross-origin clients, plus an automatic
+// same-origin pass for browser POSTs that include an Origin header pointing
+// at our own host. Production should still set CORS_ORIGIN if any external
+// origins need access; "*" is no longer allowed silently.
 const allowedOrigins = (CORS_ORIGIN || '')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
 
 if (isProd && allowedOrigins.length === 0) {
-  console.warn('[cors] CORS_ORIGIN not set in production — cross-origin requests will be blocked.');
+  console.warn('[cors] CORS_ORIGIN not set — using same-origin only (Origin must equal request Host).');
 }
 
-app.use(cors({
-  origin: (origin, cb) => {
-    // Same-origin / non-browser requests have no Origin header.
-    if (!origin) return cb(null, true);
-    if (allowedOrigins.includes(origin)) return cb(null, true);
-    return cb(new Error('Origin not allowed by CORS policy'));
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+// Use the request-aware form of cors() so the origin callback can compare
+// the incoming Origin header against the request's own Host. Browsers send
+// Origin on POSTs even for same-origin requests, which the previous config
+// (which only allowed missing-Origin requests) was rejecting.
+app.use(cors((req, callback) => {
+  callback(null, {
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      const originHost = origin.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+      if (originHost === req.headers.host) return cb(null, true);
+      if (allowedOrigins.includes(origin)) return cb(null, true);
+      return cb(new Error('Origin not allowed by CORS policy'));
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+  });
 }));
 
 // Body parsing middleware
