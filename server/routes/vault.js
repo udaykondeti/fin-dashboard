@@ -13,6 +13,7 @@ const {
   getCategoryPath
 } = require('../services/s3');
 const { classifyDocument } = require('../services/smartRouter');
+const { assertProfileOwnership } = require('../middleware/profileGuard');
 
 const BUCKET = process.env.S3_BUCKET_NAME || 'fin-kirakon-vault';
 
@@ -45,6 +46,7 @@ function handleS3Error(res, err, context) {
 router.get('/files', (req, res) => {
   const userId = req.user.id;
   const { fy, category, subcategory, profile_id } = req.query;
+  if (!assertProfileOwnership(req, res, profile_id)) return;
 
   let query = 'SELECT * FROM vault_files WHERE user_id = ?';
   const params = [userId];
@@ -101,6 +103,7 @@ router.post('/upload-url', async (req, res) => {
   if (!filename || !contentType) {
     return res.status(400).json({ error: 'filename and contentType are required' });
   }
+  if (!assertProfileOwnership(req, res, profileId)) return;
 
   try {
     // Determine FY
@@ -172,6 +175,7 @@ router.post('/confirm-upload', (req, res) => {
       error: 'Missing required fields: s3Key, originalFilename, financialYear, category'
     });
   }
+  if (!assertProfileOwnership(req, res, profileId)) return;
 
   try {
     const stmt = db.prepare(`
@@ -295,6 +299,7 @@ router.delete('/files/:fileId', async (req, res) => {
 router.get('/fy-summary', (req, res) => {
   const userId = req.user.id;
   const { profile_id } = req.query;
+  if (!assertProfileOwnership(req, res, profile_id)) return;
 
   try {
     let q = `
@@ -325,18 +330,19 @@ router.get('/fy-summary', (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/ca-access', (req, res) => {
   const userId = req.user.id;
-  const { financialYear, categories, expiresInHours = 48 } = req.body;
+  const { financialYear, categories, expiresInHours = 48, maxUses = 5 } = req.body;
 
   try {
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000).toISOString();
     const categoriesStr = Array.isArray(categories) ? categories.join(',') : (categories || null);
     const fy = financialYear || getFYFolder();
+    const cappedUses = Math.max(1, Math.min(parseInt(maxUses, 10) || 5, 50));
 
     db.prepare(`
-      INSERT INTO ca_access_tokens (user_id, token, financial_year, categories, expires_at)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(userId, token, fy, categoriesStr, expiresAt);
+      INSERT INTO ca_access_tokens (user_id, token, financial_year, categories, expires_at, max_uses)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(userId, token, fy, categoriesStr, expiresAt, cappedUses);
 
     const accessUrl = `${process.env.BASE_URL || ''}/api/vault/ca/${token}`;
 
@@ -346,7 +352,8 @@ router.post('/ca-access', (req, res) => {
       financialYear: fy,
       categories: categoriesStr,
       expiresAt,
-      expiresInHours
+      expiresInHours,
+      maxUses: cappedUses
     });
   } catch (err) {
     console.error('[vault] Error generating CA token:', err);
@@ -426,14 +433,26 @@ async function caAccess(req, res) {
       return res.status(404).json({ error: 'Access token not found' });
     }
 
+    if (tokenRecord.revoked_at) {
+      return res.status(410).json({ error: 'Access token has been revoked' });
+    }
+
     if (new Date(tokenRecord.expires_at) < new Date()) {
       return res.status(410).json({ error: 'Access token has expired' });
     }
 
-    // Increment access count
-    db.prepare(
-      'UPDATE ca_access_tokens SET access_count = access_count + 1 WHERE id = ?'
+    // Atomically increment access_count, but only if we have not yet hit max_uses.
+    // If max_uses is null (legacy rows) we leave behavior unchanged.
+    const updateInfo = db.prepare(
+      `UPDATE ca_access_tokens
+         SET access_count = access_count + 1
+       WHERE id = ?
+         AND (max_uses IS NULL OR access_count < max_uses)`
     ).run(tokenRecord.id);
+
+    if (updateInfo.changes === 0) {
+      return res.status(410).json({ error: 'Access token has reached its usage limit' });
+    }
 
     // Build file query
     let query = 'SELECT * FROM vault_files WHERE user_id = ? AND financial_year = ?';

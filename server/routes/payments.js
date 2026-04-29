@@ -2,11 +2,13 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db/database');
 const authMiddleware = require('../middleware/auth');
+const { assertProfileOwnership } = require('../middleware/profileGuard');
 
 router.use(authMiddleware);
 
 router.get('/', (req, res) => {
   const { profile_id } = req.query;
+  if (!assertProfileOwnership(req, res, profile_id)) return;
   let q = 'SELECT * FROM scheduled_payments WHERE user_id = ?';
   const p = [req.user.id];
   if (profile_id) { q += ' AND (profile_id = ? OR profile_id IS NULL)'; p.push(profile_id); }
@@ -16,6 +18,7 @@ router.get('/', (req, res) => {
 router.post('/', (req, res) => {
   const { name, amount, frequency, category, next_due_date, auto_debit, profile_id, notes } = req.body;
   if (!name || !amount) return res.status(400).json({ error: 'Name and amount are required' });
+  if (!assertProfileOwnership(req, res, profile_id)) return;
   const r = db.prepare('INSERT INTO scheduled_payments (user_id, profile_id, name, amount, frequency, category, next_due_date, auto_debit, notes) VALUES (?,?,?,?,?,?,?,?,?)').run(req.user.id, profile_id || null, name, amount, frequency || 'Monthly', category || 'Other', next_due_date || null, auto_debit ? 1 : 0, notes || null);
   res.json({ id: r.lastInsertRowid });
 });

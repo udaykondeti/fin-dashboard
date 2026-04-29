@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db/database');
 const authMiddleware = require('../middleware/auth');
+const { assertProfileOwnership } = require('../middleware/profileGuard');
 
 router.use(authMiddleware);
 
@@ -11,6 +12,7 @@ router.get('/', (req, res) => {
 
 router.post('/', (req, res) => {
   const { pran, tier, total_invested, current_value, equity_pct, bonds_pct, govt_pct, profile_id, notes } = req.body;
+  if (!assertProfileOwnership(req, res, profile_id)) return;
   const r = db.prepare('INSERT INTO nps_accounts (user_id, profile_id, pran, tier, total_invested, current_value, equity_pct, bonds_pct, govt_pct, notes) VALUES (?,?,?,?,?,?,?,?,?,?)').run(req.user.id, profile_id || null, pran || null, tier || 'Tier I', total_invested || 0, current_value || 0, equity_pct || 75, bonds_pct || 15, govt_pct || 10, notes || null);
   res.json({ id: r.lastInsertRowid });
 });

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db/database');
 const authMiddleware = require('../middleware/auth');
+const { assertProfileOwnership } = require('../middleware/profileGuard');
 
 router.use(authMiddleware);
 
@@ -35,6 +36,7 @@ router.post('/', (req, res) => {
   } = req.body;
 
   if (!name) return res.status(400).json({ error: 'name is required' });
+  if (!assertProfileOwnership(req, res, profile_id)) return;
 
   const result = db.prepare(`
     INSERT INTO properties
@@ -68,6 +70,7 @@ router.put('/:id', (req, res) => {
     registration_number, loan_outstanding, loan_interest_rate,
     profile_id, notes
   } = req.body;
+  if (profile_id != null && !assertProfileOwnership(req, res, profile_id)) return;
 
   db.prepare(`
     UPDATE properties SET

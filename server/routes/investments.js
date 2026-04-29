@@ -1,7 +1,7 @@
 const express = require('express');
-const fetch = require('node-fetch');
 const db = require('../db/database');
 const authMiddleware = require('../middleware/auth');
+const { getPrice: fetchYahooPrice } = require('../services/priceService');
 
 const router = express.Router();
 
@@ -377,52 +377,6 @@ router.delete('/us-stocks/:id', (req, res) => {
 });
 
 // ─── LIVE PRICES ──────────────────────────────────────────────────────────────
-
-/**
- * Fetch price for a single symbol from Yahoo Finance
- * Handles both Indian (.NS suffix) and US stocks
- */
-async function fetchYahooPrice(symbol) {
-  try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; fin-dashboard/1.0)',
-        'Accept': 'application/json'
-      },
-      timeout: 8000
-    });
-
-    if (!response.ok) {
-      throw new Error(`Yahoo Finance returned ${response.status} for ${symbol}`);
-    }
-
-    const data = await response.json();
-    const result = data?.chart?.result?.[0];
-
-    if (!result) {
-      throw new Error(`No data returned for ${symbol}`);
-    }
-
-    const meta = result.meta;
-    const price = meta.regularMarketPrice || meta.previousClose || null;
-    const previousClose = meta.previousClose || null;
-    const currency = meta.currency || 'INR';
-
-    return {
-      symbol,
-      price,
-      previousClose,
-      currency,
-      change: price && previousClose ? price - previousClose : null,
-      changePercent: price && previousClose ? ((price - previousClose) / previousClose) * 100 : null,
-      marketState: meta.marketState || 'CLOSED'
-    };
-  } catch (err) {
-    console.error(`Failed to fetch price for ${symbol}:`, err.message);
-    return { symbol, price: null, error: err.message };
-  }
-}
 
 /**
  * GET /api/investments/prices?symbols=TCS.NS,INFY.NS,GOOGL

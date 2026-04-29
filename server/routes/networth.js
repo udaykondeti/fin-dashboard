@@ -1,29 +1,11 @@
 const express = require('express');
-const fetch = require('node-fetch');
 const db = require('../db/database');
 const authMiddleware = require('../middleware/auth');
+const { getPrice, getUsdInrRate } = require('../services/priceService');
 
 const router = express.Router();
 
 router.use(authMiddleware);
-
-/**
- * Fetch Yahoo Finance price for a symbol
- */
-async function fetchPrice(symbol) {
-  try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
-    const response = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; fin-dashboard/1.0)' },
-      timeout: 8000
-    });
-    if (!response.ok) return null;
-    const data = await response.json();
-    return data?.chart?.result?.[0]?.meta?.regularMarketPrice || null;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * GET /api/networth
@@ -47,28 +29,40 @@ router.get('/', async (req, res) => {
     const handLoans = db.prepare('SELECT * FROM hand_loans WHERE user_id = ? AND status = "active"').all(userId);
 
     // ── Fetch live prices for Indian stocks ──
+    // When a price fetch fails we fall back to avg_buy_price for the running
+    // total but record the symbol in `priceWarnings` so the UI can show that
+    // the displayed value is partially based on cost basis, not live data.
+    const priceWarnings = [];
     let stockValues = 0;
     if (stocks.length > 0) {
-      const pricePromises = stocks.map(s => fetchPrice(`${s.symbol}.NS`));
-      const prices = await Promise.all(pricePromises);
+      const results = await Promise.all(stocks.map(s => getPrice(`${s.symbol}.NS`)));
       stocks.forEach((s, i) => {
-        const price = prices[i] || s.avg_buy_price;
-        stockValues += s.quantity * price;
+        const r = results[i];
+        if (r && r.price) {
+          stockValues += s.quantity * r.price;
+        } else {
+          stockValues += s.quantity * s.avg_buy_price;
+          priceWarnings.push({ symbol: s.symbol, error: (r && r.error) || 'unknown', usedFallback: 'avg_buy_price' });
+        }
       });
     }
 
-    // ── Fetch live prices for US stocks ──
+    // ── Fetch live prices for US stocks + live USD/INR rate ──
     let usStockValuesUsd = 0;
-    // Default USD/INR rate fallback (approximate); ideally fetch live
-    const usdInrRate = 84.0;
     if (usStocks.length > 0) {
-      const pricePromises = usStocks.map(s => fetchPrice(s.symbol));
-      const prices = await Promise.all(pricePromises);
+      const results = await Promise.all(usStocks.map(s => getPrice(s.symbol)));
       usStocks.forEach((s, i) => {
-        const price = prices[i] || s.avg_buy_price_usd;
-        usStockValuesUsd += s.quantity * price;
+        const r = results[i];
+        if (r && r.price) {
+          usStockValuesUsd += s.quantity * r.price;
+        } else {
+          usStockValuesUsd += s.quantity * s.avg_buy_price_usd;
+          priceWarnings.push({ symbol: s.symbol, error: (r && r.error) || 'unknown', usedFallback: 'avg_buy_price_usd' });
+        }
       });
     }
+    const fx = await getUsdInrRate();
+    const usdInrRate = fx.rate;
     const usStockValuesInr = usStockValuesUsd * usdInrRate;
 
     // ── Mutual funds (at cost — NAV not fetched) ──
@@ -131,6 +125,8 @@ router.get('/', async (req, res) => {
             value_inr: Math.round(usStockValuesInr),
             value_usd: parseFloat(usStockValuesUsd.toFixed(2)),
             usd_inr_rate: usdInrRate,
+            usd_inr_source: fx.source,
+            usd_inr_age_sec: fx.staleSec,
             percent: totalAssets > 0 ? parseFloat(((usStockValuesInr / totalAssets) * 100).toFixed(1)) : 0,
             count: usStocks.length
           },
@@ -154,6 +150,7 @@ router.get('/', async (req, res) => {
           }
         }
       },
+      price_warnings: priceWarnings,
       timestamp: new Date().toISOString()
     });
   } catch (err) {

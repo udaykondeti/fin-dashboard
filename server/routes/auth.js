@@ -1,18 +1,27 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const db = require('../db/database');
 const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'fin-kirakon-secret-change-in-production';
-const JWT_EXPIRY = '7d';
+const { JWT_SECRET, JWT_EXPIRY } = require('../config');
+
+// Limit login attempts per IP. Returns 429 once exceeded.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Try again in a few minutes.' }
+});
 
 /**
  * POST /api/auth/login
  * Authenticate user with email + password, return JWT
  */
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
