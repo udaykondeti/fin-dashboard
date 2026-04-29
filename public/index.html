@@ -1335,10 +1335,44 @@ var ACTIVITY=[
   {icon:'&#x1F3E6;',type:'green',title:'FD matures soon',desc:'SBI FD of ₹2,00,000 matures Jun 2025',amount:'₹2,26,800',time:'38 days'},
   {icon:'&#x1F91D;',type:'blue',title:'Hand loan due soon',desc:'Suresh Kondeti — ₹1,00,000',amount:'₹1,00,000',time:'2 days'},
 ];
+// Activity feed is now populated from /api/activity, which is fed by the
+// Groq watcher running every 5 min on EC2 (scripts/groq-watcher.js). Each
+// row contains a multi-bullet plain-English summary; we render the bullets
+// as separate lines and fall back to an empty-state if nothing exists yet.
+function timeAgo(iso){
+  if (!iso) return '';
+  var t = new Date((iso + (iso.indexOf('Z') === -1 ? 'Z' : '')).replace(' ', 'T'));
+  if (isNaN(t)) return iso;
+  var s = Math.max(0, Math.floor((Date.now() - t.getTime())/1000));
+  if (s < 60) return s + 's ago';
+  if (s < 3600) return Math.floor(s/60) + 'm ago';
+  if (s < 86400) return Math.floor(s/3600) + 'h ago';
+  return Math.floor(s/86400) + 'd ago';
+}
 function renderActivity(){
-  document.getElementById('activityFeed').innerHTML=ACTIVITY.map(function(a){
-    return '<div class="activity-item"><div class="activity-icon '+esc(a.type)+'">'+esc(a.icon)+'</div><div class="activity-info"><div class="activity-title">'+esc(a.title)+'</div><div class="activity-desc">'+esc(a.desc)+'</div></div><div style="text-align:right"><div style="font-size:14px;font-weight:700" class="'+(a.type==='red'?'pl-neg':a.type==='green'?'pl-pos':'pl-neu')+'">'+esc(a.amount)+'</div><div style="font-size:11px;color:var(--text-secondary)">'+esc(a.time)+'</div></div></div>';
-  }).join('');
+  var el = document.getElementById('activityFeed');
+  if (!el) return;
+  el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:8px 0">Loading recent activity…</div>';
+  apiFetch('/api/activity?limit=10').then(function(r){
+    var rows = (r && r.activity) || [];
+    if (!rows.length) {
+      el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:8px 0">No recent activity. New entries will appear here within 5 minutes of changes.</div>';
+      return;
+    }
+    el.innerHTML = rows.map(function(a){
+      // The Groq summary may contain multiple bullet lines — render each.
+      var lines = String(a.summary||'').split(/\n+/).map(function(s){return s.replace(/^[-•\s]+/,'').trim()}).filter(Boolean);
+      var bullets = lines.length
+        ? lines.map(function(l){return '<div style="font-size:13px;color:var(--text-primary);line-height:1.5">• '+esc(l)+'</div>'}).join('')
+        : '<div style="font-size:13px;color:var(--text-primary)">'+esc(a.summary||'')+'</div>';
+      return '<div class="activity-item" style="display:block">'
+        + bullets
+        + '<div style="font-size:11px;color:var(--text-secondary);margin-top:4px">'+esc(timeAgo(a.created_at))+'</div>'
+      + '</div>';
+    }).join('');
+  }).catch(function(){
+    el.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:8px 0">Activity feed unavailable.</div>';
+  });
 }
 
 var CDEF={

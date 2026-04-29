@@ -471,6 +471,34 @@ function runMigrations() {
           ON networth_snapshots(user_id, snapshot_date DESC);
       `);
     } },
+    { id: 18, name: 'create_activity_log_and_watcher_state', run: () => {
+      // activity_log holds plain-English entries describing recent DB changes,
+      // produced by scripts/groq-watcher.js. The dashboard's Activity feed
+      // reads from this table (replacing the previous hardcoded mock).
+      // watcher_state tracks the last timestamp the watcher processed, per
+      // user, so each cron tick only summarises rows newer than that.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS activity_log (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          source TEXT NOT NULL,
+          summary TEXT NOT NULL,
+          details TEXT,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_activity_log_user_time
+          ON activity_log(user_id, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS watcher_state (
+          name TEXT NOT NULL,
+          user_id INTEGER NOT NULL,
+          last_processed_at DATETIME NOT NULL,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (name, user_id)
+        );
+      `);
+    } },
   ];
 
   const appliedIds = new Set(
