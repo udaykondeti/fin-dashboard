@@ -8,6 +8,22 @@ const authMiddleware = require('../middleware/auth');
 const router = express.Router();
 const { JWT_SECRET, JWT_EXPIRY } = require('../config');
 
+// Minimum password requirements: ≥12 chars, at least one letter, one digit,
+// and one symbol or uppercase. Existing accounts are unaffected; this only
+// kicks in on change-password.
+function checkPasswordPolicy(pw) {
+  if (typeof pw !== 'string' || pw.length < 12) {
+    return { ok: false, reason: 'Password must be at least 12 characters' };
+  }
+  if (!/[a-z]/.test(pw) || !/\d/.test(pw)) {
+    return { ok: false, reason: 'Password must include at least one letter and one digit' };
+  }
+  if (!/[A-Z]/.test(pw) && !/[^A-Za-z0-9]/.test(pw)) {
+    return { ok: false, reason: 'Password must include an uppercase letter or a symbol' };
+  }
+  return { ok: true };
+}
+
 // Limit login attempts per IP. Returns 429 once exceeded.
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -98,8 +114,9 @@ router.post('/change-password', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Current and new password are required' });
     }
 
-    if (new_password.length < 6) {
-      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    const policy = checkPasswordPolicy(new_password);
+    if (!policy.ok) {
+      return res.status(400).json({ error: policy.reason });
     }
 
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);

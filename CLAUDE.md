@@ -2,6 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Workflow (standing authorization)
+
+The repo owner has authorized fully automated change delivery. After completing any code change on a non-main branch:
+
+1. Push the branch to origin.
+2. Open a PR via `mcp__github__create_pull_request` against `main` if one does not already exist for that branch.
+3. Squash-merge the PR via `mcp__github__merge_pull_request` once it is mergeable. Do **not** wait for human review or comments. If CI checks exist, wait for them to pass; if there are no CI checks configured (current state), merge immediately.
+4. Do not push directly to `main` — always go through a PR, even when auto-merging.
+
+This standing authorization replaces the default "ask before pushing/merging" guidance for this repo.
+
 ## Commands
 
 ```bash

@@ -8,7 +8,8 @@
 //     the difference between "live price" and "cost basis". Callers now receive
 //     an explicit { price: null, error } and decide how to surface that.
 
-const fetch = require('node-fetch');
+// Uses Node's built-in fetch (Node >=18). AbortSignal.timeout replaces the
+// node-fetch v2 `timeout` option, which is not supported by the WHATWG fetch.
 
 const SYMBOL_RE = /^[A-Z0-9.\-^=]{1,16}$/;
 const FX_TTL_MS = 60 * 60 * 1000; // cache USD/INR for one hour
@@ -30,7 +31,7 @@ async function getPrice(symbol) {
         'User-Agent': 'Mozilla/5.0 (compatible; fin-dashboard/1.0)',
         'Accept': 'application/json'
       },
-      timeout: 8000
+      signal: AbortSignal.timeout(8000)
     });
     if (!response.ok) {
       return { symbol, price: null, error: `yahoo_status_${response.status}` };

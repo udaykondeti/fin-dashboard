@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+// Uses Node's built-in fetch (Node >=18).
 
 function isSlackConfigured() {
   return !!process.env.SLACK_WEBHOOK_URL;
@@ -19,7 +19,7 @@ async function notify(message) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-      timeout: 5000
+      signal: AbortSignal.timeout(5000)
     });
     const respText = await res.text();
     // Slack incoming webhooks reply with the literal string "ok" on success

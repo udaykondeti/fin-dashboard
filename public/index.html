@@ -1187,7 +1187,7 @@ function renderStocksTable(){
   var rows=stocksData.map(function(s){
     var inv=s.qty*s.avgPrice,val=s.qty*s.currentPrice,pl=val-inv,plp=(pl/inv)*100;
     totalInv+=inv;totalVal+=val;
-    return '<tr><td><strong>'+s.symbol+'</strong></td><td>'+s.company+'</td><td>'+s.qty+'</td><td>'+fmt(s.avgPrice)+'</td><td>'+fmt(s.currentPrice)+'<span class="badge-live">LIVE</span></td><td>'+fmt(Math.round(inv))+'</td><td>'+fmt(Math.round(val))+'</td><td class="'+plClass(pl)+'">'+fmt(Math.round(pl))+'</td><td class="'+plClass(plp)+'">'+fmtPct(plp)+'</td><td><button class="action-btn del" onclick="deleteStock('+s.id+')">Del</button></td></tr>';
+    return '<tr><td><strong>'+esc(s.symbol)+'</strong></td><td>'+esc(s.company)+'</td><td>'+s.qty+'</td><td>'+fmt(s.avgPrice)+'</td><td>'+fmt(s.currentPrice)+'<span class="badge-live">LIVE</span></td><td>'+fmt(Math.round(inv))+'</td><td>'+fmt(Math.round(val))+'</td><td class="'+plClass(pl)+'">'+fmt(Math.round(pl))+'</td><td class="'+plClass(plp)+'">'+fmtPct(plp)+'</td><td><button class="action-btn del" onclick="deleteStock('+s.id+')">Del</button></td></tr>';
   });
   var tp=totalVal-totalInv,tpp=totalInv>0?(tp/totalInv)*100:0;
   tbody.innerHTML=rows.join('')+'<tr class="total-row"><td colspan="5">Total</td><td>'+fmt(Math.round(totalInv))+'</td><td>'+fmt(Math.round(totalVal))+'</td><td class="'+plClass(tp)+'">'+fmt(Math.round(tp))+'</td><td class="'+plClass(tpp)+'">'+fmtPct(tpp)+'</td><td></td></tr>';
@@ -1207,7 +1207,7 @@ function renderMFTable(){
   var rows=mfsData.map(function(m){
     var inv=m.units*m.avgNav,val=m.units*m.currentNav,pl=val-inv,plp=(pl/inv)*100;
     totalInv+=inv;totalVal+=val;
-    return '<tr><td><strong>'+m.name+'</strong></td><td><span style="font-size:11px;background:rgba(59,130,246,.1);color:var(--accent-blue);padding:2px 7px;border-radius:4px">'+m.type+'</span></td><td>'+m.units.toFixed(3)+'</td><td>'+fmt(m.avgNav)+'</td><td>'+fmt(m.currentNav)+'<span class="badge-live">LIVE</span></td><td>'+fmt(Math.round(inv))+'</td><td>'+fmt(Math.round(val))+'</td><td class="'+plClass(pl)+'">'+fmt(Math.round(pl))+'</td><td class="'+plClass(plp)+'">'+fmtPct(plp)+'</td><td>'+(m.sip>0?fmt(m.sip)+'/mo':'--')+'</td><td><button class="action-btn del" onclick="deleteMF('+m.id+')">Del</button></td></tr>';
+    return '<tr><td><strong>'+esc(m.name)+'</strong></td><td><span style="font-size:11px;background:rgba(59,130,246,.1);color:var(--accent-blue);padding:2px 7px;border-radius:4px">'+esc(m.type)+'</span></td><td>'+m.units.toFixed(3)+'</td><td>'+fmt(m.avgNav)+'</td><td>'+fmt(m.currentNav)+'<span class="badge-live">LIVE</span></td><td>'+fmt(Math.round(inv))+'</td><td>'+fmt(Math.round(val))+'</td><td class="'+plClass(pl)+'">'+fmt(Math.round(pl))+'</td><td class="'+plClass(plp)+'">'+fmtPct(plp)+'</td><td>'+(m.sip>0?fmt(m.sip)+'/mo':'--')+'</td><td><button class="action-btn del" onclick="deleteMF('+m.id+')">Del</button></td></tr>';
   });
   var tp=totalVal-totalInv,tpp=totalInv>0?(tp/totalInv)*100:0;
   tbody.innerHTML=rows.join('')+'<tr class="total-row"><td colspan="5">Total</td><td>'+fmt(Math.round(totalInv))+'</td><td>'+fmt(Math.round(totalVal))+'</td><td class="'+plClass(tp)+'">'+fmt(Math.round(tp))+'</td><td class="'+plClass(tpp)+'">'+fmtPct(tpp)+'</td><td></td><td></td></tr>';
@@ -1231,7 +1231,7 @@ function renderFDGrid(){
     var maturity=calcFDMaturity(f.principal,f.rate,f.start,f.end);
     var dl=daysLeft(f.end);
     var fillClass=pct>80?'danger':pct>50?'warn':'';
-    return '<div class="fd-card"><div class="fd-card-top"><div><div style="font-size:20px;margin-bottom:4px">&#x1F3E6;</div><div class="fd-bank">'+f.bank+'</div></div><div><span class="fd-type">'+f.type+'</span><button class="action-btn del" style="display:block;margin-top:6px" onclick="deleteFD('+f.id+')">Del</button></div></div><div class="fd-row"><span class="lbl">Principal</span><span class="val">'+fmt(f.principal)+'</span></div><div class="fd-row"><span class="lbl">Rate</span><span class="val" style="color:var(--accent-gold)">'+f.rate+'% p.a.</span></div><div class="fd-row"><span class="lbl">Maturity Value</span><span class="val" style="color:var(--accent-green)">'+fmt(Math.round(maturity))+'</span></div><div class="fd-row"><span class="lbl">Gain</span><span class="val pl-pos">+'+fmt(Math.round(maturity-f.principal))+'</span></div><div class="progress-bar"><div class="progress-fill '+fillClass+'" style="width:'+pct.toFixed(1)+'%"></div></div><div style="font-size:12px;color:var(--text-secondary);text-align:right">'+(dl>0?dl+' days left':'Matured')+' &middot; '+dateFmt(f.end)+'</div></div>';
+    return '<div class="fd-card"><div class="fd-card-top"><div><div style="font-size:20px;margin-bottom:4px">&#x1F3E6;</div><div class="fd-bank">'+esc(f.bank)+'</div></div><div><span class="fd-type">'+esc(f.type)+'</span><button class="action-btn del" style="display:block;margin-top:6px" onclick="deleteFD('+f.id+')">Del</button></div></div><div class="fd-row"><span class="lbl">Principal</span><span class="val">'+fmt(f.principal)+'</span></div><div class="fd-row"><span class="lbl">Rate</span><span class="val" style="color:var(--accent-gold)">'+f.rate+'% p.a.</span></div><div class="fd-row"><span class="lbl">Maturity Value</span><span class="val" style="color:var(--accent-green)">'+fmt(Math.round(maturity))+'</span></div><div class="fd-row"><span class="lbl">Gain</span><span class="val pl-pos">+'+fmt(Math.round(maturity-f.principal))+'</span></div><div class="progress-bar"><div class="progress-fill '+fillClass+'" style="width:'+pct.toFixed(1)+'%"></div></div><div style="font-size:12px;color:var(--text-secondary);text-align:right">'+(dl>0?dl+' days left':'Matured')+' &middot; '+dateFmt(f.end)+'</div></div>';
   }).join('');
 }
 function saveFD(e){
@@ -1247,7 +1247,7 @@ function renderUSTable(){
   var rows=usStocksData.map(function(s){
     var inv=s.qty*s.avgPrice*USD_INR,val=s.qty*s.currentPrice*USD_INR,pl=val-inv,plp=(pl/inv)*100;
     totalInv+=inv;totalVal+=val;
-    return '<tr><td><strong>'+s.symbol+'</strong></td><td>'+s.company+'</td><td>'+s.qty+'</td><td>'+fmtUSD(s.avgPrice)+'</td><td>'+fmtUSD(s.currentPrice)+'<span class="badge-live">LIVE</span></td><td>'+fmt(Math.round(inv))+'</td><td>'+fmt(Math.round(val))+'</td><td class="'+plClass(pl)+'">'+fmt(Math.round(pl))+'</td><td class="'+plClass(plp)+'">'+fmtPct(plp)+'</td><td><button class="action-btn del" onclick="deleteUSStock('+s.id+')">Del</button></td></tr>';
+    return '<tr><td><strong>'+esc(s.symbol)+'</strong></td><td>'+esc(s.company)+'</td><td>'+s.qty+'</td><td>'+fmtUSD(s.avgPrice)+'</td><td>'+fmtUSD(s.currentPrice)+'<span class="badge-live">LIVE</span></td><td>'+fmt(Math.round(inv))+'</td><td>'+fmt(Math.round(val))+'</td><td class="'+plClass(pl)+'">'+fmt(Math.round(pl))+'</td><td class="'+plClass(plp)+'">'+fmtPct(plp)+'</td><td><button class="action-btn del" onclick="deleteUSStock('+s.id+')">Del</button></td></tr>';
   });
   var tp=totalVal-totalInv,tpp=totalInv>0?(tp/totalInv)*100:0;
   tbody.innerHTML=rows.join('')+'<tr class="total-row"><td colspan="5">Total</td><td>'+fmt(Math.round(totalInv))+'</td><td>'+fmt(Math.round(totalVal))+'</td><td class="'+plClass(tp)+'">'+fmt(Math.round(tp))+'</td><td class="'+plClass(tpp)+'">'+fmtPct(tpp)+'</td><td></td></tr>';
@@ -1266,7 +1266,7 @@ function renderCCGrid(){
     var util=(c.outstanding/c.limit)*100;
     var isDanger=util>80;
     var fillClass=util>80?'danger':util>50?'warn':'';
-    return '<div class="cc-card'+(isDanger?' danger-card':'')+'"><div class="cc-chip"></div><div class="cc-bank">'+c.bank+'</div><div class="cc-name">'+c.name+' ···'+(c.last4||'0000')+'</div><div class="cc-row"><div><div class="cc-label">Outstanding</div><div class="cc-value'+(isDanger?' danger':'')+'">'+fmt(c.outstanding)+'</div></div><div style="text-align:right"><div class="cc-label">Credit Limit</div><div class="cc-value">'+fmt(c.limit)+'</div></div></div><div class="cc-bar"><div class="cc-bar-fill '+fillClass+'" style="width:'+util.toFixed(1)+'%"></div></div><div style="display:flex;justify-content:space-between"><div style="font-size:11px;color:rgba(255,255,255,.45)">Due: '+dateFmt(c.due)+'</div><div style="font-size:11px;color:rgba(255,255,255,.45)">'+util.toFixed(1)+'% used</div></div><button class="action-btn" style="margin-top:10px;color:rgba(255,255,255,.4);border-color:rgba(255,255,255,.15)" onclick="deleteCC('+c.id+')">Remove</button></div>';
+    return '<div class="cc-card'+(isDanger?' danger-card':'')+'"><div class="cc-chip"></div><div class="cc-bank">'+esc(c.bank)+'</div><div class="cc-name">'+esc(c.name)+' ···'+esc(c.last4||'0000')+'</div><div class="cc-row"><div><div class="cc-label">Outstanding</div><div class="cc-value'+(isDanger?' danger':'')+'">'+fmt(c.outstanding)+'</div></div><div style="text-align:right"><div class="cc-label">Credit Limit</div><div class="cc-value">'+fmt(c.limit)+'</div></div></div><div class="cc-bar"><div class="cc-bar-fill '+fillClass+'" style="width:'+util.toFixed(1)+'%"></div></div><div style="display:flex;justify-content:space-between"><div style="font-size:11px;color:rgba(255,255,255,.45)">Due: '+dateFmt(c.due)+'</div><div style="font-size:11px;color:rgba(255,255,255,.45)">'+util.toFixed(1)+'% used</div></div><button class="action-btn" style="margin-top:10px;color:rgba(255,255,255,.4);border-color:rgba(255,255,255,.15)" onclick="deleteCC('+c.id+')">Remove</button></div>';
   }).join('');
 }
 function saveCC(e){
@@ -1337,7 +1337,7 @@ var ACTIVITY=[
 ];
 function renderActivity(){
   document.getElementById('activityFeed').innerHTML=ACTIVITY.map(function(a){
-    return '<div class="activity-item"><div class="activity-icon '+a.type+'">'+a.icon+'</div><div class="activity-info"><div class="activity-title">'+a.title+'</div><div class="activity-desc">'+a.desc+'</div></div><div style="text-align:right"><div style="font-size:14px;font-weight:700" class="'+(a.type==='red'?'pl-neg':a.type==='green'?'pl-pos':'pl-neu')+'">'+a.amount+'</div><div style="font-size:11px;color:var(--text-secondary)">'+a.time+'</div></div></div>';
+    return '<div class="activity-item"><div class="activity-icon '+esc(a.type)+'">'+esc(a.icon)+'</div><div class="activity-info"><div class="activity-title">'+esc(a.title)+'</div><div class="activity-desc">'+esc(a.desc)+'</div></div><div style="text-align:right"><div style="font-size:14px;font-weight:700" class="'+(a.type==='red'?'pl-neg':a.type==='green'?'pl-pos':'pl-neu')+'">'+esc(a.amount)+'</div><div style="font-size:11px;color:var(--text-secondary)">'+esc(a.time)+'</div></div></div>';
   }).join('');
 }
 
@@ -1411,13 +1411,13 @@ function renderAnalyticsCharts(){
   });
   var performers=stocksData.map(function(s){return{symbol:s.symbol,pnlp:((s.currentPrice-s.avgPrice)/s.avgPrice)*100}}).concat(usStocksData.map(function(s){return{symbol:s.symbol+' (US)',pnlp:((s.currentPrice-s.avgPrice)/s.avgPrice)*100}})).sort(function(a,b){return b.pnlp-a.pnlp}).slice(0,5);
   document.getElementById('topPerformers').innerHTML=performers.map(function(p,i){
-    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(51,65,85,.35)"><div style="width:24px;height:24px;border-radius:50%;background:rgba(245,158,11,.15);color:var(--accent-gold);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">'+(i+1)+'</div><div style="flex:1;font-weight:600;font-size:14px">'+p.symbol+'</div><div class="'+plClass(p.pnlp)+'" style="font-weight:700;font-size:14px">'+fmtPct(p.pnlp)+'</div></div>';
+    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(51,65,85,.35)"><div style="width:24px;height:24px;border-radius:50%;background:rgba(245,158,11,.15);color:var(--accent-gold);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">'+(i+1)+'</div><div style="flex:1;font-weight:600;font-size:14px">'+esc(p.symbol)+'</div><div class="'+plClass(p.pnlp)+'" style="font-weight:700;font-size:14px">'+fmtPct(p.pnlp)+'</div></div>';
   }).join('');
   document.getElementById('fdTimeline').innerHTML=fdsData.slice().sort(function(a,b){return new Date(a.end)-new Date(b.end)}).map(function(f){
     var dl=daysLeft(f.end);
     var mat=calcFDMaturity(f.principal,f.rate,f.start,f.end);
     var isClose=dl<90&&dl>0;
-    return '<div style="display:flex;align-items:center;gap:16px;padding:12px 0;border-bottom:1px solid rgba(51,65,85,.35)"><div style="font-size:20px">&#x1F3E6;</div><div style="flex:1"><div style="font-weight:600;font-size:14px">'+f.bank+' — '+f.type+'</div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px">Principal: '+fmt(f.principal)+' &middot; Rate: '+f.rate+'%</div></div><div style="text-align:right"><div style="font-size:14px;font-weight:700;color:var(--accent-green)">'+fmt(Math.round(mat))+'</div><div style="font-size:12px;color:'+(isClose?'var(--accent-gold)':'var(--text-secondary)')+'">'+( dl>0?dl+' days':'Matured' )+' &middot; '+dateFmt(f.end)+'</div></div></div>';
+    return '<div style="display:flex;align-items:center;gap:16px;padding:12px 0;border-bottom:1px solid rgba(51,65,85,.35)"><div style="font-size:20px">&#x1F3E6;</div><div style="flex:1"><div style="font-weight:600;font-size:14px">'+esc(f.bank)+' — '+esc(f.type)+'</div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px">Principal: '+fmt(f.principal)+' &middot; Rate: '+f.rate+'%</div></div><div style="text-align:right"><div style="font-size:14px;font-weight:700;color:var(--accent-green)">'+fmt(Math.round(mat))+'</div><div style="font-size:12px;color:'+(isClose?'var(--accent-gold)':'var(--text-secondary)')+'">'+( dl>0?dl+' days':'Matured' )+' &middot; '+dateFmt(f.end)+'</div></div></div>';
   }).join('');
 }
 
@@ -1845,10 +1845,10 @@ function renderCATokens() {
     var today = new Date();
     var active = t.active && new Date(t.expires) > today;
     return '<tr>'
-      +'<td><code style="font-size:11px;background:rgba(255,255,255,.05);padding:2px 6px;border-radius:4px">'+t.token+'</code></td>'
-      +'<td>'+t.fy+'</td>'
-      +'<td>'+t.expires+'</td>'
-      +'<td>'+t.accesses+'</td>'
+      +'<td><code style="font-size:11px;background:rgba(255,255,255,.05);padding:2px 6px;border-radius:4px">'+esc(t.token)+'</code></td>'
+      +'<td>'+esc(t.fy)+'</td>'
+      +'<td>'+esc(t.expires)+'</td>'
+      +'<td>'+esc(t.accesses)+'</td>'
       +'<td><span class="'+(active?'status-active':'status-expired')+'">'+(active?'Active':'Expired')+'</span></td>'
       +'<td><button class="revoke-btn" onclick="revokeCAToken('+t.id+')" '+(active?'':'disabled style="opacity:.5"')+'>Revoke</button></td>'
       +'</tr>';
@@ -2714,8 +2714,8 @@ function renderProfileSwitcher() {
   list.innerHTML = profilesData.map(function(p){
     var isActive = p.id === activeProfileId;
     return '<div class="profile-menu-item'+(isActive?' active':'')+'" onclick="switchProfile('+p.id+')">'
-      +'<span style="width:10px;height:10px;border-radius:50%;background:'+p.color+';display:inline-block"></span>'
-      +'<span>'+p.icon+' '+p.name+'</span>'
+      +'<span style="width:10px;height:10px;border-radius:50%;background:'+esc(p.color)+';display:inline-block"></span>'
+      +'<span>'+esc(p.icon)+' '+esc(p.name)+'</span>'
       +(isActive?'<span style="margin-left:auto;font-size:10px">✓</span>':'')
       +'</div>';
   }).join('');
@@ -2757,10 +2757,10 @@ function renderProfileManage() {
   if (!el) return;
   el.innerHTML = profilesData.map(function(p){
     var meta = '';
-    if (p.legal_name) meta += '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px">'+p.legal_name+'</div>';
-    if (p.pan_number) meta += '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px">PAN: '+maskPan(p.pan_number)+'</div>';
+    if (p.legal_name) meta += '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px">'+esc(p.legal_name)+'</div>';
+    if (p.pan_number) meta += '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px">PAN: '+esc(maskPan(p.pan_number))+'</div>';
     return '<div class="profile-manage-item">'
-      +'<span><span class="profile-color-dot" style="background:'+p.color+'"></span>'+p.icon+' '+p.name+(p.is_default?' <span style="font-size:10px;color:var(--accent-gold)">(default)</span>':'')+meta+'</span>'
+      +'<span><span class="profile-color-dot" style="background:'+esc(p.color)+'"></span>'+esc(p.icon)+' '+esc(p.name)+(p.is_default?' <span style="font-size:10px;color:var(--accent-gold)">(default)</span>':'')+meta+'</span>'
       +(p.is_default?'':'<button class="action-btn del" onclick="deleteProfile('+p.id+')">Delete</button>')
       +'</div>';
   }).join('');
@@ -2979,9 +2979,9 @@ function renderAdvTax() {
   var yearData = advTaxData.filter(function(t){return t.assessment_year===year});
   var total = yearData.reduce(function(s,t){return s+t.amount},0);
   tbody.innerHTML = yearData.map(function(t){
-    return '<tr><td>'+t.installment+'</td><td style="color:var(--accent-green);font-weight:700">'+fmt(t.amount)+'</td>'
+    return '<tr><td>'+esc(t.installment)+'</td><td style="color:var(--accent-green);font-weight:700">'+fmt(t.amount)+'</td>'
       +'<td>'+dateFmt(t.date_paid)+'</td>'
-      +'<td style="font-size:12px;color:var(--text-secondary)">'+(t.notes||'--')+'</td>'
+      +'<td style="font-size:12px;color:var(--text-secondary)">'+esc(t.notes||'--')+'</td>'
       +'<td><button class="action-btn del" onclick="deleteAdvTax('+t.id+')">Del</button></td></tr>';
   }).join('') || '<tr><td colspan="5" style="color:var(--text-secondary);text-align:center;padding:20px">No payments recorded.</td></tr>';
   // Tax estimate from earnings
@@ -3473,12 +3473,12 @@ async function loadAgreements() {
   document.getElementById('agreementsTbody').innerHTML = rows.length ? rows.map(function(a){
     return '<tr>'
       +'<td>'+escHtml(a.tenant_name)+'</td>'
-      +'<td>'+(a.tenant_phone||'—')+'</td>'
+      +'<td>'+escHtml(a.tenant_phone||'—')+'</td>'
       +'<td>'+fmt(a.rent_amount)+'</td>'
       +'<td>'+fmt(a.security_deposit)+'</td>'
       +'<td>'+escHtml(a.start_date)+'</td>'
-      +'<td>'+(a.end_date||'—')+'</td>'
-      +'<td><span style="color:'+statusColor[a.status]+';font-weight:600">'+a.status+'</span></td>'
+      +'<td>'+escHtml(a.end_date||'—')+'</td>'
+      +'<td><span style="color:'+(statusColor[a.status]||'')+';font-weight:600">'+escHtml(a.status)+'</span></td>'
       +'<td><button class="action-btn del" onclick="deleteAgreement('+a.id+')">Delete</button></td>'
     +'</tr>';
   }).join('') : '<tr><td colspan="8" style="color:var(--text-secondary);text-align:center;padding:20px">No agreements yet.</td></tr>';
@@ -3540,8 +3540,8 @@ async function loadPropTax() {
       +'<td>'+escHtml(t.assessment_year)+'</td>'
       +'<td>'+fmt(t.amount)+'</td>'
       +'<td>'+escHtml(t.payment_date)+'</td>'
-      +'<td>'+(t.receipt_number||'—')+'</td>'
-      +'<td>'+(t.notes||'—')+'</td>'
+      +'<td>'+escHtml(t.receipt_number||'—')+'</td>'
+      +'<td>'+escHtml(t.notes||'—')+'</td>'
       +'<td><button class="action-btn del" onclick="deleteTaxPay('+t.id+')">Delete</button></td>'
     +'</tr>';
   }).join('') : '<tr><td colspan="6" style="color:var(--text-secondary);text-align:center;padding:20px">No tax payments yet.</td></tr>';
@@ -3592,7 +3592,7 @@ async function loadPropExpenses() {
       +'<td>'+escHtml(e.description)+'</td>'
       +'<td>'+fmt(e.amount)+'</td>'
       +'<td>'+escHtml(e.date)+'</td>'
-      +'<td>'+(e.receipt_number||'—')+'</td>'
+      +'<td>'+escHtml(e.receipt_number||'—')+'</td>'
       +'<td><button class="action-btn del" onclick="deleteExpense('+e.id+')">Delete</button></td>'
     +'</tr>';
   }).join('') : '<tr><td colspan="6" style="color:var(--text-secondary);text-align:center;padding:20px">No expenses yet.</td></tr>';
