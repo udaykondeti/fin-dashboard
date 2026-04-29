@@ -57,6 +57,11 @@ body{background:var(--bg-primary);color:var(--text-primary);overflow-x:hidden}
 .main-content{margin-top:var(--nav-height);padding:24px;min-height:calc(100vh - var(--nav-height));max-width:1400px;width:100%;margin-left:auto;margin-right:auto}
 .page{display:none}
 .page.active{display:block}
+.demo-banner{display:flex;align-items:center;gap:10px;background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.35);color:#fcd34d;padding:10px 14px;border-radius:10px;margin:0 0 18px;font-size:13px}
+.demo-banner strong{color:#fbbf24}
+.demo-banner .demo-dot{width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0;box-shadow:0 0 0 3px rgba(245,158,11,.18)}
+.demo-banner .demo-close{margin-left:auto;background:none;border:none;color:#fbbf24;font-size:18px;line-height:1;cursor:pointer;padding:2px 8px;border-radius:6px}
+.demo-banner .demo-close:hover{background:rgba(245,158,11,.18)}
 
 .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
 .summary-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px 22px;position:relative;overflow:hidden}
@@ -387,6 +392,13 @@ body{background:var(--bg-primary);color:var(--text-primary);overflow-x:hidden}
   </div>
 
   <div class="main-content">
+
+    <div id="demoBanner" class="demo-banner" style="display:none">
+      <span class="demo-dot"></span>
+      <strong>Demo mode</strong>
+      <span>API isn't reachable or you signed in without a server account — data shown is sample data only. Changes won't persist.</span>
+      <button type="button" class="demo-close" onclick="dismissDemoBanner()" aria-label="Dismiss">×</button>
+    </div>
 
     <!-- DASHBOARD PAGE -->
     <div class="page active" id="page-dashboard">
@@ -1122,12 +1134,31 @@ function showApp(){
   document.getElementById('app').style.display='flex';
   document.getElementById('userNameDisplay').textContent=localStorage.getItem('fin_user')||'Kiran';
   document.getElementById('dashDate').textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  refreshDemoBanner();
   loadAllData();
   priceRefreshTimer=setInterval(function(){showToast('Refreshing prices...','info');},300000);
 }
 
+// Demo mode = client-issued/fallback token. Local-storage 'fin_demo_dismissed'
+// hides the banner for the rest of the session even when demo mode is active.
+function isDemoMode(){
+  var t=localStorage.getItem('fin_token')||'';
+  return !t || t==='demo' || t.indexOf('demo_')===0;
+}
+function refreshDemoBanner(){
+  var el=document.getElementById('demoBanner');
+  if(!el)return;
+  el.style.display = (isDemoMode() && !localStorage.getItem('fin_demo_dismissed')) ? 'flex' : 'none';
+}
+function dismissDemoBanner(){
+  localStorage.setItem('fin_demo_dismissed','1');
+  var el=document.getElementById('demoBanner');
+  if(el)el.style.display='none';
+}
+
 function logout(){
   clearInterval(priceRefreshTimer);
+  localStorage.removeItem('fin_demo_dismissed');
   localStorage.removeItem('fin_token');
   localStorage.removeItem('fin_user');
   document.getElementById('app').style.display='none';
@@ -1139,18 +1170,29 @@ function checkAuth(){
   if(localStorage.getItem('fin_token')){showApp();}
 }
 
+// Single source of truth for page navigation. Order must match the
+// desktop nav-tab buttons in the header so the active highlight maps
+// correctly. Page-specific render hooks are kept inline.
+var NAV_PAGES = ['dashboard','investments','liabilities','handloans','earnings','payments','analytics','vault'];
 function navigateTo(page){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
-  document.getElementById('page-'+page).classList.add('active');
+  var pageEl = document.getElementById('page-'+page);
+  if (pageEl) pageEl.classList.add('active');
   document.querySelectorAll('.nav-tab').forEach(function(t){t.classList.remove('active')});
   document.querySelectorAll('.mobile-tab').forEach(function(t){t.classList.remove('active')});
-  var pages=['dashboard','investments','liabilities','handloans','analytics'];
-  var idx=pages.indexOf(page);
-  var tabs=document.querySelectorAll('.nav-tab');
-  if(tabs[idx])tabs[idx].classList.add('active');
-  var mt=document.getElementById('mtab-'+page);
-  if(mt)mt.classList.add('active');
-  if(page==='analytics')setTimeout(renderAnalyticsCharts,120);
+  var idx = NAV_PAGES.indexOf(page);
+  var tabs = document.querySelectorAll('.topnav-tabs .nav-tab');
+  if (tabs[idx]) tabs[idx].classList.add('active');
+  var mt = document.getElementById('mtab-'+page);
+  if (mt) mt.classList.add('active');
+  if (page==='analytics') setTimeout(renderAnalyticsCharts,120);
+  if (page==='earnings' && typeof renderEarnings === 'function') renderEarnings();
+  if (page==='payments' && typeof renderPayments === 'function') renderPayments();
+  if (page==='vault') {
+    if (typeof renderRecentUploads === 'function') renderRecentUploads();
+    if (typeof renderCACategoryChecks === 'function') renderCACategoryChecks();
+    var vn = document.getElementById('vaultNotice'); if (vn) vn.style.display = 'none';
+  }
 }
 
 function toggleMobileMenu(){document.getElementById('mobileMenu').classList.toggle('open')}
@@ -2010,25 +2052,7 @@ renderLoansTable = function() {
   });
 };
 
-// ─── Complete navigateTo override (includes vault) ────────────────
-navigateTo = function(page) {
-  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
-  document.getElementById('page-'+page).classList.add('active');
-  document.querySelectorAll('.nav-tab').forEach(function(t){t.classList.remove('active')});
-  document.querySelectorAll('.mobile-tab').forEach(function(t){t.classList.remove('active')});
-  var pages=['dashboard','investments','liabilities','handloans','analytics','vault'];
-  var idx=pages.indexOf(page);
-  var tabs=document.querySelectorAll('.nav-tab');
-  if(tabs[idx])tabs[idx].classList.add('active');
-  var mt=document.getElementById('mtab-'+page);
-  if(mt)mt.classList.add('active');
-  if(page==='analytics')setTimeout(renderAnalyticsCharts,120);
-  if(page==='vault'){
-    renderRecentUploads();
-    renderCACategoryChecks();
-    document.getElementById('vaultNotice').style.display = 'none';
-  }
-};
+// navigateTo() above already handles vault/earnings/payments — no override needed here.
 
 checkAuth();
 </script>
@@ -2804,20 +2828,7 @@ loadAllData = async function() {
   await Promise.all([loadSavings(), loadInsurance(), loadNPS(), loadAdvTax(), loadEarnings(), loadPayments()]);
 };
 
-var _origNavigateTo = navigateTo;
-navigateTo = function(page) {
-  _origNavigateTo(page);
-  var pages = ['dashboard','investments','liabilities','handloans','analytics','vault','earnings','payments'];
-  pages.forEach(function(p){
-    var el = document.getElementById('page-'+p);
-    if (el) el.style.display = p===page ? '' : 'none';
-    var mt = document.getElementById('mtab-'+p);
-    if (mt) mt.classList.toggle('active', p===page);
-  });
-  if (page==='earnings') { renderEarnings(); }
-  if (page==='payments') { renderPayments(); }
-  if (page==='investments') { /* tabs handled by switchInvTab */ }
-};
+// navigateTo handles all pages (including earnings/payments) directly — no wrapper needed.
 
 // Patch switchInvTab to handle new tabs (savings/insurance/NPS/advance-tax).
 // Selectors must be scoped to #page-investments — unscoped .tab-btn /
