@@ -84,6 +84,53 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
 .demo-banner .demo-dot{width:8px;height:8px;border-radius:50%;background:var(--caramel);flex-shrink:0;box-shadow:0 0 0 3px rgba(198,134,66,.18)}
 .demo-banner .demo-close{margin-left:auto;background:none;border:none;color:var(--caramel);font-size:18px;line-height:1;cursor:pointer;padding:2px 8px;border-radius:6px}
 .demo-banner .demo-close:hover{background:rgba(198,134,66,.18)}
+.agent-shell{display:grid;grid-template-columns:260px 1fr;gap:0;height:calc(100vh - 180px);min-height:520px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--bg-primary)}
+.agent-sidebar{border-right:1px solid var(--border);background:var(--bg-secondary);display:flex;flex-direction:column}
+.agent-new-btn{margin:14px;padding:10px 12px;background:var(--caramel);color:var(--cream);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px}
+.agent-new-btn:hover{filter:brightness(1.05)}
+.agent-thread-list{flex:1;overflow-y:auto;padding:0 8px 14px}
+.agent-thread{padding:10px 12px;margin-bottom:4px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--text-primary);border:1px solid transparent;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.agent-thread:hover{background:rgba(198,134,66,.08)}
+.agent-thread.active{background:rgba(198,134,66,.18);border-color:rgba(198,134,66,.35)}
+.agent-thread .title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agent-thread .menu{opacity:0;font-size:14px;color:var(--text-secondary);padding:0 4px;border-radius:4px}
+.agent-thread:hover .menu{opacity:1}
+.agent-thread .menu:hover{background:rgba(0,0,0,.06)}
+.agent-empty-list{padding:20px;color:var(--text-secondary);font-size:12px;text-align:center}
+.agent-main{display:flex;flex-direction:column;min-width:0}
+.agent-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.agent-selectors{display:flex;gap:14px;flex-wrap:wrap}
+.agent-selectors label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary)}
+.agent-selectors select{background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);padding:5px 8px;border-radius:6px;font-size:12px}
+.agent-thread-title{font-size:13px;color:var(--text-secondary);font-weight:600;max-width:50%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agent-messages{flex:1;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:14px}
+.agent-msg{max-width:78%;padding:10px 14px;border-radius:14px;font-size:14px;line-height:1.55;word-wrap:break-word;white-space:pre-wrap}
+.agent-msg.user{align-self:flex-end;background:rgba(198,134,66,.12);border:1px solid rgba(198,134,66,.3);color:var(--text-primary)}
+.agent-msg.assistant{align-self:flex-start;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary)}
+.agent-msg .interrupted{color:var(--text-secondary);font-style:italic;font-size:12px;margin-top:6px}
+.agent-tool-chip{align-self:flex-start;background:rgba(0,0,0,.03);border:1px dashed var(--border);color:var(--text-secondary);font-size:11px;padding:4px 10px;border-radius:14px;cursor:pointer}
+.agent-tool-chip pre{display:none;white-space:pre-wrap;font-size:11px;margin-top:8px;background:rgba(0,0,0,.05);padding:8px;border-radius:6px;color:var(--text-primary)}
+.agent-tool-chip.open pre{display:block}
+.agent-proposal{align-self:flex-start;border:1px solid var(--caramel);background:rgba(198,134,66,.06);border-radius:12px;padding:12px 14px;max-width:78%;font-size:13px}
+.agent-proposal .summary{font-weight:600;color:var(--text-primary);margin-bottom:8px}
+.agent-proposal .actions{display:flex;gap:8px}
+.agent-proposal button{padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid transparent}
+.agent-proposal .confirm{background:var(--caramel);color:var(--cream)}
+.agent-proposal .reject{background:transparent;color:var(--text-secondary);border-color:var(--border)}
+.agent-proposal.applied{border-style:dashed;background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.5);color:#15803d}
+.agent-proposal.rejected{border-style:dashed;background:rgba(0,0,0,.03);color:var(--text-secondary)}
+.agent-input-row{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--border);background:var(--bg-primary)}
+.agent-input-row textarea{flex:1;resize:none;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:inherit;font-size:13px;line-height:1.5}
+.agent-input-row button{padding:0 18px;background:var(--caramel);color:var(--cream);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;min-width:84px}
+.agent-input-row button:disabled{opacity:.5;cursor:not-allowed}
+.agent-pending-hint{padding:8px 16px;background:rgba(198,134,66,.10);color:var(--caramel);font-size:12px;text-align:center;border-top:1px solid var(--border)}
+.agent-empty-state{display:flex;align-items:center;justify-content:center;flex:1;color:var(--text-secondary);font-size:13px;text-align:center;padding:30px}
+.agent-demo-block{display:flex;align-items:center;justify-content:center;flex:1;color:var(--text-secondary);font-size:13px;text-align:center;padding:30px}
+@media (max-width: 768px){
+  .agent-shell{grid-template-columns:1fr;height:calc(100vh - 220px)}
+  .agent-sidebar{display:none}
+  .agent-sidebar.open{display:flex;position:absolute;inset:0;z-index:50}
+}
 
 .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
 .summary-card{background:var(--espresso);color:var(--cream);border-radius:var(--radius);padding:18px 22px;position:relative;overflow:hidden;box-shadow:var(--shadow-card)}
@@ -374,6 +421,7 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
       <button class="nav-tab" onclick="navigateTo('payments')">&#x1F4C5; Payments</button>
       <button class="nav-tab" onclick="navigateTo('analytics')">Analytics</button>
       <button class="nav-tab" onclick="navigateTo('vault')">&#x1F4C1; Vault</button>
+      <button class="nav-tab" onclick="navigateTo('agent')">&#x1F916; Agent</button>
       <button class="nav-tab" onclick="navigateTo('properties')">&#x1F3E0; Properties</button>
       <button class="nav-tab" onclick="navigateTo('incometax')">&#x1F4CB; Income Tax</button>
     </div>
@@ -417,6 +465,7 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('payments');closeMobileMenu()">&#x1F4C5; Payments</button>
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('analytics');closeMobileMenu()">Analytics</button>
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('vault');closeMobileMenu()">&#x1F4C1; Vault</button>
+      <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('agent');closeMobileMenu()">&#x1F916; Agent</button>
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('properties');closeMobileMenu()">&#x1F3E0; Properties</button>
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('incometax');closeMobileMenu()">&#x1F4CB; Income Tax</button>
     </div>
@@ -827,6 +876,43 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
             <tbody id="caTokenTbody"></tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- AGENT PAGE -->
+    <div class="page" id="page-agent">
+      <div class="agent-shell">
+        <aside class="agent-sidebar">
+          <button class="agent-new-btn" onclick="agentNewThread()">+ New Chat</button>
+          <div class="agent-thread-list" id="agentThreadList"></div>
+        </aside>
+        <section class="agent-main">
+          <div class="agent-header">
+            <div class="agent-selectors">
+              <label>Agent
+                <select id="agentKindSelect" onchange="agentOnKindChange()">
+                  <option value="financial_advisor">&#x1F4B0; Financial Advisor</option>
+                </select>
+              </label>
+              <label>Model
+                <select id="agentModelSelect" onchange="agentOnModelChange()">
+                  <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
+                  <option value="claude-sonnet-4-5">Claude Sonnet 4.5</option>
+                  <option value="claude-opus-4-5">Claude Opus 4.5</option>
+                </select>
+              </label>
+            </div>
+            <div class="agent-thread-title" id="agentThreadTitle"></div>
+          </div>
+          <div class="agent-messages" id="agentMessages"></div>
+          <form class="agent-input-row" id="agentInputForm" onsubmit="agentOnSend(event)">
+            <textarea id="agentInput" rows="2" placeholder="Type your message... (⌘/Ctrl+Enter to send)" onkeydown="agentOnKeyDown(event)"></textarea>
+            <button type="submit" id="agentSendBtn">Send</button>
+          </form>
+          <div class="agent-pending-hint" id="agentPendingHint" style="display:none">
+            Confirm or reject the proposal above to continue.
+          </div>
+        </section>
       </div>
     </div>
 
@@ -1602,6 +1688,15 @@ function navigateTo(page){
     loadAdvTax();
     var ai = document.getElementById('itAnnualIncome');
     if (ai && typeof calcAnnualIncome==='function') ai.textContent = fmt(calcAnnualIncome());
+  }
+  if (page==='agent') {
+    var demo = typeof isDemoMode === 'function' && isDemoMode();
+    var shell = document.querySelector('#page-agent .agent-shell');
+    if (demo && shell) {
+      shell.innerHTML = '<div class="agent-demo-block">Sign in with a real account to use the agent — demo mode can\'t reach the LLM.</div>';
+    } else if (typeof agentLoadThreads === 'function') {
+      agentLoadThreads();
+    }
   }
 }
 
@@ -4290,6 +4385,329 @@ function clearImport() {
   importRows = [];
   document.getElementById('importPreviewSection').style.display = 'none';
   document.getElementById('importFileInput').value = '';
+}
+
+// ─── AGENT CHAT PAGE ────────────────────────────────────────────────────────
+var agentState = {
+  threads: [],
+  activeId: null,
+  messages: [],          // current thread messages
+  streaming: false,
+  pendingProposal: null, // { tool_use_id, message_id, summary, mutation, name }
+  evtSource: null
+};
+
+async function agentLoadThreads() {
+  var r = await apiFetch('/api/chat/threads');
+  agentState.threads = (r && r.threads) || [];
+  agentRenderThreadList();
+}
+
+function agentRenderThreadList() {
+  var el = document.getElementById('agentThreadList');
+  if (!el) return;
+  if (!agentState.threads.length) {
+    el.innerHTML = '<div class="agent-empty-list">No chats yet — start one with + New Chat.</div>';
+    return;
+  }
+  el.innerHTML = agentState.threads.map(function(t){
+    var active = t.id === agentState.activeId ? ' active' : '';
+    return '<div class="agent-thread'+active+'" onclick="agentOpenThread('+t.id+')">'
+      + '<span class="title">'+esc(t.title || 'New chat')+'</span>'
+      + '<span class="menu" onclick="event.stopPropagation();agentThreadMenu('+t.id+')">⋯</span>'
+      + '</div>';
+  }).join('');
+}
+
+async function agentNewThread() {
+  var r = await apiPost('/api/chat/threads', {});
+  if (!r || !r.id) return;
+  await agentLoadThreads();
+  await agentOpenThread(r.id);
+}
+
+async function agentOpenThread(id) {
+  if (agentState.streaming) return;
+  agentState.activeId = id;
+  agentState.pendingProposal = null;
+  agentRenderThreadList();
+  var r = await apiFetch('/api/chat/threads/'+id);
+  if (!r || !r.thread) { showToast('Thread not found','error'); return; }
+  agentState.messages = r.messages || [];
+  // Restore selectors and title
+  document.getElementById('agentKindSelect').value = r.thread.agent_kind;
+  document.getElementById('agentModelSelect').value = r.thread.model;
+  document.getElementById('agentThreadTitle').textContent = r.thread.title || '';
+  // Restore pending proposal if the last assistant message is still streaming
+  var lastAsst = [...agentState.messages].reverse().find(function(m){return m.role==='assistant'});
+  if (lastAsst && lastAsst.status === 'streaming') {
+    var tu = lastAsst.tool_uses ? JSON.parse(lastAsst.tool_uses) : [];
+    var p = tu.find(function(u){return u.name && u.name.indexOf('propose_')===0});
+    if (p) {
+      // We don't have the mutation in DB; rebuild via PATCH-on-confirm flow.
+      // The mutation is rebuilt server-side from the stored input on confirm
+      // (handled by the confirm endpoint via tools.buildProposal lookup).
+      agentState.pendingProposal = { tool_use_id: p.id, message_id: lastAsst.id, name: p.name, input: p.input, summary: '(restored proposal)', mutation: null };
+    }
+  }
+  agentRenderMessages();
+  agentUpdateInputState();
+}
+
+async function agentThreadMenu(id) {
+  var name = prompt('Rename thread (or leave blank to delete):', '');
+  if (name === null) return;
+  if (name.trim()) {
+    await apiPut('/api/chat/threads/'+id, { title: name.trim() });
+  } else {
+    if (!confirm('Delete this chat?')) return;
+    await apiDel('/api/chat/threads/'+id);
+    if (agentState.activeId === id) {
+      agentState.activeId = null; agentState.messages = [];
+      document.getElementById('agentMessages').innerHTML = '';
+      document.getElementById('agentThreadTitle').textContent = '';
+    }
+  }
+  await agentLoadThreads();
+}
+
+async function agentOnKindChange() {
+  if (!agentState.activeId) return;
+  await apiPut('/api/chat/threads/'+agentState.activeId, { agent_kind: document.getElementById('agentKindSelect').value });
+}
+async function agentOnModelChange() {
+  if (!agentState.activeId) return;
+  await apiPut('/api/chat/threads/'+agentState.activeId, { model: document.getElementById('agentModelSelect').value });
+}
+
+function agentRenderMessages() {
+  var el = document.getElementById('agentMessages');
+  if (!el) return;
+  if (!agentState.messages.length) {
+    el.innerHTML = '<div class="agent-empty-state">Send your first message to start the conversation.</div>';
+    return;
+  }
+  el.innerHTML = agentState.messages.map(agentRenderOneMessage).join('');
+  // Render pending proposal card after the last message if applicable
+  if (agentState.pendingProposal) {
+    el.insertAdjacentHTML('beforeend', agentRenderProposalCard(agentState.pendingProposal, 'pending'));
+  }
+  el.scrollTop = el.scrollHeight;
+}
+
+function agentRenderOneMessage(m) {
+  if (m.role === 'user') {
+    return '<div class="agent-msg user">'+esc(m.content || '')+'</div>';
+  }
+  if (m.role === 'tool') {
+    var t; try { t = JSON.parse(m.content); } catch (_) { t = { name: '?' }; }
+    var label = t.name === 'proposal_result'
+      ? (t.result && t.result.rejected ? '✗ Rejected' : (t.is_error ? '✗ Failed: ' + (t.result && t.result.error || '') : '✓ Applied'))
+      : '🛠 ' + (t.name || '');
+    return '<div class="agent-tool-chip" onclick="this.classList.toggle(\'open\')">'
+      + esc(label) + '<pre>' + esc(JSON.stringify(t.result, null, 2)) + '</pre></div>';
+  }
+  // assistant
+  var html = '<div class="agent-msg assistant" data-msg-id="'+m.id+'">'+esc(m.content || '');
+  if (m.status === 'streaming' && (!m.tool_uses || m.tool_uses === 'null')) {
+    html += '<div class="interrupted">(interrupted — send a new message to continue)</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function agentRenderProposalCard(p, state) {
+  var cls = state === 'applied' ? ' applied' : state === 'rejected' ? ' rejected' : '';
+  var actions = state === 'pending'
+    ? '<div class="actions"><button class="confirm" onclick="agentConfirmProposal()">Confirm</button>'
+      + '<button class="reject" onclick="agentRejectProposal()">Reject</button></div>'
+    : '<div class="actions"><span>'+(state === 'applied' ? '✓ Done' : '✗ Rejected')+'</span></div>';
+  return '<div class="agent-proposal'+cls+'" data-tool-use-id="'+esc(p.tool_use_id)+'">'
+    + '<div class="summary">🛠 '+esc(p.summary)+'</div>' + actions + '</div>';
+}
+
+function agentUpdateInputState() {
+  var btn = document.getElementById('agentSendBtn');
+  var input = document.getElementById('agentInput');
+  var hint = document.getElementById('agentPendingHint');
+  var blocked = agentState.streaming || !!agentState.pendingProposal || !agentState.activeId;
+  input.disabled = blocked;
+  btn.disabled = blocked;
+  if (agentState.streaming) btn.textContent = 'Stop';
+  else btn.textContent = 'Send';
+  hint.style.display = agentState.pendingProposal ? '' : 'none';
+}
+
+function agentOnKeyDown(e) {
+  // ⌘/Ctrl+Enter to send; plain Enter inserts newline.
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    e.preventDefault();
+    agentOnSend(e);
+  }
+}
+
+async function agentOnSend(e) {
+  e.preventDefault();
+  if (agentState.streaming) { agentStopStream(); return; }
+  if (!agentState.activeId) {
+    // Auto-create a thread on first send
+    var r = await apiPost('/api/chat/threads', {});
+    if (!r || !r.id) return;
+    agentState.activeId = r.id;
+    await agentLoadThreads();
+  }
+  var input = document.getElementById('agentInput');
+  var content = input.value.trim();
+  if (!content) return;
+  input.value = '';
+
+  // Optimistically append the user message
+  agentState.messages.push({ id: 'tmp_user_'+Date.now(), role: 'user', content: content, status: 'final' });
+  agentState.streaming = true;
+  agentUpdateInputState();
+  agentRenderMessages();
+
+  await agentRunStream(content);
+}
+
+async function agentRunStream(content) {
+  var token = localStorage.getItem('fin_token');
+  var url = '/api/chat/threads/'+agentState.activeId+'/stream';
+  // EventSource doesn't support POST or custom headers, so we use fetch + ReadableStream parsing.
+  try {
+    var resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+token },
+      body: JSON.stringify({ content: content })
+    });
+    if (!resp.ok) {
+      var err = await resp.json().catch(function(){return{};});
+      showToast(err.error || ('HTTP '+resp.status), 'error');
+      agentState.streaming = false; agentUpdateInputState(); return;
+    }
+    var reader = resp.body.getReader();
+    var decoder = new TextDecoder();
+    var buffer = '';
+    var assistantMsg = null;
+
+    while (true) {
+      var chunk = await reader.read();
+      if (chunk.done) break;
+      buffer += decoder.decode(chunk.value, { stream: true });
+      var events = buffer.split('\n\n');
+      buffer = events.pop(); // last partial
+      for (var i = 0; i < events.length; i++) {
+        var lines = events[i].split('\n');
+        var name = '', dataStr = '';
+        for (var j = 0; j < lines.length; j++) {
+          if (lines[j].indexOf('event:') === 0) name = lines[j].slice(6).trim();
+          else if (lines[j].indexOf('data:')  === 0) dataStr += lines[j].slice(5).trim();
+        }
+        if (!name) continue;
+        var data; try { data = JSON.parse(dataStr); } catch (_) { data = {}; }
+        if (name === 'thread_meta') {
+          // Replace the tmp_user_* id with the real one
+          var lastUser = [...agentState.messages].reverse().find(function(m){return m.role==='user'});
+          if (lastUser) lastUser.id = data.user_message_id;
+        } else if (name === 'assistant_start') {
+          assistantMsg = { id: data.message_id, role: 'assistant', content: '', tool_uses: null, status: 'streaming' };
+          agentState.messages.push(assistantMsg);
+          agentRenderMessages();
+        } else if (name === 'text') {
+          if (assistantMsg) { assistantMsg.content += data.delta; agentRenderMessages(); }
+        } else if (name === 'tool_use') {
+          // Insert a tool chip immediately so the user sees what was called
+          agentState.messages.push({ id: 'tmp_tu_'+data.id, role: 'tool', content: JSON.stringify({ tool_use_id: data.id, name: data.name, result: { running: true }, is_error: false }), status: 'final' });
+          agentRenderMessages();
+        } else if (name === 'tool_result') {
+          // Replace the running chip with the actual result
+          var idx = agentState.messages.findIndex(function(m){
+            if (m.role !== 'tool') return false;
+            try { return JSON.parse(m.content).tool_use_id === data.tool_use_id; } catch(_) { return false; }
+          });
+          if (idx >= 0) {
+            try {
+              var prev = JSON.parse(agentState.messages[idx].content);
+              agentState.messages[idx].content = JSON.stringify({ tool_use_id: prev.tool_use_id, name: prev.name, result: data.result, is_error: data.status === 'error' });
+            } catch(_){}
+          }
+          // Reset assistantMsg so next text deltas open a new bubble (the model
+          // will continue its turn after the read tools).
+          assistantMsg = null;
+          agentRenderMessages();
+        } else if (name === 'proposal') {
+          agentState.pendingProposal = data;
+          agentRenderMessages();
+        } else if (name === 'done') {
+          if (assistantMsg) assistantMsg.status = 'final';
+          agentState.streaming = false;
+          agentUpdateInputState();
+        } else if (name === 'error') {
+          showToast(data.message || 'Stream error', 'error');
+          agentState.streaming = false;
+          agentUpdateInputState();
+        }
+      }
+    }
+  } catch (err) {
+    showToast('Network error: '+err.message, 'error');
+  } finally {
+    agentState.streaming = false;
+    agentUpdateInputState();
+    agentLoadThreads();  // refresh sidebar (updated_at, possibly new title)
+  }
+}
+
+function agentStopStream() {
+  // Best-effort abort. We don't keep the AbortController in scope here for
+  // simplicity; closing the tab/page also terminates the read loop.
+  agentState.streaming = false;
+  agentUpdateInputState();
+}
+
+async function agentConfirmProposal() {
+  if (!agentState.pendingProposal) return;
+  var p = agentState.pendingProposal;
+  // Optimistic UI
+  var card = document.querySelector('.agent-proposal');
+  if (card) { card.classList.add('applied'); card.querySelector('.actions').innerHTML = '<span>✓ Working...</span>'; }
+
+  var r = await apiPost('/api/chat/threads/'+agentState.activeId+'/confirm', {
+    tool_use_id: p.tool_use_id,
+    message_id:  p.message_id,
+    decision:    'confirm',
+    mutation:    p.mutation
+  });
+  if (!r || (r.applied === false && r.error)) {
+    showToast((r && r.error) || 'Confirmation failed', 'error');
+    if (card) { card.classList.remove('applied'); card.classList.add('rejected'); card.querySelector('.actions').innerHTML = '<span>✗ Failed</span>'; }
+  }
+  agentState.pendingProposal = null;
+  // Re-fetch the thread to pick up the new tool message
+  if (agentState.activeId) {
+    var t = await apiFetch('/api/chat/threads/'+agentState.activeId);
+    if (t && t.messages) { agentState.messages = t.messages; agentRenderMessages(); }
+  }
+  agentUpdateInputState();
+}
+
+async function agentRejectProposal() {
+  if (!agentState.pendingProposal) return;
+  var p = agentState.pendingProposal;
+  var card = document.querySelector('.agent-proposal');
+  if (card) { card.classList.add('rejected'); card.querySelector('.actions').innerHTML = '<span>✗ Rejected</span>'; }
+
+  await apiPost('/api/chat/threads/'+agentState.activeId+'/confirm', {
+    tool_use_id: p.tool_use_id,
+    message_id:  p.message_id,
+    decision:    'reject'
+  });
+  agentState.pendingProposal = null;
+  if (agentState.activeId) {
+    var t = await apiFetch('/api/chat/threads/'+agentState.activeId);
+    if (t && t.messages) { agentState.messages = t.messages; agentRenderMessages(); }
+  }
+  agentUpdateInputState();
 }
 </script>
 
