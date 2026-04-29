@@ -20,6 +20,7 @@ const taxRoutes = require('./routes/tax');
 const earningsRoutes = require('./routes/earnings');
 const propertiesRoutes = require('./routes/properties');
 const activityRoutes = require('./routes/activity');
+const importRoutes = require('./routes/import');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -63,8 +64,8 @@ app.use(cors({
 }));
 
 // Body parsing middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 // No browser caching anywhere in the app. Every refresh must hit the server
 // and re-query — both for HTML/static assets AND for API JSON responses.
@@ -96,6 +97,7 @@ app.use('/api/tax', taxRoutes);
 app.use('/api/earnings', earningsRoutes);
 app.use('/api/properties', propertiesRoutes);
 app.use('/api/activity', activityRoutes);
+app.use('/api/import', importRoutes);
 
 const authMiddleware = require('./middleware/auth');
 const vaultRoutes = require('./routes/vault');
