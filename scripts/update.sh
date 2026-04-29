@@ -1,30 +1,66 @@
 #!/usr/bin/env bash
-# update.sh — Quick update for fin-dashboard (run on EC2 from source directory)
+# update.sh — Pull latest from main and redeploy fin-dashboard.
+#
+# Self-bootstrapping: works whether you run it from a local git checkout, from
+# /var/www/fin-dashboard, or from /. If a sibling source checkout exists at
+# /var/www/fin-dashboard-src it is reused; otherwise it's cloned fresh.
 set -euo pipefail
 
 APP_DIR="/var/www/fin-dashboard"
+SRC_DIR="/var/www/fin-dashboard-src"
+REPO_URL="${REPO_URL:-https://github.com/udaykondeti/fin-dashboard.git}"
+BRANCH="${BRANCH:-main}"
 
 echo "===== fin-dashboard update ====="
 
-# ── Sync latest files ─────────────────────────────────────────────────────────
-echo "[1/3] Syncing files to ${APP_DIR}..."
-sudo rsync -a --exclude='.git' --exclude='node_modules' --exclude='data' \
-  "$(pwd)/" "${APP_DIR}/"
+# ── Resolve a source directory we can `git pull` in ──────────────────────────
+# Preferred order:
+#   1) The directory we were invoked from is itself a git checkout → use it.
+#   2) /var/www/fin-dashboard-src is a checkout → pull there.
+#   3) Otherwise, clone fresh into /var/www/fin-dashboard-src.
+INVOKED_DIR="$(pwd)"
+if [ -d "${INVOKED_DIR}/.git" ]; then
+  SRC_DIR="${INVOKED_DIR}"
+  echo "[1/4] Using existing git checkout at ${SRC_DIR}"
+elif [ -d "${SRC_DIR}/.git" ]; then
+  echo "[1/4] Using existing git checkout at ${SRC_DIR}"
+else
+  echo "[1/4] No git checkout found — cloning ${REPO_URL} into ${SRC_DIR}"
+  sudo mkdir -p "$(dirname "$SRC_DIR")"
+  sudo chown -R "$USER":"$USER" "$(dirname "$SRC_DIR")"
+  git clone --branch "$BRANCH" "$REPO_URL" "$SRC_DIR"
+fi
+
+# ── Pull latest ──────────────────────────────────────────────────────────────
+echo "[2/4] Pulling latest from origin/${BRANCH}..."
+git -C "$SRC_DIR" fetch --quiet origin "$BRANCH"
+git -C "$SRC_DIR" checkout --quiet "$BRANCH"
+git -C "$SRC_DIR" pull --quiet --ff-only origin "$BRANCH"
+HEAD_SHA=$(git -C "$SRC_DIR" rev-parse --short HEAD)
+echo "  HEAD is now ${HEAD_SHA}"
+
+# ── Rsync into APP_DIR (excluding .git, node_modules, data, .env) ────────────
+echo "[3/4] Rsyncing files to ${APP_DIR}..."
+sudo mkdir -p "$APP_DIR"
+sudo rsync -a \
+  --exclude='.git' \
+  --exclude='node_modules' \
+  --exclude='data' \
+  --exclude='.env' \
+  "${SRC_DIR}/" "${APP_DIR}/"
 sudo chown -R "$USER":"$USER" "$APP_DIR"
 echo "  Files synced."
 
-# ── Install dependencies ──────────────────────────────────────────────────────
-echo "[2/3] Running npm install --production..."
 cd "$APP_DIR"
+echo "  Running npm install --production..."
 npm install --production --silent
 echo "  Dependencies up to date."
 
-# ── Restart app ───────────────────────────────────────────────────────────────
-echo "[3/3] Restarting fin-dashboard via PM2..."
-# Use ecosystem.config.js + --update-env so new variables in .env (e.g.
-# JWT_SECRET, CORS_ORIGIN) are picked up. Plain `pm2 restart fin-dashboard`
-# would re-use the env captured when PM2 first started the process.
-cd "$APP_DIR"
+# ── Restart via PM2 with --update-env ────────────────────────────────────────
+echo "[4/4] Restarting fin-dashboard via PM2..."
+# --update-env so new vars in .env (JWT_SECRET, CORS_ORIGIN, GROQ_API_KEY) are
+# picked up; plain `pm2 restart fin-dashboard` reuses the env captured at first
+# start.
 if pm2 list | grep -q 'fin-dashboard'; then
   pm2 restart ecosystem.config.js --update-env
 else
@@ -36,11 +72,11 @@ pm2 save
 # missing the app now refuses to boot, so a silent crash-loop must surface here.
 sleep 2
 if ! pm2 describe fin-dashboard | grep -qE 'status\s+\│\s+online'; then
-  echo "  ERROR: fin-dashboard is not online after restart. Recent logs:"
+  echo "  ERROR: fin-dashboard is not online after restart. Recent logs:" >&2
   pm2 logs fin-dashboard --lines 30 --nostream || true
   exit 1
 fi
-echo "  fin-dashboard is online."
+echo "  fin-dashboard is online (HEAD ${HEAD_SHA})."
 
 echo ""
 echo "============================================================"

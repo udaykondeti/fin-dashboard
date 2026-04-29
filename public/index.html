@@ -36,7 +36,7 @@
   --accent-blue:   #1565C0;
   --login-bg:      var(--espresso);
   --login-accent:  var(--caramel);
-  --nav-height: 64px;
+  --nav-height: 56px;
   --radius: 10px;
   --shadow-card: 0 2px 12px rgba(44,26,14,.10);
   --shadow-lift: 0 4px 16px rgba(44,26,14,.16);
@@ -60,16 +60,18 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
 .login-footer{text-align:center;font-size:12px;color:#a8a29e;margin-top:20px}
 
 #app{display:none;min-height:100vh;flex-direction:column}
-.topnav{height:var(--nav-height);background:var(--espresso);color:var(--cream);border-bottom:1px solid var(--mocha);display:flex;align-items:center;padding:0 20px;position:fixed;top:0;left:0;right:0;z-index:100;gap:16px}
-.topnav-logo{font-size:20px;font-weight:800;color:var(--caramel);white-space:nowrap;display:flex;align-items:center;gap:6px;min-width:140px}
-.topnav-tabs{display:flex;gap:2px;flex:1;justify-content:center;overflow-x:auto}
+/* Topnav: dense layout so all tabs fit on common widescreen widths without
+   wrapping or eating into the user area. */
+.topnav{height:var(--nav-height);background:var(--espresso);color:var(--cream);border-bottom:1px solid var(--mocha);display:flex;align-items:center;padding:0 14px;position:fixed;top:0;left:0;right:0;z-index:100;gap:10px}
+.topnav-logo{font-size:16px;font-weight:800;color:var(--caramel);white-space:nowrap;display:flex;align-items:center;gap:5px;min-width:0;flex-shrink:0}
+.topnav-tabs{display:flex;gap:1px;flex:1;justify-content:flex-start;overflow-x:auto;min-width:0}
 .topnav-tabs::-webkit-scrollbar{display:none}
-.nav-tab{padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:rgba(253,246,236,.65);border:none;background:none;white-space:nowrap;transition:all .2s}
+.nav-tab{padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12.5px;font-weight:500;color:rgba(253,246,236,.7);border:none;background:none;white-space:nowrap;transition:all .15s}
 .nav-tab:hover{background:rgba(253,246,236,.08);color:var(--cream)}
 .nav-tab.active{background:rgba(198,134,66,.18);color:var(--caramel)}
-.topnav-right{display:flex;align-items:center;gap:12px;min-width:160px;justify-content:flex-end}
-.user-name{font-size:13px;color:rgba(253,246,236,.7);white-space:nowrap}
-.logout-btn{padding:7px 14px;background:rgba(253,246,236,.06);color:rgba(253,246,236,.85);border:1px solid rgba(253,246,236,.25);border-radius:7px;cursor:pointer;font-size:12px;font-weight:600;transition:all .2s}
+.topnav-right{display:flex;align-items:center;gap:8px;flex-shrink:0;justify-content:flex-end}
+.user-name{font-size:12.5px;color:rgba(253,246,236,.7);white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+.logout-btn{padding:5px 10px;background:rgba(253,246,236,.06);color:rgba(253,246,236,.85);border:1px solid rgba(253,246,236,.25);border-radius:6px;cursor:pointer;font-size:11.5px;font-weight:600;transition:all .2s}
 .logout-btn:hover{background:rgba(253,246,236,.14);color:var(--cream)}
 .hamburger{display:none;flex-direction:column;gap:4px;cursor:pointer;padding:4px}
 .hamburger div{width:20px;height:2px;background:rgba(253,246,236,.7);border-radius:2px}
@@ -217,6 +219,13 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
 
 .analytics-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
 
+/* Below ~1200px the full username + profile pill + every nav tab no longer
+   fit comfortably — drop the username label first, since the avatar pill
+   already shows who's signed in. */
+@media(max-width:1200px){
+  .topnav-right .user-name{display:none}
+  .nav-tab{padding:6px 8px;font-size:12px}
+}
 @media(max-width:768px){
   .topnav-tabs{display:none}
   .hamburger{display:flex}
@@ -2762,10 +2771,12 @@ checkAuth();
 ══════════════════════════════════════════════════════════════════════ -->
 <style>
 /* Profile Switcher */
-.profile-switcher{position:relative;display:flex;align-items:center;gap:6px;cursor:pointer;background:var(--bg-secondary);border:1px solid var(--border);border-radius:20px;padding:6px 12px;font-size:13px;margin-right:8px}
-.profile-icon{font-size:16px}
-.profile-name{color:var(--text-primary);font-weight:600}
-.profile-menu{display:none;position:absolute;top:calc(100% + 8px);right:0;background:#1e293b;border:1px solid var(--border);border-radius:10px;min-width:180px;z-index:999;box-shadow:0 8px 32px rgba(0,0,0,.5);overflow:hidden}
+/* Profile switcher in the topnav: keep slim so the tabs aren't squeezed.
+   Light pill on the dark espresso bar — readable but doesn't dominate. */
+.profile-switcher{position:relative;display:flex;align-items:center;gap:5px;cursor:pointer;background:#FFFFFF;border:1px solid var(--bdr);border-radius:16px;padding:3px 10px;font-size:12.5px;margin-right:4px;max-width:140px}
+.profile-icon{font-size:14px}
+.profile-name{color:var(--mocha);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.profile-menu{display:none;position:absolute;top:calc(100% + 6px);right:0;background:#FFFFFF;border:1px solid var(--latte);border-radius:10px;min-width:180px;z-index:999;box-shadow:var(--shadow);overflow:hidden}
 .profile-menu.open{display:block}
 .profile-menu-item{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;font-size:13px;color:var(--text-primary)}
 .profile-menu-item:hover{background:var(--bg-active)}
