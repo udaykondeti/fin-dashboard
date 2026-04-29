@@ -43,3 +43,34 @@ function eq(label, actual, predicate) {
 
   console.log('Done.');
 })();
+
+// chatAgent integration smoke (requires ANTHROPIC_API_KEY)
+const chatAgent = require('../server/services/chatAgent');
+
+(async () => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.log('SKIP chatAgent — no ANTHROPIC_API_KEY in env');
+    return;
+  }
+
+  // Create a thread, send a message, expect a final assistant text and an audit row.
+  const threadId = chatAgent.createThread({ userId: 1 });
+  eq('createThread returns numeric id', threadId, x => Number.isInteger(x) && x > 0);
+
+  const result = await chatAgent.sendMessage({
+    threadId, userId: 1,
+    content: 'In one short sentence, what number do I get if I add 2 and 3?'
+  });
+  eq('sendMessage returns final text',
+    result,
+    r => r && r.status === 'final' && typeof r.text === 'string' && r.text.length > 0);
+
+  // Tool round-trip: ask a question that should trigger get_net_worth
+  const result2 = await chatAgent.sendMessage({
+    threadId, userId: 1,
+    content: 'Use the get_net_worth tool and tell me the net worth number.'
+  });
+  eq('tool round-trip returns final text',
+    result2,
+    r => r && r.status === 'final');
+})();
