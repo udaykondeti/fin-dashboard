@@ -276,6 +276,26 @@ function initializeDatabase() {
       FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE,
       UNIQUE(earning_id, profile_id)
     );
+
+    CREATE TABLE IF NOT EXISTS agent_calls (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      task_type TEXT NOT NULL,
+      model TEXT NOT NULL,
+      input_hash TEXT NOT NULL,
+      input_preview TEXT,
+      output_preview TEXT,
+      tokens_in INTEGER DEFAULT 0,
+      tokens_out INTEGER DEFAULT 0,
+      cost_usd REAL DEFAULT 0,
+      latency_ms INTEGER DEFAULT 0,
+      error TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_agent_calls_user_time ON agent_calls(user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_agent_calls_task_time ON agent_calls(task_type, created_at DESC);
   `);
 
   console.log('Database tables initialized.');
