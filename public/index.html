@@ -2819,7 +2819,10 @@ navigateTo = function(page) {
   if (page==='investments') { /* tabs handled by switchInvTab */ }
 };
 
-// Patch switchInvTab to handle new tabs
+// Patch switchInvTab to handle new tabs (savings/insurance/NPS/advance-tax).
+// Selectors must be scoped to #page-investments — unscoped .tab-btn /
+// .tab-content match the handloans tabs and the payment filter buttons,
+// which would lose their active state every time we switch investment tabs.
 var _origSwitchInvTab = switchInvTab;
 switchInvTab = function(tab, btn) {
   var newTabs = ['savings','insurance','nps','tax'];
@@ -2827,8 +2830,8 @@ switchInvTab = function(tab, btn) {
     _origSwitchInvTab(tab, btn);
     return;
   }
-  document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active')});
-  document.querySelectorAll('.tab-content').forEach(function(c){c.classList.remove('active')});
+  document.querySelectorAll('#page-investments .tab-btn').forEach(function(b){b.classList.remove('active')});
+  document.querySelectorAll('#page-investments .tab-content').forEach(function(c){c.classList.remove('active')});
   if (btn) btn.classList.add('active');
   var el = document.getElementById('inv-tab-'+tab);
   if (el) el.classList.add('active');
