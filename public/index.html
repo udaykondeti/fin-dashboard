@@ -92,6 +92,10 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
 .agent-thread{padding:10px 12px;margin-bottom:4px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--text-primary);border:1px solid transparent;display:flex;align-items:center;justify-content:space-between;gap:8px}
 .agent-thread:hover{background:rgba(198,134,66,.08)}
 .agent-thread.active{background:rgba(198,134,66,.18);border-color:rgba(198,134,66,.35)}
+.agent-thread.pinned{background:rgba(198,134,66,.05);font-weight:600}
+.agent-thread.pinned .title::before{content:""}
+.agent-thread-divider{height:1px;background:var(--border);margin:8px 4px}
+.agent-thread-badge{font-size:10px;font-weight:700;background:var(--caramel);color:var(--cream);padding:2px 7px;border-radius:10px;min-width:18px;text-align:center}
 .agent-thread .title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .agent-thread .menu{opacity:0;font-size:14px;color:var(--text-secondary);padding:0 4px;border-radius:4px}
 .agent-thread:hover .menu{opacity:1}
@@ -2508,7 +2512,10 @@ function srSkip() {
 }
 
 async function srConfirm() {
-  var file = srQueue[srIndex];
+  var fileEntry = srQueue[srIndex];
+  var file = fileEntry instanceof File ? fileEntry : (fileEntry && fileEntry.file) || null;
+  if (!file) { showToast('No file in queue slot', 'error'); return; }
+
   var cat = document.getElementById('srCategory').value;
   var sub = document.getElementById('srSubcategory').value;
   var fy = document.getElementById('srFY').value;
@@ -2517,39 +2524,98 @@ async function srConfirm() {
   confirmBtn.disabled = true;
   confirmBtn.textContent = 'Uploading...';
   document.getElementById('srUploadProgress').style.display = 'block';
-  // Simulate upload
-  await simulateUpload();
-  // Add to local vault
-  var newFile = {
-    id: Date.now(),
-    name: file.name || file,
+
+  // Step 1: get presigned URL
+  var meta = await apiPost('/api/vault/upload-url', {
+    filename: file.name,
+    contentType: file.type || 'application/octet-stream',
     category: cat,
     subcategory: sub,
-    fy: fy,
-    size: file.size ? formatBytes(file.size) : '-- KB',
-    date: new Date().toISOString().split('T')[0]
+    financialYear: fy,
+    description: desc || null
+  });
+  if (!meta || !meta.uploadUrl) {
+    showToast((meta && meta.error) || 'Upload setup failed', 'error');
+    confirmBtn.disabled = false; confirmBtn.textContent = 'Confirm';
+    return;
+  }
+
+  // Step 2: PUT to S3 with progress (XHR for native progress events)
+  try {
+    await new Promise(function(resolve, reject) {
+      var xhr = new XMLHttpRequest();
+      xhr.open('PUT', meta.uploadUrl);
+      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+      xhr.upload.onprogress = function(ev) {
+        if (!ev.lengthComputable) return;
+        var pct = Math.round((ev.loaded / ev.total) * 100);
+        var fill = document.getElementById('srProgressFill');
+        var pctEl = document.getElementById('srProgressPct');
+        if (fill) fill.style.width = pct + '%';
+        if (pctEl) pctEl.textContent = pct;
+      };
+      xhr.onload = function() {
+        if (xhr.status >= 200 && xhr.status < 300) resolve();
+        else reject(new Error('S3 PUT failed: HTTP ' + xhr.status));
+      };
+      xhr.onerror = function() { reject(new Error('S3 PUT network error')); };
+      xhr.send(file);
+    });
+  } catch (err) {
+    showToast(err.message || 'Upload failed', 'error');
+    confirmBtn.disabled = false; confirmBtn.textContent = 'Confirm';
+    return;
+  }
+
+  // Step 3: confirm-upload to register in DB
+  var confirmRes = await apiPost('/api/vault/confirm-upload', {
+    s3Key: meta.s3Key,
+    originalFilename: file.name,
+    displayName: file.name,
+    fileSize: file.size,
+    mimeType: file.type || 'application/octet-stream',
+    financialYear: meta.financialYear,
+    category: meta.category,
+    subcategory: meta.subcategory,
+    description: desc || null
+  });
+  if (!confirmRes || !confirmRes.file) {
+    showToast((confirmRes && confirmRes.error) || 'Registering upload failed', 'error');
+    confirmBtn.disabled = false; confirmBtn.textContent = 'Confirm';
+    return;
+  }
+
+  // Mirror in local vaultFiles list so the UI updates immediately
+  var serverFile = confirmRes.file;
+  var newFile = {
+    id: serverFile.id,
+    name: serverFile.original_filename,
+    category: serverFile.category,
+    subcategory: serverFile.subcategory,
+    fy: serverFile.financial_year,
+    size: serverFile.file_size ? formatBytes(serverFile.file_size) : '-- KB',
+    date: (serverFile.upload_date || '').split(' ')[0] || new Date().toISOString().split('T')[0]
   };
   vaultFiles.unshift(newFile);
-  var catLabel = VAULT_CATS[cat] ? VAULT_CATS[cat].label : cat;
-  var subcatLabel = VAULT_SUBCAT_LABELS[sub]||sub;
-  showToast('✅ '+newFile.name+' uploaded to '+catLabel+'/'+subcatLabel, 'success');
+
+  var catLabel = VAULT_CATS[serverFile.category] ? VAULT_CATS[serverFile.category].label : serverFile.category;
+  var subcatLabel = VAULT_SUBCAT_LABELS[serverFile.subcategory] || serverFile.subcategory;
+  showToast('✅ ' + newFile.name + ' uploaded to ' + catLabel + '/' + subcatLabel, 'success');
+
+  // Auto-process kicks off server-side; surface a hint and let user
+  // jump to the Agent page where proposals will appear.
+  try {
+    showToast('📄 Processing ' + newFile.name + '... Tap to review →', 'info');
+    var _t = document.querySelector('.toast');
+    if (_t) {
+      _t.style.cursor = 'pointer';
+      _t.onclick = function(){ if (typeof navigateTo === 'function') navigateTo('agent'); };
+    }
+  } catch (_e) {}
+
   document.getElementById('vaultNotice').style.display = 'block';
   srIndex++;
   srShowStep();
-}
-
-function simulateUpload() {
-  return new Promise(function(resolve){
-    var fill = document.getElementById('srProgressFill');
-    var pct = document.getElementById('srProgressPct');
-    var p = 0;
-    var iv = setInterval(function(){
-      p += Math.random()*18+4;
-      if(p >= 100) {p=100;clearInterval(iv);setTimeout(resolve,200);}
-      fill.style.width = p.toFixed(0)+'%';
-      pct.textContent = p.toFixed(0);
-    }, 120);
-  });
 }
 
 // ─── CA Access ────────────────────────────────────────────────────
@@ -4410,13 +4476,25 @@ function agentRenderThreadList() {
     el.innerHTML = '<div class="agent-empty-list">No chats yet — start one with + New Chat.</div>';
     return;
   }
-  el.innerHTML = agentState.threads.map(function(t){
+  var pinned = agentState.threads.filter(function(t){ return t.agent_kind === 'upload_processor'; });
+  var rest   = agentState.threads.filter(function(t){ return t.agent_kind !== 'upload_processor'; });
+
+  var renderRow = function(t, isPinned) {
     var active = t.id === agentState.activeId ? ' active' : '';
-    return '<div class="agent-thread'+active+'" onclick="agentOpenThread('+t.id+')">'
+    var pendingBadge = (isPinned && t.pending_count > 0)
+      ? '<span class="agent-thread-badge">'+t.pending_count+'</span>' : '';
+    return '<div class="agent-thread'+active+(isPinned ? ' pinned' : '')+'" onclick="agentOpenThread('+t.id+')">'
       + '<span class="title">'+esc(t.title || 'New chat')+'</span>'
+      + pendingBadge
       + '<span class="menu" onclick="event.stopPropagation();agentThreadMenu('+t.id+')">⋯</span>'
       + '</div>';
-  }).join('');
+  };
+
+  var html = '';
+  pinned.forEach(function(t){ html += renderRow(t, true); });
+  if (pinned.length && rest.length) html += '<div class="agent-thread-divider"></div>';
+  rest.forEach(function(t){ html += renderRow(t, false); });
+  el.innerHTML = html;
 }
 
 async function agentNewThread() {
