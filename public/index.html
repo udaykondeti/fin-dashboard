@@ -1689,7 +1689,15 @@ function navigateTo(page){
     var ai = document.getElementById('itAnnualIncome');
     if (ai && typeof calcAnnualIncome==='function') ai.textContent = fmt(calcAnnualIncome());
   }
-  if (page==='agent' && typeof agentLoadThreads === 'function') agentLoadThreads();
+  if (page==='agent') {
+    var demo = typeof isDemoMode === 'function' && isDemoMode();
+    var shell = document.querySelector('#page-agent .agent-shell');
+    if (demo && shell) {
+      shell.innerHTML = '<div class="agent-demo-block">Sign in with a real account to use the agent — demo mode can\'t reach the LLM.</div>';
+    } else if (typeof agentLoadThreads === 'function') {
+      agentLoadThreads();
+    }
+  }
 }
 
 function toggleMobileMenu(){document.getElementById('mobileMenu').classList.toggle('open')}
