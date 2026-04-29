@@ -145,6 +145,41 @@ const PROPOSE = {
         date_paid, notes: notes || null
       }}
     };
+  },
+
+  propose_add_stock(input, _ctx) {
+    const { symbol, company_name, quantity, avg_buy_price, notes } = input || {};
+    if (!symbol || !quantity) throw new Error('symbol and quantity required');
+    return {
+      summary: `Add stock: ${String(symbol).toUpperCase()}` +
+               (company_name ? ` (${company_name})` : '') +
+               ` — ${quantity} shares` +
+               (avg_buy_price ? ` @ ₹${Number(avg_buy_price).toLocaleString('en-IN')}` : ''),
+      mutation: { method: 'POST', path: '/api/investments/stocks', body: {
+        symbol: String(symbol).toUpperCase(),
+        company_name: company_name || symbol,
+        quantity: Number(quantity),
+        avg_buy_price: Number(avg_buy_price) || 0,
+        notes: notes || null
+      }}
+    };
+  },
+
+  propose_add_mutual_fund(input, _ctx) {
+    const { fund_name, units, avg_nav, fund_type, notes } = input || {};
+    if (!fund_name || !units) throw new Error('fund_name and units required');
+    return {
+      summary: `Add MF: ${fund_name} — ${units} units` +
+               (avg_nav ? ` @ ₹${Number(avg_nav).toLocaleString('en-IN')}` : '') +
+               (fund_type ? ` (${fund_type})` : ''),
+      mutation: { method: 'POST', path: '/api/investments/mutual-funds', body: {
+        fund_name,
+        units: Number(units),
+        avg_nav: Number(avg_nav) || 0,
+        fund_type: fund_type || 'Equity',
+        notes: notes || null
+      }}
+    };
   }
 };
 
@@ -233,6 +268,26 @@ const TOOLS = [
         amount:          { type: 'number' },
         date_paid:       { type: 'string', description: 'YYYY-MM-DD' },
         notes:           { type: 'string' }
+      }, additionalProperties: false } },
+
+  { name: 'propose_add_stock', description: "Propose adding a new Indian stock holding to the user's portfolio. The user will explicitly confirm.",
+    input_schema: { type: 'object', required: ['symbol', 'quantity'],
+      properties: {
+        symbol:        { type: 'string', description: "NSE/BSE ticker, e.g. 'RELIANCE'." },
+        company_name:  { type: 'string' },
+        quantity:      { type: 'number', minimum: 0.0001 },
+        avg_buy_price: { type: 'number', minimum: 0 },
+        notes:         { type: 'string' }
+      }, additionalProperties: false } },
+
+  { name: 'propose_add_mutual_fund', description: "Propose adding a new mutual fund holding. The user will explicitly confirm.",
+    input_schema: { type: 'object', required: ['fund_name', 'units'],
+      properties: {
+        fund_name: { type: 'string' },
+        units:     { type: 'number', minimum: 0.0001 },
+        avg_nav:   { type: 'number', minimum: 0 },
+        fund_type: { type: 'string', enum: ['Equity', 'Debt', 'Hybrid', 'ELSS', 'Index', 'Other'] },
+        notes:     { type: 'string' }
       }, additionalProperties: false } }
 ];
 
