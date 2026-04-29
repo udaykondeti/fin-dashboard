@@ -1,3 +1,6 @@
+# Claude harness state (worktrees, transcripts)
+.claude/
+
 # Dependencies
 node_modules/
 
