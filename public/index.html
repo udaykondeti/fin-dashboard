@@ -2537,6 +2537,17 @@ async function srConfirm() {
   var catLabel = VAULT_CATS[cat] ? VAULT_CATS[cat].label : cat;
   var subcatLabel = VAULT_SUBCAT_LABELS[sub]||sub;
   showToast('✅ '+newFile.name+' uploaded to '+catLabel+'/'+subcatLabel, 'success');
+  // Auto-process kicks off server-side; surface a hint and let user
+  // jump to the Agent page where proposals will appear.
+  try {
+    var _fname = (newFile && newFile.name) || (file && file.name) || 'upload';
+    showToast('📄 Processing ' + _fname + '... Tap to review →', 'info');
+    var _t = document.querySelector('.toast');
+    if (_t) {
+      _t.style.cursor = 'pointer';
+      _t.onclick = function(){ if (typeof navigateTo === 'function') navigateTo('agent'); };
+    }
+  } catch (_e) { /* never block on toast wiring */ }
   document.getElementById('vaultNotice').style.display = 'block';
   srIndex++;
   srShowStep();
