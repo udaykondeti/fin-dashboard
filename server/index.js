@@ -125,6 +125,24 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'fin.kirakon.com', timestamp: new Date().toISOString() });
 });
 
+// Config diagnostic — reports which optional integrations are reachable
+// from inside the running process. Returns booleans only, never secrets.
+// Useful for verifying env-var propagation through pm2 / ecosystem.config.
+app.get('/api/health/config', (req, res) => {
+  res.json({
+    anthropic: !!process.env.ANTHROPIC_API_KEY,
+    groq: !!process.env.GROQ_API_KEY,
+    s3: {
+      bucket: !!process.env.S3_BUCKET,
+      access_key: !!process.env.AWS_ACCESS_KEY_ID,
+      secret_key: !!process.env.AWS_SECRET_ACCESS_KEY
+    },
+    cors_origin_set: !!CORS_ORIGIN,
+    node_env: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Catch-all: serve the frontend for any non-API route. The global no-cache
 // middleware above applies, so this path also instructs the browser to
 // revalidate on every refresh.

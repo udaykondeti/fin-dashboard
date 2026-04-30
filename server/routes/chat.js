@@ -50,7 +50,12 @@ router.post('/threads/:id/stream', async (req, res) => {
   if (!thread) return res.status(404).json({ error: 'Thread not found' });
   const { content } = req.body || {};
   if (!content || typeof content !== 'string') return res.status(400).json({ error: 'content required' });
-  if (!chatAgent.isAgentConfigured()) return res.status(503).json({ error: 'Agent is not configured on the server' });
+  if (!chatAgent.isAgentConfigured()) {
+    return res.status(503).json({
+      error: 'Agent is not configured: set ANTHROPIC_API_KEY or GROQ_API_KEY',
+      message: 'Add the key to PM2/environment config and restart with --update-env.'
+    });
+  }
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
