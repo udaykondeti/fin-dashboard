@@ -286,7 +286,7 @@ const TOOLS = [
         fund_name: { type: 'string' },
         units:     { type: 'number', minimum: 0.0001 },
         avg_nav:   { type: 'number', minimum: 0 },
-        fund_type: { type: 'string', enum: ['Equity', 'Debt', 'Hybrid', 'ELSS', 'Index', 'Other'] },
+        fund_type: { type: 'string', enum: ['Equity', 'Debt', 'Hybrid', 'ELSS', 'Index', 'ETF', 'Other'] },
         notes:     { type: 'string' }
       }, additionalProperties: false } }
 ];

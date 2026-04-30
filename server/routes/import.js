@@ -53,6 +53,53 @@ function pickCol(headers, candidates) {
 function detectAndMap(parsed) {
   const { headers, rows } = parsed;
 
+  // ── Indian broker holdings export (Tata Securities / HDFC Securities /
+  //    similar) — single CSV that mixes stocks and MFs, distinguished by
+  //    `portfolio_holdings`. Identifying signature: stock_name +
+  //    company_name + average_cost_value + (long_term_qty | short_term_qty).
+  //    Quantity = long_term + short_term. Avg price = average_cost_value.
+  //    portfolio_holdings of "Mutual Fund" / "ETF" / "Index Fund" routes
+  //    to mutual_funds; "Equity" or absent routes to stocks.
+  if (
+    headers.includes('stock_name') && headers.includes('company_name') &&
+    headers.includes('average_cost_value') &&
+    (headers.includes('long_term_qty') || headers.includes('short_term_qty'))
+  ) {
+    const qtyOf = r => (numOf(r.long_term_qty) || 0) + (numOf(r.short_term_qty) || 0);
+    const avgOf = r => numOf(r.average_cost_value);
+    const ph    = r => String(r.portfolio_holdings || '').trim().toLowerCase();
+    const isMF  = r => /mutual fund|etf|index fund|liquid fund|debt fund/.test(ph(r));
+
+    const mfRows = rows.filter(r => isMF(r) && r.company_name && qtyOf(r) > 0).map(r => {
+      const phl = ph(r);
+      let fund_type;
+      if (phl.includes('etf')) fund_type = 'ETF';
+      else if (phl.includes('index')) fund_type = 'Index';
+      else if (phl.includes('debt') || phl.includes('liquid')) fund_type = 'Debt';
+      else fund_type = 'Equity';
+      return {
+        fund_name: r.company_name,
+        units: qtyOf(r),
+        avg_nav: avgOf(r),
+        fund_type
+      };
+    });
+
+    const stockRows = rows.filter(r => !isMF(r) && r.stock_name && qtyOf(r) > 0).map(r => ({
+      symbol: String(r.stock_name).toUpperCase().trim(),
+      company_name: r.company_name || r.stock_name,
+      quantity: qtyOf(r),
+      avg_buy_price: avgOf(r)
+    }));
+
+    // Single CSV is usually one type or the other; pick whichever majority.
+    // The frontend has a type override so the user can switch if needed.
+    if (mfRows.length || stockRows.length) {
+      if (mfRows.length >= stockRows.length) return { type: 'mutual_funds', rows: mfRows };
+      return { type: 'stocks', rows: stockRows };
+    }
+  }
+
   // ── Stocks ───────────────────────────────────────────────────────────────
   // Symbol/instrument column variants (Zerodha Console, Groww, generic).
   const symCol = pickCol(headers, ['symbol', 'instrument', 'stock', 'stock_name', 'ticker', 'tradingsymbol', 'scrip', 'security']);
@@ -61,7 +108,8 @@ function detectAndMap(parsed) {
   ]);
   const stockPriceCol = pickCol(headers, [
     'avg_buy_price', 'average_buy_price', 'avg_cost', 'average_cost', 'average_price', 'avg_price',
-    'buy_avg', 'buy_average', 'avg_buy_value', 'cost_price', 'purchase_price', 'buy_price'
+    'buy_avg', 'buy_average', 'avg_buy_value', 'cost_price', 'purchase_price', 'buy_price',
+    'average_cost_value'
   ]);
   if (symCol && qtyCol) {
     const nameCol = pickCol(headers, ['company_name', 'company', 'name', 'instrument_name', 'security_name']) || symCol;
@@ -75,11 +123,11 @@ function detectAndMap(parsed) {
   }
 
   // ── Mutual Funds (Groww / CAMS / KFintech / generic) ─────────────────────
-  const mfNameCol = pickCol(headers, ['fund_name', 'scheme_name', 'scheme', 'mf_name', 'fund']);
+  const mfNameCol = pickCol(headers, ['fund_name', 'scheme_name', 'scheme', 'mf_name', 'fund', 'company_name']);
   const mfUnitsCol = pickCol(headers, ['units', 'unit_balance', 'closing_units', 'quantity']);
   if (mfNameCol && mfUnitsCol) {
-    const navCol = pickCol(headers, ['avg_nav', 'average_nav', 'cost_nav', 'purchase_nav', 'nav', 'unit_cost']);
-    const typeCol = pickCol(headers, ['fund_type', 'type', 'category', 'scheme_category']);
+    const navCol = pickCol(headers, ['avg_nav', 'average_nav', 'cost_nav', 'purchase_nav', 'nav', 'unit_cost', 'average_cost_value']);
+    const typeCol = pickCol(headers, ['fund_type', 'type', 'category', 'scheme_category', 'portfolio_holdings']);
     const mapped = rows.map(r => ({
       fund_name: r[mfNameCol] || '',
       units: numOf(r[mfUnitsCol]),
