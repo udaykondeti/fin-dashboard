@@ -15,14 +15,23 @@ const {
 const { classifyDocument } = require('../services/smartRouter');
 const { assertProfileOwnership } = require('../middleware/profileGuard');
 
-const BUCKET = process.env.S3_BUCKET_NAME || 'fin-kirakon-vault';
+// Bucket name comes from S3_BUCKET (matches the rest of the codebase).
+// The legacy S3_BUCKET_NAME var is honoured as a fallback so existing
+// deployments that set the older name don't break.
+const BUCKET = process.env.S3_BUCKET || process.env.S3_BUCKET_NAME || 'fin-kirakon-vault';
 
 // ─── Helper: check S3 config and return 503 if missing ────────────────────────
 function requireS3(res) {
   if (!isS3Configured()) {
+    // Surface specifically which env var is missing so the user can fix it
+    // in one shot instead of guessing.
+    const missing = [];
+    if (!process.env.AWS_REGION)            missing.push('AWS_REGION');
+    if (!process.env.AWS_ACCESS_KEY_ID)     missing.push('AWS_ACCESS_KEY_ID');
+    if (!process.env.AWS_SECRET_ACCESS_KEY) missing.push('AWS_SECRET_ACCESS_KEY');
     res.status(503).json({
-      error: 'S3 not configured',
-      message: 'AWS credentials are missing. Set AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and S3_BUCKET_NAME in your environment.'
+      error: 'S3 not configured: missing ' + missing.join(', '),
+      message: 'Set the listed env vars in your PM2/environment config and restart with --update-env.'
     });
     return false;
   }

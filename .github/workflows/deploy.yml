@@ -47,6 +47,19 @@ jobs:
             "$EC2_USER@$EC2_HOST" \
             "cd /var/www/fin-dashboard && npm install --production --silent && pm2 restart fin-dashboard && pm2 save"
 
+      - name: Sync nginx config and reload
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes \
+            "$EC2_USER@$EC2_HOST" \
+            "set -e; \
+             sudo cp /var/www/fin-dashboard/nginx/fin.kirakon.com.conf /etc/nginx/sites-available/fin.kirakon.com.conf && \
+             sudo ln -sf /etc/nginx/sites-available/fin.kirakon.com.conf /etc/nginx/sites-enabled/fin.kirakon.com.conf && \
+             sudo nginx -t && \
+             sudo systemctl reload nginx"
+
       - name: Health check
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
