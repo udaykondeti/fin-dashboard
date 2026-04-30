@@ -900,9 +900,15 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
               </label>
               <label>Model
                 <select id="agentModelSelect" onchange="agentOnModelChange()">
-                  <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
-                  <option value="claude-sonnet-4-5">Claude Sonnet 4.5</option>
-                  <option value="claude-opus-4-5">Claude Opus 4.5</option>
+                  <optgroup label="Anthropic">
+                    <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
+                    <option value="claude-sonnet-4-5">Claude Sonnet 4.5</option>
+                    <option value="claude-opus-4-5">Claude Opus 4.5</option>
+                  </optgroup>
+                  <optgroup label="Groq (fallback)">
+                    <option value="llama-3.3-70b-versatile">Llama 3.3 70B</option>
+                    <option value="llama-3.1-8b-instant">Llama 3.1 8B (fast)</option>
+                  </optgroup>
                 </select>
               </label>
             </div>

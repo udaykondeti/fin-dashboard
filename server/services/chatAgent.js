@@ -2,19 +2,59 @@ const Anthropic = require('@anthropic-ai/sdk');
 const db = require('../db/database');
 const tools = require('./chatTools');
 
-// USD per 1M tokens. Mirrors PRICE_TABLE in services/agent.js — kept in sync
-// manually because the chat module can't import from services/agent.js
-// without pulling in its single-shot machinery.
+// USD per 1M tokens. Anthropic prices mirror PRICE_TABLE in
+// services/agent.js — kept in sync manually because the chat module
+// can't import from agent.js without pulling in its single-shot
+// machinery. Groq prices from groq.com/pricing as of 2026-04.
 const PRICE_TABLE = {
-  'claude-haiku-4-5':  { input: 1.0,  output: 5.0  },
-  'claude-sonnet-4-5': { input: 3.0,  output: 15.0 },
-  'claude-opus-4-5':   { input: 15.0, output: 75.0 }
+  // Anthropic
+  'claude-haiku-4-5':        { input: 1.0,  output: 5.0  },
+  'claude-sonnet-4-5':       { input: 3.0,  output: 15.0 },
+  'claude-opus-4-5':         { input: 15.0, output: 75.0 },
+  // Groq (OpenAI-compatible)
+  'llama-3.3-70b-versatile': { input: 0.59, output: 0.79 },
+  'llama-3.1-8b-instant':    { input: 0.05, output: 0.08 }
 };
 const DEFAULT_MODEL = 'claude-haiku-4-5';
+const GROQ_DEFAULT  = 'llama-3.3-70b-versatile';
 
-function isAgentConfigured() { return !!process.env.ANTHROPIC_API_KEY; }
-function getClient() {
-  if (!isAgentConfigured()) throw new Error('Anthropic agent is not configured. Set ANTHROPIC_API_KEY.');
+// Provider routing. Anthropic preferred when its key is set; Groq is the
+// fallback. The chat agent works against either provider; the rest of
+// the module handles protocol differences via the *Anthropic / *Groq
+// helpers below.
+function hasAnthropic() { return !!process.env.ANTHROPIC_API_KEY; }
+function hasGroq()      { return !!process.env.GROQ_API_KEY; }
+function isAgentConfigured() { return hasAnthropic() || hasGroq(); }
+
+// Pick the provider for a given thread. If the thread's stored model is a
+// Claude model, we need Anthropic (else fall back to whichever is set).
+function providerFor(model) {
+  if (typeof model === 'string' && model.startsWith('claude-')) {
+    return hasAnthropic() ? 'anthropic' : (hasGroq() ? 'groq' : null);
+  }
+  if (typeof model === 'string' && (model.startsWith('llama-') || model.includes('mixtral'))) {
+    return hasGroq() ? 'groq' : null;
+  }
+  // Unknown model id — pick whichever is configured.
+  return hasAnthropic() ? 'anthropic' : (hasGroq() ? 'groq' : null);
+}
+
+// Resolve the actual model to call. If the thread asks for Claude but
+// only Groq is configured, transparently swap to GROQ_DEFAULT.
+function resolveModel(thread) {
+  const provider = providerFor(thread.model);
+  if (provider === 'anthropic') return { provider, model: thread.model };
+  if (provider === 'groq') {
+    if (typeof thread.model === 'string' && (thread.model.startsWith('llama-') || thread.model.includes('mixtral'))) {
+      return { provider, model: thread.model };
+    }
+    return { provider, model: GROQ_DEFAULT };
+  }
+  throw new Error('No agent provider configured. Set ANTHROPIC_API_KEY or GROQ_API_KEY.');
+}
+
+function getAnthropicClient() {
+  if (!hasAnthropic()) throw new Error('ANTHROPIC_API_KEY not set');
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 }
 
@@ -104,7 +144,12 @@ function rowsToMessages(rows) {
 async function sendMessage({ threadId, userId, content }) {
   const t = getThread.get(threadId, userId);
   if (!t) throw new Error(`Thread ${threadId} not found for user ${userId}`);
-  if (!isAgentConfigured()) throw new Error('Anthropic agent is not configured. Set ANTHROPIC_API_KEY.');
+  if (!isAgentConfigured()) throw new Error('No agent provider configured. Set ANTHROPIC_API_KEY or GROQ_API_KEY.');
+  if (providerFor(t.model) !== 'anthropic') {
+    // The non-streaming sendMessage is only used by smoke tests, which run
+    // against Anthropic. Production/UI uses streamMessage which supports both.
+    throw new Error('sendMessage requires Anthropic; use streamMessage for Groq.');
+  }
 
   // Persist user message
   const userMsgId = Number(insertMessage.run(threadId, 'user', content, null, 'final').lastInsertRowid);
@@ -123,7 +168,7 @@ async function sendMessage({ threadId, userId, content }) {
   // 'streaming' state and return a 'paused' result for the caller to
   // surface as a proposal card.
 
-  const client = getClient();
+  const client = getAnthropicClient();
   let totalIn = 0, totalOut = 0;
   const t0 = Date.now();
   let lastError = null;
@@ -212,10 +257,14 @@ function recordToolResult({ threadId, userId, message_id, tool_use_id, result, i
 // event. Returns the same shape as sendMessage — the route module
 // translates {status, ...} into the final SSE event so the client knows
 // the stream is done.
+//
+// Dispatches by provider: Anthropic uses the SDK's native streaming and
+// tool-use protocol; Groq goes through the OpenAI-compatible chat
+// completions endpoint with translated message + tool formats.
 async function streamMessage({ threadId, userId, content }, emit) {
   const t = getThread.get(threadId, userId);
   if (!t) throw new Error(`Thread ${threadId} not found for user ${userId}`);
-  if (!isAgentConfigured()) throw new Error('Anthropic agent is not configured. Set ANTHROPIC_API_KEY.');
+  if (!isAgentConfigured()) throw new Error('No agent provider configured. Set ANTHROPIC_API_KEY or GROQ_API_KEY.');
 
   const userMsgId = Number(insertMessage.run(threadId, 'user', content, null, 'final').lastInsertRowid);
   emit('thread_meta', { user_message_id: userMsgId });
@@ -224,14 +273,25 @@ async function streamMessage({ threadId, userId, content }, emit) {
   if (msgCountRow.n === 1) updateThreadTitle.run(content.slice(0, 40).trim() || 'New chat', threadId, userId);
   else updateThreadTouch.run(threadId, userId);
 
-  const client = getClient();
+  const { provider, model } = resolveModel(t);
+  if (provider === 'groq') {
+    return streamMessageGroq({ thread: t, userId, content, model }, emit);
+  }
+  return streamMessageAnthropic({ thread: t, userId, content, model }, emit);
+}
+
+// ────────────────────────────── Anthropic streaming path ──────────────────
+
+async function streamMessageAnthropic({ thread: t, userId, content, model }, emit) {
+  const client = getAnthropicClient();
   let totalIn = 0, totalOut = 0;
   const t0 = Date.now();
+  const threadId = t.id;
 
   for (let iter = 0; iter < 8; iter++) {
     const messages = rowsToMessages(listMessages.all(threadId));
     const stream = client.messages.stream({
-      model: t.model, max_tokens: 1024,
+      model, max_tokens: 1024,
       system: systemPromptFor(t.agent_kind),
       tools: tools.TOOLS, messages
     });
@@ -272,7 +332,7 @@ async function streamMessage({ threadId, userId, content }, emit) {
       // Finalize the assistant row with the buffered text
       if (asstId == null) asstId = Number(insertMessage.run(threadId, 'assistant', textBuf, null, 'final').lastInsertRowid);
       else updateMessageStatus.run('final', textBuf, null, asstId);
-      const cost = auditAndCost({ userId, threadId, model: t.model, content, text: textBuf, totalIn, totalOut, t0, error: null });
+      const cost = auditAndCost({ userId, threadId, model, content, text: textBuf, totalIn, totalOut, t0, error: null });
       emit('done', { message_id: asstId, usage: { in: totalIn, out: totalOut, cost_usd: cost } });
       return;
     }
@@ -293,7 +353,186 @@ async function streamMessage({ threadId, userId, content }, emit) {
         tool_use_id: first.id, name: first.name, input: first.input,
         message_id: asstId, summary: payload.summary, mutation: payload.mutation
       });
-      auditAndCost({ userId, threadId, model: t.model, content, text: textBuf, totalIn, totalOut, t0, error: null });
+      auditAndCost({ userId, threadId, model, content, text: textBuf, totalIn, totalOut, t0, error: null });
+      return;
+    }
+
+    // All read tools — finalize the assistant row, run them, loop.
+    if (asstId == null) asstId = Number(insertMessage.run(threadId, 'assistant', textBuf, JSON.stringify(finalToolUses), 'final').lastInsertRowid);
+    else updateMessageStatus.run('final', textBuf, JSON.stringify(finalToolUses), asstId);
+    for (const u of finalToolUses) {
+      emit('tool_use', { id: u.id, name: u.name, input: u.input });
+      let result, isError = false;
+      try { result = await tools.runReadTool(u.name, u.input, { userId }); }
+      catch (e) { result = { error: e.message }; isError = true; }
+      insertMessage.run(threadId, 'tool',
+        JSON.stringify({ tool_use_id: u.id, name: u.name, result, is_error: isError }), null, 'final');
+      emit('tool_result', { tool_use_id: u.id, status: isError ? 'error' : 'ok', result });
+    }
+  }
+
+  emit('error', { message: 'Tool loop did not converge in 8 iterations' });
+}
+
+// ────────────────────────────── Groq streaming path ──────────────────────
+//
+// Groq exposes an OpenAI-compatible /chat/completions endpoint. The wire
+// format differs from Anthropic in three ways that matter for us:
+//   - tools spec is wrapped in { type: 'function', function: {...} }
+//   - tool calls come back on assistant.tool_calls (not as content blocks)
+//   - tool results go in role: 'tool' messages with tool_call_id
+// We translate at the boundary so the rest of the chat module (DB rows,
+// proposal flow, audit) is identical across providers.
+
+const GROQ_BASE = 'https://api.groq.com/openai/v1';
+
+function toolsToOpenAI(toolsArr) {
+  return toolsArr.map(t => ({
+    type: 'function',
+    function: { name: t.name, description: t.description, parameters: t.input_schema }
+  }));
+}
+
+// Convert agent_messages rows into OpenAI-format messages.
+function rowsToMessagesGroq(rows) {
+  const out = [];
+  for (const r of rows) {
+    if (r.status !== 'final') continue;
+    if (r.role === 'user') {
+      out.push({ role: 'user', content: r.content });
+    } else if (r.role === 'assistant') {
+      const tu = r.tool_uses ? JSON.parse(r.tool_uses) : [];
+      const msg = { role: 'assistant', content: r.content || '' };
+      if (tu.length) {
+        msg.tool_calls = tu.map(t => ({
+          id: t.id,
+          type: 'function',
+          function: { name: t.name, arguments: JSON.stringify(t.input || {}) }
+        }));
+      }
+      out.push(msg);
+    } else if (r.role === 'tool') {
+      const parsed = JSON.parse(r.content);
+      const resultStr = typeof parsed.result === 'string' ? parsed.result : JSON.stringify(parsed.result);
+      out.push({ role: 'tool', tool_call_id: parsed.tool_use_id, content: resultStr });
+    }
+  }
+  return out;
+}
+
+async function streamMessageGroq({ thread: t, userId, content, model }, emit) {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error('GROQ_API_KEY not set');
+  const threadId = t.id;
+  let totalIn = 0, totalOut = 0;
+  const t0 = Date.now();
+
+  for (let iter = 0; iter < 8; iter++) {
+    const messages = rowsToMessagesGroq(listMessages.all(threadId));
+    // Groq requires a system message inline (not a separate field).
+    const fullMessages = [{ role: 'system', content: systemPromptFor(t.agent_kind) }, ...messages];
+
+    const resp = await fetch(`${GROQ_BASE}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model, max_tokens: 1024, temperature: 0.2,
+        messages: fullMessages,
+        tools: toolsToOpenAI(tools.TOOLS),
+        stream: true
+      })
+    });
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => '');
+      emit('error', { message: `Groq HTTP ${resp.status}: ${body.slice(0, 300)}` });
+      auditAndCost({ userId, threadId, model, content, text: '', totalIn, totalOut, t0, error: `groq_${resp.status}` });
+      return;
+    }
+
+    let textBuf = '';
+    let asstId = null;
+    const toolCalls = [];   // [{ id, name, arguments_buf }]
+    let finishReason = null;
+    let usage = null;
+
+    // Parse SSE stream
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const events = buffer.split('\n\n');
+      buffer = events.pop();
+      for (const ev of events) {
+        const dataLine = ev.split('\n').find(l => l.startsWith('data:'));
+        if (!dataLine) continue;
+        const payload = dataLine.slice(5).trim();
+        if (payload === '[DONE]') continue;
+        let chunk;
+        try { chunk = JSON.parse(payload); } catch (_) { continue; }
+        const choice = chunk.choices && chunk.choices[0];
+        if (!choice) {
+          if (chunk.usage) usage = chunk.usage;
+          continue;
+        }
+        if (choice.finish_reason) finishReason = choice.finish_reason;
+        const delta = choice.delta || {};
+        if (delta.content) {
+          if (asstId == null) {
+            asstId = Number(insertMessage.run(threadId, 'assistant', '', null, 'streaming').lastInsertRowid);
+            emit('assistant_start', { message_id: asstId });
+          }
+          textBuf += delta.content;
+          emit('text', { delta: delta.content });
+        }
+        if (delta.tool_calls) {
+          for (const tc of delta.tool_calls) {
+            const idx = tc.index || 0;
+            if (!toolCalls[idx]) toolCalls[idx] = { id: tc.id || `call_${idx}`, name: '', arguments_buf: '' };
+            if (tc.id) toolCalls[idx].id = tc.id;
+            if (tc.function && tc.function.name) toolCalls[idx].name = tc.function.name;
+            if (tc.function && tc.function.arguments) toolCalls[idx].arguments_buf += tc.function.arguments;
+          }
+        }
+        if (chunk.usage) usage = chunk.usage;
+      }
+    }
+
+    if (usage) { totalIn += usage.prompt_tokens || 0; totalOut += usage.completion_tokens || 0; }
+
+    // Resolve tool calls' input from accumulated argument JSON
+    const finalToolUses = toolCalls.filter(Boolean).map(tc => {
+      let input = {};
+      try { input = tc.arguments_buf ? JSON.parse(tc.arguments_buf) : {}; } catch (_) { /* keep {} */ }
+      return { id: tc.id, name: tc.name, input };
+    });
+
+    if (finishReason !== 'tool_calls' || finalToolUses.length === 0) {
+      if (asstId == null) asstId = Number(insertMessage.run(threadId, 'assistant', textBuf, null, 'final').lastInsertRowid);
+      else updateMessageStatus.run('final', textBuf, null, asstId);
+      const cost = auditAndCost({ userId, threadId, model, content, text: textBuf, totalIn, totalOut, t0, error: null });
+      emit('done', { message_id: asstId, usage: { in: totalIn, out: totalOut, cost_usd: cost } });
+      return;
+    }
+
+    const proposals = finalToolUses.filter(u => tools.TOOL_KIND[u.name] === 'propose');
+    if (proposals.length > 0) {
+      if (asstId == null) {
+        asstId = Number(insertMessage.run(threadId, 'assistant', textBuf, JSON.stringify(finalToolUses), 'streaming').lastInsertRowid);
+      } else {
+        updateMessageStatus.run('streaming', textBuf, JSON.stringify(finalToolUses), asstId);
+      }
+      const first = proposals[0];
+      let payload;
+      try { payload = tools.buildProposal(first.name, first.input, { userId }); }
+      catch (e) { emit('error', { message: e.message }); return; }
+      emit('proposal', {
+        tool_use_id: first.id, name: first.name, input: first.input,
+        message_id: asstId, summary: payload.summary, mutation: payload.mutation
+      });
+      auditAndCost({ userId, threadId, model, content, text: textBuf, totalIn, totalOut, t0, error: null });
       return;
     }
 
