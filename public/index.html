@@ -85,6 +85,7 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
 .demo-banner .demo-close{margin-left:auto;background:none;border:none;color:var(--caramel);font-size:18px;line-height:1;cursor:pointer;padding:2px 8px;border-radius:6px}
 .demo-banner .demo-close:hover{background:rgba(198,134,66,.18)}
 .agent-shell{display:grid;grid-template-columns:260px 1fr;gap:0;height:calc(100vh - 180px);min-height:520px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--bg-primary)}
+.agent-shell.has-artifact{grid-template-columns:260px 1fr minmax(360px, 480px)}
 .agent-sidebar{border-right:1px solid var(--border);background:var(--bg-secondary);display:flex;flex-direction:column}
 .agent-new-btn{margin:14px;padding:10px 12px;background:var(--caramel);color:var(--cream);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px}
 .agent-new-btn:hover{filter:brightness(1.05)}
@@ -129,6 +130,46 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
 .agent-input-row button:disabled{opacity:.5;cursor:not-allowed}
 .agent-pending-hint{padding:8px 16px;background:rgba(198,134,66,.10);color:var(--caramel);font-size:12px;text-align:center;border-top:1px solid var(--border)}
 .agent-empty-state{display:flex;align-items:center;justify-content:center;flex:1;color:var(--text-secondary);font-size:13px;text-align:center;padding:30px}
+.agent-artifact-chip{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:6px 10px;border-radius:8px;border:1px solid var(--bdr-coffee);background:var(--cream);color:var(--mocha);font-size:12px;font-weight:600;cursor:pointer;max-width:100%;overflow:hidden}
+.agent-artifact-chip:hover{background:var(--latte)}
+.agent-artifact-chip .ico{flex-shrink:0;font-size:13px}
+.agent-artifact-chip .ti{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agent-artifact-chip .badge{font-size:10px;padding:1px 6px;border-radius:8px;background:rgba(198,134,66,.15);color:var(--caramel);text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.agent-artifact-chip.live .badge{background:rgba(34,197,94,.15);color:var(--accent-green)}
+.agent-artifact-chip.live .badge::before{content:'●';margin-right:3px;animation:artifactPulse 1.2s ease-in-out infinite}
+@keyframes artifactPulse{0%,100%{opacity:.4}50%{opacity:1}}
+.agent-artifact-panel{display:flex;flex-direction:column;border-left:1px solid var(--border);background:var(--bg-secondary);min-width:0}
+.agent-artifact-empty{flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);font-size:13px;padding:30px;text-align:center}
+.agent-artifact-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);background:var(--bg-primary)}
+.agent-artifact-head .ttl{flex:1;font-size:13px;font-weight:700;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agent-artifact-head .typebadge{font-size:10px;padding:2px 7px;border-radius:8px;background:rgba(198,134,66,.18);color:var(--caramel);text-transform:uppercase;font-weight:700;letter-spacing:.5px}
+.agent-artifact-head .typebadge.live{background:rgba(34,197,94,.15);color:var(--accent-green)}
+.agent-artifact-head button{background:transparent;border:1px solid var(--border);color:var(--text-secondary);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:11px;font-weight:600}
+.agent-artifact-head button:hover{background:var(--bg-secondary)}
+.agent-artifact-tabs{display:flex;gap:4px;padding:6px 10px;border-bottom:1px solid var(--border);overflow-x:auto;flex-shrink:0}
+.agent-artifact-tab{padding:5px 10px;border-radius:6px;font-size:11px;color:var(--text-secondary);background:transparent;border:1px solid transparent;cursor:pointer;white-space:nowrap;font-weight:600}
+.agent-artifact-tab:hover{background:rgba(198,134,66,.06)}
+.agent-artifact-tab.active{background:rgba(198,134,66,.14);color:var(--caramel);border-color:rgba(198,134,66,.35)}
+.agent-artifact-body{flex:1;overflow:auto;padding:0;background:#fff;min-width:0}
+.agent-artifact-body pre{margin:0;padding:14px 16px;font-size:12px;line-height:1.5;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;word-wrap:break-word;color:var(--text-primary)}
+.agent-artifact-body .md{padding:14px 18px;font-size:13px;line-height:1.6;color:var(--text-primary)}
+.agent-artifact-body .md h1,.agent-artifact-body .md h2,.agent-artifact-body .md h3{color:var(--mocha);margin:14px 0 8px}
+.agent-artifact-body .md h1{font-size:18px}
+.agent-artifact-body .md h2{font-size:16px}
+.agent-artifact-body .md h3{font-size:14px}
+.agent-artifact-body .md p{margin:0 0 10px}
+.agent-artifact-body .md ul,.agent-artifact-body .md ol{margin:0 0 10px;padding-left:22px}
+.agent-artifact-body .md li{margin-bottom:4px}
+.agent-artifact-body .md code{background:var(--latte);padding:1px 5px;border-radius:4px;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.agent-artifact-body .md pre{background:var(--cream);border:1px solid var(--latte);border-radius:6px;padding:10px}
+.agent-artifact-body .md table{border-collapse:collapse;margin:10px 0;font-size:12px}
+.agent-artifact-body .md th,.agent-artifact-body .md td{border:1px solid var(--bdr-coffee);padding:5px 9px;text-align:left}
+.agent-artifact-body .md th{background:var(--latte);font-weight:700}
+.agent-artifact-body iframe{width:100%;height:100%;border:0;background:#fff}
+.agent-artifact-body .svgwrap{padding:14px;display:flex;justify-content:center;align-items:flex-start}
+.agent-artifact-body .svgwrap svg{max-width:100%;height:auto}
+.agent-artifact-cursor{display:inline-block;width:7px;height:13px;background:var(--caramel);vertical-align:text-bottom;margin-left:2px;animation:artifactCursor 1s steps(2) infinite}
+@keyframes artifactCursor{50%{opacity:0}}
 .agent-demo-block{display:flex;align-items:center;justify-content:center;flex:1;color:var(--text-secondary);font-size:13px;text-align:center;padding:30px}
 @media (max-width: 768px){
   .agent-shell{grid-template-columns:1fr;height:calc(100vh - 220px)}
@@ -923,6 +964,16 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
             Confirm or reject the proposal above to continue.
           </div>
         </section>
+        <aside class="agent-artifact-panel" id="agentArtifactPanel" style="display:none">
+          <div class="agent-artifact-head">
+            <span class="typebadge" id="agentArtifactTypeBadge">md</span>
+            <span class="ttl" id="agentArtifactTitle">Artifact</span>
+            <button onclick="agentCopyArtifact()" title="Copy contents">Copy</button>
+            <button onclick="agentCloseArtifactPanel()" title="Close">✕</button>
+          </div>
+          <div class="agent-artifact-tabs" id="agentArtifactTabs"></div>
+          <div class="agent-artifact-body" id="agentArtifactBody"></div>
+        </aside>
       </div>
     </div>
 
@@ -4466,7 +4517,11 @@ var agentState = {
   messages: [],          // current thread messages
   streaming: false,
   pendingProposal: null, // { tool_use_id, message_id, summary, mutation, name }
-  evtSource: null
+  evtSource: null,
+  // Live artifacts (Claude.ai-style side panel). identifier -> {identifier,type,language,title,content,status,message_id}
+  artifacts: {},
+  artifactOrder: [],     // identifiers in insertion order, for tabs
+  activeArtifact: null   // identifier currently shown in panel
 };
 
 async function agentLoadThreads() {
@@ -4514,10 +4569,25 @@ async function agentOpenThread(id) {
   if (agentState.streaming) return;
   agentState.activeId = id;
   agentState.pendingProposal = null;
+  agentState.artifacts = {};
+  agentState.artifactOrder = [];
+  agentState.activeArtifact = null;
   agentRenderThreadList();
   var r = await apiFetch('/api/chat/threads/'+id);
   if (!r || !r.thread) { showToast('Thread not found','error'); return; }
   agentState.messages = r.messages || [];
+  (r.artifacts || []).forEach(function(a){
+    agentState.artifacts[a.identifier] = {
+      identifier: a.identifier, type: a.type, language: a.language,
+      title: a.title, content: a.content || '', status: a.status,
+      message_id: a.message_id
+    };
+    agentState.artifactOrder.push(a.identifier);
+  });
+  if (agentState.artifactOrder.length) {
+    agentState.activeArtifact = agentState.artifactOrder[agentState.artifactOrder.length - 1];
+  }
+  agentRenderArtifactPanel();
   // Restore selectors and title
   document.getElementById('agentKindSelect').value = r.thread.agent_kind;
   document.getElementById('agentModelSelect').value = r.thread.model;
@@ -4595,6 +4665,24 @@ function agentRenderOneMessage(m) {
   var html = '<div class="agent-msg assistant" data-msg-id="'+m.id+'">'+esc(m.content || '');
   if (m.status === 'streaming' && (!m.tool_uses || m.tool_uses === 'null')) {
     html += '<div class="interrupted">(interrupted — send a new message to continue)</div>';
+  }
+  // Attach any artifacts whose message_id matches this message as inline chips.
+  var attached = agentState.artifactOrder
+    .map(function(id){ return agentState.artifacts[id]; })
+    .filter(function(a){ return a && a.message_id === m.id; });
+  if (attached.length) {
+    html += '<div style="display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin-top:8px">';
+    attached.forEach(function(a){
+      var liveCls = a.status === 'streaming' ? ' live' : '';
+      var typeLabel = a.type === 'code' ? (a.language || 'code') : a.type;
+      var icon = a.type === 'svg' ? '🖼' : a.type === 'html' ? '🌐' : a.type === 'code' ? '⌨' : '📄';
+      html += '<span class="agent-artifact-chip'+liveCls+'" onclick="agentShowArtifact(\''+esc(a.identifier)+'\')">'
+        + '<span class="ico">'+icon+'</span>'
+        + '<span class="ti">'+esc(a.title || a.identifier)+'</span>'
+        + '<span class="badge">'+esc(typeLabel || '')+'</span>'
+        + '</span>';
+    });
+    html += '</div>';
   }
   html += '</div>';
   return html;
@@ -4722,6 +4810,12 @@ async function agentRunStream(content) {
         } else if (name === 'proposal') {
           agentState.pendingProposal = data;
           agentRenderMessages();
+        } else if (name === 'artifact_start') {
+          agentArtifactStart(data, assistantMsg && assistantMsg.id);
+        } else if (name === 'artifact_delta') {
+          agentArtifactDelta(data);
+        } else if (name === 'artifact_end') {
+          agentArtifactEnd(data);
         } else if (name === 'done') {
           if (assistantMsg) assistantMsg.status = 'final';
           agentState.streaming = false;
@@ -4792,6 +4886,208 @@ async function agentRejectProposal() {
     if (t && t.messages) { agentState.messages = t.messages; agentRenderMessages(); }
   }
   agentUpdateInputState();
+}
+
+// ─── Live artifacts ────────────────────────────────────────────────────────
+function agentArtifactStart(data, messageId) {
+  var id = data.identifier;
+  var a = agentState.artifacts[id];
+  if (a) {
+    // Reused identifier — overwrite as a fresh streaming artifact.
+    a.type = data.type; a.language = data.language; a.title = data.title;
+    a.content = ''; a.status = 'streaming'; a.message_id = messageId;
+  } else {
+    agentState.artifacts[id] = {
+      identifier: id, type: data.type, language: data.language,
+      title: data.title, content: '', status: 'streaming', message_id: messageId
+    };
+    agentState.artifactOrder.push(id);
+  }
+  agentState.activeArtifact = id;
+  agentRenderMessages();
+  agentRenderArtifactPanel();
+}
+
+function agentArtifactDelta(data) {
+  var a = agentState.artifacts[data.identifier];
+  if (!a) return;
+  a.content += data.delta || '';
+  // Only the active artifact is in the DOM — append directly to avoid
+  // re-rendering the whole panel on every token.
+  if (agentState.activeArtifact === a.identifier) {
+    agentRenderArtifactBody(a);
+  }
+}
+
+function agentArtifactEnd(data) {
+  var a = agentState.artifacts[data.identifier];
+  if (!a) return;
+  a.status = 'final';
+  if (typeof data.title === 'string') a.title = data.title;
+  agentRenderMessages();
+  agentRenderArtifactPanel();
+}
+
+function agentShowArtifact(identifier) {
+  if (!agentState.artifacts[identifier]) return;
+  agentState.activeArtifact = identifier;
+  agentRenderArtifactPanel();
+}
+
+function agentCloseArtifactPanel() {
+  agentState.activeArtifact = null;
+  agentRenderArtifactPanel();
+}
+
+function agentCopyArtifact() {
+  var a = agentState.artifacts[agentState.activeArtifact];
+  if (!a) return;
+  navigator.clipboard.writeText(a.content || '').then(
+    function(){ showToast('Copied to clipboard'); },
+    function(){ showToast('Copy failed', 'error'); }
+  );
+}
+
+function agentRenderArtifactPanel() {
+  var panel = document.getElementById('agentArtifactPanel');
+  var shell = document.querySelector('.agent-shell');
+  if (!panel || !shell) return;
+  var hasAny = agentState.artifactOrder.length > 0;
+  var open = hasAny && agentState.activeArtifact && agentState.artifacts[agentState.activeArtifact];
+  if (!open) {
+    panel.style.display = 'none';
+    shell.classList.remove('has-artifact');
+    return;
+  }
+  panel.style.display = 'flex';
+  shell.classList.add('has-artifact');
+
+  var a = agentState.artifacts[agentState.activeArtifact];
+  var typeBadge = document.getElementById('agentArtifactTypeBadge');
+  var titleEl = document.getElementById('agentArtifactTitle');
+  var typeLabel = a.type === 'code' ? (a.language || 'code') : a.type;
+  typeBadge.textContent = typeLabel || 'md';
+  typeBadge.className = 'typebadge' + (a.status === 'streaming' ? ' live' : '');
+  titleEl.textContent = a.title || a.identifier;
+
+  var tabsEl = document.getElementById('agentArtifactTabs');
+  if (agentState.artifactOrder.length > 1) {
+    tabsEl.style.display = 'flex';
+    tabsEl.innerHTML = agentState.artifactOrder.map(function(id){
+      var ax = agentState.artifacts[id];
+      var active = id === agentState.activeArtifact ? ' active' : '';
+      return '<span class="agent-artifact-tab'+active+'" onclick="agentShowArtifact(\''+esc(id)+'\')">'
+        + esc(ax.title || id) + '</span>';
+    }).join('');
+  } else {
+    tabsEl.style.display = 'none';
+    tabsEl.innerHTML = '';
+  }
+  agentRenderArtifactBody(a);
+}
+
+function agentRenderArtifactBody(a) {
+  var body = document.getElementById('agentArtifactBody');
+  if (!body) return;
+  var live = a.status === 'streaming';
+  var cursor = live ? '<span class="agent-artifact-cursor"></span>' : '';
+  if (a.type === 'html') {
+    // Sandboxed iframe — no scripts, no same-origin. Re-render with srcdoc.
+    body.innerHTML = '<iframe sandbox="allow-same-origin" srcdoc=""></iframe>';
+    var iframe = body.querySelector('iframe');
+    if (iframe) iframe.srcdoc = a.content || '';
+  } else if (a.type === 'svg') {
+    // Inline SVG. We trust the model's SVG output but it's still rendered
+    // inside a div — no script execution from svg context in modern browsers.
+    body.innerHTML = '<div class="svgwrap">' + (a.content || '') + cursor + '</div>';
+  } else if (a.type === 'code') {
+    body.innerHTML = '<pre>' + esc(a.content || '') + cursor + '</pre>';
+  } else {
+    // markdown (default)
+    body.innerHTML = '<div class="md">' + agentRenderMarkdown(a.content || '') + cursor + '</div>';
+  }
+  // Keep scroll pinned to bottom while streaming so live deltas stay visible.
+  if (live) body.scrollTop = body.scrollHeight;
+}
+
+// Tiny markdown renderer — handles headings, bold/italic, inline code,
+// fenced code blocks, lists, paragraphs, and pipe-tables. Good enough for
+// agent reports; not a full CommonMark implementation.
+function agentRenderMarkdown(src) {
+  if (!src) return '';
+  var s = String(src);
+  var out = '';
+  var lines = s.split('\n');
+  var i = 0;
+  function flushParagraph(buf) {
+    if (!buf.length) return;
+    var text = buf.join(' ').trim();
+    if (text) out += '<p>' + agentMdInline(text) + '</p>';
+  }
+  var paraBuf = [];
+  while (i < lines.length) {
+    var ln = lines[i];
+    // Fenced code
+    if (/^```/.test(ln)) {
+      flushParagraph(paraBuf); paraBuf = [];
+      var lang = ln.slice(3).trim();
+      var codeBuf = [];
+      i++;
+      while (i < lines.length && !/^```/.test(lines[i])) { codeBuf.push(lines[i]); i++; }
+      i++; // consume closing fence (or EOF)
+      out += '<pre><code'+(lang?' data-lang="'+esc(lang)+'"':'')+'>' + esc(codeBuf.join('\n')) + '</code></pre>';
+      continue;
+    }
+    // Heading
+    var hm = /^(#{1,6})\s+(.*)$/.exec(ln);
+    if (hm) { flushParagraph(paraBuf); paraBuf = []; out += '<h'+hm[1].length+'>'+agentMdInline(hm[2])+'</h'+hm[1].length+'>'; i++; continue; }
+    // Pipe table — header | --- | rows
+    if (/\|/.test(ln) && i+1 < lines.length && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[i+1])) {
+      flushParagraph(paraBuf); paraBuf = [];
+      var headerCells = ln.split('|').map(function(c){return c.trim();}).filter(function(c){return c.length;});
+      i += 2;
+      var rows = [];
+      while (i < lines.length && /\|/.test(lines[i]) && lines[i].trim()) {
+        rows.push(lines[i].split('|').map(function(c){return c.trim();}).filter(function(c){return c.length;}));
+        i++;
+      }
+      out += '<table><thead><tr>' + headerCells.map(function(c){return '<th>'+agentMdInline(c)+'</th>';}).join('') + '</tr></thead>';
+      if (rows.length) {
+        out += '<tbody>' + rows.map(function(r){
+          return '<tr>' + r.map(function(c){return '<td>'+agentMdInline(c)+'</td>';}).join('') + '</tr>';
+        }).join('') + '</tbody>';
+      }
+      out += '</table>';
+      continue;
+    }
+    // List item (unordered or ordered)
+    if (/^\s*([-*]|\d+\.)\s+/.test(ln)) {
+      flushParagraph(paraBuf); paraBuf = [];
+      var ordered = /^\s*\d+\./.test(ln);
+      var items = [];
+      while (i < lines.length && /^\s*([-*]|\d+\.)\s+/.test(lines[i])) {
+        items.push(lines[i].replace(/^\s*([-*]|\d+\.)\s+/, ''));
+        i++;
+      }
+      out += (ordered ? '<ol>' : '<ul>') + items.map(function(it){return '<li>'+agentMdInline(it)+'</li>';}).join('') + (ordered ? '</ol>' : '</ul>');
+      continue;
+    }
+    // Blank line ends paragraph
+    if (!ln.trim()) { flushParagraph(paraBuf); paraBuf = []; i++; continue; }
+    paraBuf.push(ln);
+    i++;
+  }
+  flushParagraph(paraBuf);
+  return out;
+}
+
+function agentMdInline(s) {
+  s = esc(s);
+  s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>');
+  s = s.replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  return s;
 }
 </script>
 

@@ -534,6 +534,32 @@ function runMigrations() {
     } },
     { id: 19, name: 'vault_files.processed_at',     run: () => addColumnIfMissing('vault_files', 'processed_at',     'ALTER TABLE vault_files ADD COLUMN processed_at DATETIME') },
     { id: 20, name: 'vault_files.processing_error', run: () => addColumnIfMissing('vault_files', 'processing_error', 'ALTER TABLE vault_files ADD COLUMN processing_error TEXT') },
+    { id: 21, name: 'create_agent_artifacts', run: () => {
+      // Live artifacts emitted by the chat agent (Claude.ai-style side-panel
+      // renders for substantial generated content — markdown reports, HTML
+      // snippets, SVG charts, code). Streamed in real time via SSE; persisted
+      // here so they reload on thread switch. `identifier` is the model-
+      // supplied stable id used to disambiguate or update artifacts within a
+      // thread; `(thread_id, identifier)` is the natural key.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS agent_artifacts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          thread_id INTEGER NOT NULL,
+          message_id INTEGER,
+          identifier TEXT NOT NULL,
+          type TEXT NOT NULL DEFAULT 'markdown',
+          language TEXT,
+          title TEXT NOT NULL DEFAULT 'Artifact',
+          content TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'streaming' CHECK(status IN ('streaming','final')),
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (thread_id) REFERENCES agent_threads(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_agent_artifacts_thread ON agent_artifacts(thread_id, id);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_artifacts_thread_ident ON agent_artifacts(thread_id, identifier);
+      `);
+    } },
   ];
 
   const appliedIds = new Set(

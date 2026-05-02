@@ -22,7 +22,11 @@ router.get('/threads/:id', (req, res) => {
   const id = Number(req.params.id);
   const thread = chatAgent._getThread(id, req.user.id);
   if (!thread) return res.status(404).json({ error: 'Thread not found' });
-  res.json({ thread, messages: chatAgent._listMessages(id) });
+  res.json({
+    thread,
+    messages: chatAgent._listMessages(id),
+    artifacts: chatAgent._listArtifacts(id)
+  });
 });
 
 // PATCH /api/chat/threads/:id

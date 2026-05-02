@@ -2,6 +2,159 @@ const Anthropic = require('@anthropic-ai/sdk');
 const db = require('../db/database');
 const tools = require('./chatTools');
 
+// ─────────────────────────── Live artifacts ───────────────────────────────
+//
+// Substantial generated content (markdown reports, HTML/SVG visualisations,
+// code snippets) is wrapped by the model in <artifact ...>...</artifact> tags
+// so the frontend can render it in a side panel and stream updates in real
+// time. The parser below intercepts streamed text deltas, splits them into
+// inline-text vs artifact-content, and emits SSE events the chat route
+// proxies to the client.
+
+const ARTIFACT_INSTRUCTIONS = [
+  'Artifacts: when you produce substantial generated content (a multi-line code snippet, an HTML or SVG visualisation, a markdown report, a tabular summary the user will want to read or copy in full), wrap it in an artifact tag so it renders in a live side panel:',
+  '  <artifact identifier="stable-id" type="markdown|html|svg|code" language="js|python|..." title="Short title">...content...</artifact>',
+  '- type="markdown" for narrative reports/tables; type="html" for self-contained HTML; type="svg" for inline SVG; type="code" with a language attribute for code listings.',
+  '- Pick a stable identifier (slug-style, e.g. "fy25-tax-summary") so reusing the same id updates the same artifact.',
+  '- Keep short, conversational replies in the message body. Do not wrap one-liners in artifacts.',
+  '- Never put a propose_* tool call inside an artifact. Artifacts are display-only.'
+].join('\n');
+
+function parseArtifactAttrs(openTag) {
+  const out = {};
+  const re = /(\w+)\s*=\s*"([^"]*)"/g;
+  let m;
+  while ((m = re.exec(openTag)) !== null) out[m[1]] = m[2];
+  return out;
+}
+
+// Streaming parser: feed text deltas, get back text/artifact_* events.
+// Handles the split-tag case (a delta may end mid-tag like '<arti').
+class ArtifactStreamParser {
+  constructor(emit) {
+    this.emit = emit;
+    this.buf = '';
+    this.mode = 'text';   // 'text' | 'artifact'
+    this.current = null;  // { identifier, type, language, title, content }
+    this.cleanText = '';  // text outside artifacts, accumulated for DB persistence
+    this.artifacts = [];  // completed artifacts for the current turn
+  }
+
+  feed(delta) {
+    this.buf += delta;
+    while (true) {
+      if (this.mode === 'text') {
+        const i = this.buf.indexOf('<artifact');
+        if (i === -1) {
+          // Hold back any tail that could be a prefix of '<artifact' so we
+          // don't emit '<arti' as text and then have to retract it.
+          let hold = 0;
+          for (let n = Math.min(9, this.buf.length); n > 0; n--) {
+            if ('<artifact'.startsWith(this.buf.slice(this.buf.length - n))) { hold = n; break; }
+          }
+          const flush = this.buf.slice(0, this.buf.length - hold);
+          if (flush) { this.cleanText += flush; this.emit('text', { delta: flush }); }
+          this.buf = this.buf.slice(this.buf.length - hold);
+          return;
+        }
+        if (i > 0) {
+          const flush = this.buf.slice(0, i);
+          this.cleanText += flush;
+          this.emit('text', { delta: flush });
+          this.buf = this.buf.slice(i);
+        }
+        // buf now starts with '<artifact'. Wait for the closing '>'.
+        const gt = this.buf.indexOf('>');
+        if (gt === -1) return;
+        const attrs = parseArtifactAttrs(this.buf.slice(0, gt + 1));
+        this.current = {
+          identifier: attrs.identifier || ('art_' + Date.now()),
+          type: (attrs.type || 'markdown').toLowerCase(),
+          language: attrs.language || null,
+          title: attrs.title || 'Artifact',
+          content: ''
+        };
+        this.emit('artifact_start', { ...this.current });
+        this.buf = this.buf.slice(gt + 1);
+        this.mode = 'artifact';
+      } else {
+        const close = '</artifact>';
+        const i = this.buf.indexOf(close);
+        if (i === -1) {
+          // Hold back any tail that could be a prefix of '</artifact>'.
+          let hold = 0;
+          for (let n = Math.min(close.length, this.buf.length); n > 0; n--) {
+            if (close.startsWith(this.buf.slice(this.buf.length - n))) { hold = n; break; }
+          }
+          const flush = this.buf.slice(0, this.buf.length - hold);
+          if (flush) {
+            this.current.content += flush;
+            this.emit('artifact_delta', { identifier: this.current.identifier, delta: flush });
+          }
+          this.buf = this.buf.slice(this.buf.length - hold);
+          return;
+        }
+        if (i > 0) {
+          const flush = this.buf.slice(0, i);
+          this.current.content += flush;
+          this.emit('artifact_delta', { identifier: this.current.identifier, delta: flush });
+        }
+        this.emit('artifact_end', { ...this.current });
+        this.artifacts.push(this.current);
+        this.current = null;
+        this.buf = this.buf.slice(i + close.length);
+        this.mode = 'text';
+      }
+    }
+  }
+
+  // End-of-stream: flush whatever is left. If we're stuck inside an open
+  // artifact (model didn't close the tag), close it implicitly so the UI
+  // doesn't hang on a half-open render.
+  flush() {
+    if (this.buf.length) {
+      if (this.mode === 'text') {
+        this.cleanText += this.buf;
+        this.emit('text', { delta: this.buf });
+      } else {
+        this.current.content += this.buf;
+        this.emit('artifact_delta', { identifier: this.current.identifier, delta: this.buf });
+      }
+      this.buf = '';
+    }
+    if (this.mode === 'artifact' && this.current) {
+      this.emit('artifact_end', { ...this.current, incomplete: true });
+      this.artifacts.push(this.current);
+      this.current = null;
+      this.mode = 'text';
+    }
+  }
+}
+
+const upsertArtifactStmt = db.prepare(`
+  INSERT INTO agent_artifacts (thread_id, message_id, identifier, type, language, title, content, status)
+  VALUES (?, ?, ?, ?, ?, ?, ?, 'final')
+  ON CONFLICT(thread_id, identifier) DO UPDATE SET
+    message_id = excluded.message_id,
+    type       = excluded.type,
+    language   = excluded.language,
+    title      = excluded.title,
+    content    = excluded.content,
+    status     = 'final',
+    updated_at = CURRENT_TIMESTAMP
+`);
+const listArtifactsStmt = db.prepare(`SELECT id, thread_id, message_id, identifier, type, language, title, content, status, created_at, updated_at FROM agent_artifacts WHERE thread_id = ? ORDER BY id ASC`);
+
+function persistArtifacts(threadId, messageId, artifacts) {
+  for (const a of artifacts) {
+    try {
+      upsertArtifactStmt.run(threadId, messageId, a.identifier, a.type, a.language, a.title, a.content);
+    } catch (e) {
+      console.error('[artifacts] persist failed:', e.message);
+    }
+  }
+}
+
 // USD per 1M tokens. Anthropic prices mirror PRICE_TABLE in
 // services/agent.js — kept in sync manually because the chat module
 // can't import from agent.js without pulling in its single-shot
@@ -91,7 +244,8 @@ function systemPromptFor(agentKind) {
       "Currency is INR (₹) unless stated otherwise. The user is an Indian taxpayer; default to Indian tax rules and the New Tax Regime unless they say otherwise.",
       "Use the read tools (get_net_worth, query_holdings, query_liabilities, query_hand_loans, query_earnings, query_payments, query_tax, query_properties) whenever the answer depends on the user's actual data — do not guess.",
       "When the user asks you to make a change to their data, use a propose_* tool. NEVER claim a change has been made until the user confirms the proposal — the system will execute the mutation only after explicit user approval.",
-      "Be concise. Bullet lists for >2 items. Numbers should be formatted with Indian commas (e.g. ₹1,50,000)."
+      "Be concise. Bullet lists for >2 items. Numbers should be formatted with Indian commas (e.g. ₹1,50,000).",
+      ARTIFACT_INSTRUCTIONS
     ].join('\n');
   }
   if (agentKind === 'upload_processor') {
@@ -296,9 +450,9 @@ async function streamMessageAnthropic({ thread: t, userId, content, model }, emi
       tools: tools.TOOLS, messages
     });
 
-    let textBuf = '';
     let asstId = null;
     const toolUses = [];
+    const parser = new ArtifactStreamParser(emit);
 
     for await (const event of stream) {
       if (event.type === 'content_block_start') {
@@ -311,13 +465,14 @@ async function streamMessageAnthropic({ thread: t, userId, content, model }, emi
         }
       } else if (event.type === 'content_block_delta') {
         if (event.delta.type === 'text_delta') {
-          textBuf += event.delta.text;
-          emit('text', { delta: event.delta.text });
+          parser.feed(event.delta.text);
         } else if (event.delta.type === 'input_json_delta') {
           toolUses[toolUses.length - 1].input_buf += event.delta.partial_json;
         }
       }
     }
+    parser.flush();
+    const textBuf = parser.cleanText;
 
     const final = await stream.finalMessage();
     totalIn  += final.usage?.input_tokens  || 0;
@@ -332,6 +487,7 @@ async function streamMessageAnthropic({ thread: t, userId, content, model }, emi
       // Finalize the assistant row with the buffered text
       if (asstId == null) asstId = Number(insertMessage.run(threadId, 'assistant', textBuf, null, 'final').lastInsertRowid);
       else updateMessageStatus.run('final', textBuf, null, asstId);
+      persistArtifacts(threadId, asstId, parser.artifacts);
       const cost = auditAndCost({ userId, threadId, model, content, text: textBuf, totalIn, totalOut, t0, error: null });
       emit('done', { message_id: asstId, usage: { in: totalIn, out: totalOut, cost_usd: cost } });
       return;
@@ -345,6 +501,7 @@ async function streamMessageAnthropic({ thread: t, userId, content, model }, emi
       } else {
         updateMessageStatus.run('streaming', textBuf, JSON.stringify(finalToolUses), asstId);
       }
+      persistArtifacts(threadId, asstId, parser.artifacts);
       const first = proposals[0];
       let payload;
       try { payload = tools.buildProposal(first.name, first.input, { userId }); }
@@ -360,6 +517,7 @@ async function streamMessageAnthropic({ thread: t, userId, content, model }, emi
     // All read tools — finalize the assistant row, run them, loop.
     if (asstId == null) asstId = Number(insertMessage.run(threadId, 'assistant', textBuf, JSON.stringify(finalToolUses), 'final').lastInsertRowid);
     else updateMessageStatus.run('final', textBuf, JSON.stringify(finalToolUses), asstId);
+    persistArtifacts(threadId, asstId, parser.artifacts);
     for (const u of finalToolUses) {
       emit('tool_use', { id: u.id, name: u.name, input: u.input });
       let result, isError = false;
@@ -449,11 +607,11 @@ async function streamMessageGroq({ thread: t, userId, content, model }, emit) {
       return;
     }
 
-    let textBuf = '';
     let asstId = null;
     const toolCalls = [];   // [{ id, name, arguments_buf }]
     let finishReason = null;
     let usage = null;
+    const parser = new ArtifactStreamParser(emit);
 
     // Parse SSE stream
     const reader = resp.body.getReader();
@@ -484,8 +642,7 @@ async function streamMessageGroq({ thread: t, userId, content, model }, emit) {
             asstId = Number(insertMessage.run(threadId, 'assistant', '', null, 'streaming').lastInsertRowid);
             emit('assistant_start', { message_id: asstId });
           }
-          textBuf += delta.content;
-          emit('text', { delta: delta.content });
+          parser.feed(delta.content);
         }
         if (delta.tool_calls) {
           for (const tc of delta.tool_calls) {
@@ -500,6 +657,8 @@ async function streamMessageGroq({ thread: t, userId, content, model }, emit) {
       }
     }
 
+    parser.flush();
+    const textBuf = parser.cleanText;
     if (usage) { totalIn += usage.prompt_tokens || 0; totalOut += usage.completion_tokens || 0; }
 
     // Resolve tool calls' input from accumulated argument JSON
@@ -512,6 +671,7 @@ async function streamMessageGroq({ thread: t, userId, content, model }, emit) {
     if (finishReason !== 'tool_calls' || finalToolUses.length === 0) {
       if (asstId == null) asstId = Number(insertMessage.run(threadId, 'assistant', textBuf, null, 'final').lastInsertRowid);
       else updateMessageStatus.run('final', textBuf, null, asstId);
+      persistArtifacts(threadId, asstId, parser.artifacts);
       const cost = auditAndCost({ userId, threadId, model, content, text: textBuf, totalIn, totalOut, t0, error: null });
       emit('done', { message_id: asstId, usage: { in: totalIn, out: totalOut, cost_usd: cost } });
       return;
@@ -524,6 +684,7 @@ async function streamMessageGroq({ thread: t, userId, content, model }, emit) {
       } else {
         updateMessageStatus.run('streaming', textBuf, JSON.stringify(finalToolUses), asstId);
       }
+      persistArtifacts(threadId, asstId, parser.artifacts);
       const first = proposals[0];
       let payload;
       try { payload = tools.buildProposal(first.name, first.input, { userId }); }
@@ -539,6 +700,7 @@ async function streamMessageGroq({ thread: t, userId, content, model }, emit) {
     // All read tools — finalize the assistant row, run them, loop.
     if (asstId == null) asstId = Number(insertMessage.run(threadId, 'assistant', textBuf, JSON.stringify(finalToolUses), 'final').lastInsertRowid);
     else updateMessageStatus.run('final', textBuf, JSON.stringify(finalToolUses), asstId);
+    persistArtifacts(threadId, asstId, parser.artifacts);
     for (const u of finalToolUses) {
       emit('tool_use', { id: u.id, name: u.name, input: u.input });
       let result, isError = false;
@@ -569,6 +731,7 @@ module.exports = {
   recordToolResult,
   _getThread: (id, userId) => getThread.get(id, userId),
   _listMessages: (threadId) => listMessages.all(threadId),
+  _listArtifacts: (threadId) => listArtifactsStmt.all(threadId),
   _updateThread: (id, userId, fields) => {
     const cols = []; const vals = [];
     for (const k of ['title', 'agent_kind', 'model']) if (fields[k] != null) { cols.push(`${k} = ?`); vals.push(fields[k]); }
