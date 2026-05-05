@@ -79,6 +79,103 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
 .main-content{margin-top:var(--nav-height);padding:24px;min-height:calc(100vh - var(--nav-height));max-width:1400px;width:100%;margin-left:auto;margin-right:auto}
 .page{display:none}
 .page.active{display:block}
+.demo-banner{display:flex;align-items:center;gap:10px;background:rgba(198,134,66,.10);border:1px solid rgba(198,134,66,.35);color:var(--text-primary);padding:10px 14px;border-radius:10px;margin:0 0 18px;font-size:13px}
+.demo-banner strong{color:var(--caramel)}
+.demo-banner .demo-dot{width:8px;height:8px;border-radius:50%;background:var(--caramel);flex-shrink:0;box-shadow:0 0 0 3px rgba(198,134,66,.18)}
+.demo-banner .demo-close{margin-left:auto;background:none;border:none;color:var(--caramel);font-size:18px;line-height:1;cursor:pointer;padding:2px 8px;border-radius:6px}
+.demo-banner .demo-close:hover{background:rgba(198,134,66,.18)}
+.agent-shell{display:grid;grid-template-columns:260px 1fr;gap:0;height:calc(100vh - 180px);min-height:520px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--bg-primary)}
+.agent-shell.has-artifact{grid-template-columns:260px 1fr minmax(360px, 480px)}
+.agent-sidebar{border-right:1px solid var(--border);background:var(--bg-secondary);display:flex;flex-direction:column}
+.agent-new-btn{margin:14px;padding:10px 12px;background:var(--caramel);color:var(--cream);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px}
+.agent-new-btn:hover{filter:brightness(1.05)}
+.agent-thread-list{flex:1;overflow-y:auto;padding:0 8px 14px}
+.agent-thread{padding:10px 12px;margin-bottom:4px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--text-primary);border:1px solid transparent;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.agent-thread:hover{background:rgba(198,134,66,.08)}
+.agent-thread.active{background:rgba(198,134,66,.18);border-color:rgba(198,134,66,.35)}
+.agent-thread.pinned{background:rgba(198,134,66,.05);font-weight:600}
+.agent-thread.pinned .title::before{content:""}
+.agent-thread-divider{height:1px;background:var(--border);margin:8px 4px}
+.agent-thread-badge{font-size:10px;font-weight:700;background:var(--caramel);color:var(--cream);padding:2px 7px;border-radius:10px;min-width:18px;text-align:center}
+.agent-thread .title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agent-thread .menu{opacity:0;font-size:14px;color:var(--text-secondary);padding:0 4px;border-radius:4px}
+.agent-thread:hover .menu{opacity:1}
+.agent-thread .menu:hover{background:rgba(0,0,0,.06)}
+.agent-empty-list{padding:20px;color:var(--text-secondary);font-size:12px;text-align:center}
+.agent-main{display:flex;flex-direction:column;min-width:0}
+.agent-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.agent-selectors{display:flex;gap:14px;flex-wrap:wrap}
+.agent-selectors label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary)}
+.agent-selectors select{background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);padding:5px 8px;border-radius:6px;font-size:12px}
+.agent-thread-title{font-size:13px;color:var(--text-secondary);font-weight:600;max-width:50%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agent-messages{flex:1;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:14px}
+.agent-msg{max-width:78%;padding:10px 14px;border-radius:14px;font-size:14px;line-height:1.55;word-wrap:break-word;white-space:pre-wrap}
+.agent-msg.user{align-self:flex-end;background:rgba(198,134,66,.12);border:1px solid rgba(198,134,66,.3);color:var(--text-primary)}
+.agent-msg.assistant{align-self:flex-start;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary)}
+.agent-msg .interrupted{color:var(--text-secondary);font-style:italic;font-size:12px;margin-top:6px}
+.agent-tool-chip{align-self:flex-start;background:rgba(0,0,0,.03);border:1px dashed var(--border);color:var(--text-secondary);font-size:11px;padding:4px 10px;border-radius:14px;cursor:pointer}
+.agent-tool-chip pre{display:none;white-space:pre-wrap;font-size:11px;margin-top:8px;background:rgba(0,0,0,.05);padding:8px;border-radius:6px;color:var(--text-primary)}
+.agent-tool-chip.open pre{display:block}
+.agent-proposal{align-self:flex-start;border:1px solid var(--caramel);background:rgba(198,134,66,.06);border-radius:12px;padding:12px 14px;max-width:78%;font-size:13px}
+.agent-proposal .summary{font-weight:600;color:var(--text-primary);margin-bottom:8px}
+.agent-proposal .actions{display:flex;gap:8px}
+.agent-proposal button{padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid transparent}
+.agent-proposal .confirm{background:var(--caramel);color:var(--cream)}
+.agent-proposal .reject{background:transparent;color:var(--text-secondary);border-color:var(--border)}
+.agent-proposal.applied{border-style:dashed;background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.5);color:#15803d}
+.agent-proposal.rejected{border-style:dashed;background:rgba(0,0,0,.03);color:var(--text-secondary)}
+.agent-input-row{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--border);background:var(--bg-primary)}
+.agent-input-row textarea{flex:1;resize:none;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:inherit;font-size:13px;line-height:1.5}
+.agent-input-row button{padding:0 18px;background:var(--caramel);color:var(--cream);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;min-width:84px}
+.agent-input-row button:disabled{opacity:.5;cursor:not-allowed}
+.agent-pending-hint{padding:8px 16px;background:rgba(198,134,66,.10);color:var(--caramel);font-size:12px;text-align:center;border-top:1px solid var(--border)}
+.agent-empty-state{display:flex;align-items:center;justify-content:center;flex:1;color:var(--text-secondary);font-size:13px;text-align:center;padding:30px}
+.agent-artifact-chip{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:6px 10px;border-radius:8px;border:1px solid var(--bdr-coffee);background:var(--cream);color:var(--mocha);font-size:12px;font-weight:600;cursor:pointer;max-width:100%;overflow:hidden}
+.agent-artifact-chip:hover{background:var(--latte)}
+.agent-artifact-chip .ico{flex-shrink:0;font-size:13px}
+.agent-artifact-chip .ti{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agent-artifact-chip .badge{font-size:10px;padding:1px 6px;border-radius:8px;background:rgba(198,134,66,.15);color:var(--caramel);text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.agent-artifact-chip.live .badge{background:rgba(34,197,94,.15);color:var(--accent-green)}
+.agent-artifact-chip.live .badge::before{content:'●';margin-right:3px;animation:artifactPulse 1.2s ease-in-out infinite}
+@keyframes artifactPulse{0%,100%{opacity:.4}50%{opacity:1}}
+.agent-artifact-panel{display:flex;flex-direction:column;border-left:1px solid var(--border);background:var(--bg-secondary);min-width:0}
+.agent-artifact-empty{flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);font-size:13px;padding:30px;text-align:center}
+.agent-artifact-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);background:var(--bg-primary)}
+.agent-artifact-head .ttl{flex:1;font-size:13px;font-weight:700;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agent-artifact-head .typebadge{font-size:10px;padding:2px 7px;border-radius:8px;background:rgba(198,134,66,.18);color:var(--caramel);text-transform:uppercase;font-weight:700;letter-spacing:.5px}
+.agent-artifact-head .typebadge.live{background:rgba(34,197,94,.15);color:var(--accent-green)}
+.agent-artifact-head button{background:transparent;border:1px solid var(--border);color:var(--text-secondary);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:11px;font-weight:600}
+.agent-artifact-head button:hover{background:var(--bg-secondary)}
+.agent-artifact-tabs{display:flex;gap:4px;padding:6px 10px;border-bottom:1px solid var(--border);overflow-x:auto;flex-shrink:0}
+.agent-artifact-tab{padding:5px 10px;border-radius:6px;font-size:11px;color:var(--text-secondary);background:transparent;border:1px solid transparent;cursor:pointer;white-space:nowrap;font-weight:600}
+.agent-artifact-tab:hover{background:rgba(198,134,66,.06)}
+.agent-artifact-tab.active{background:rgba(198,134,66,.14);color:var(--caramel);border-color:rgba(198,134,66,.35)}
+.agent-artifact-body{flex:1;overflow:auto;padding:0;background:#fff;min-width:0}
+.agent-artifact-body pre{margin:0;padding:14px 16px;font-size:12px;line-height:1.5;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;word-wrap:break-word;color:var(--text-primary)}
+.agent-artifact-body .md{padding:14px 18px;font-size:13px;line-height:1.6;color:var(--text-primary)}
+.agent-artifact-body .md h1,.agent-artifact-body .md h2,.agent-artifact-body .md h3{color:var(--mocha);margin:14px 0 8px}
+.agent-artifact-body .md h1{font-size:18px}
+.agent-artifact-body .md h2{font-size:16px}
+.agent-artifact-body .md h3{font-size:14px}
+.agent-artifact-body .md p{margin:0 0 10px}
+.agent-artifact-body .md ul,.agent-artifact-body .md ol{margin:0 0 10px;padding-left:22px}
+.agent-artifact-body .md li{margin-bottom:4px}
+.agent-artifact-body .md code{background:var(--latte);padding:1px 5px;border-radius:4px;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.agent-artifact-body .md pre{background:var(--cream);border:1px solid var(--latte);border-radius:6px;padding:10px}
+.agent-artifact-body .md table{border-collapse:collapse;margin:10px 0;font-size:12px}
+.agent-artifact-body .md th,.agent-artifact-body .md td{border:1px solid var(--bdr-coffee);padding:5px 9px;text-align:left}
+.agent-artifact-body .md th{background:var(--latte);font-weight:700}
+.agent-artifact-body iframe{width:100%;height:100%;border:0;background:#fff}
+.agent-artifact-body .svgwrap{padding:14px;display:flex;justify-content:center;align-items:flex-start}
+.agent-artifact-body .svgwrap svg{max-width:100%;height:auto}
+.agent-artifact-cursor{display:inline-block;width:7px;height:13px;background:var(--caramel);vertical-align:text-bottom;margin-left:2px;animation:artifactCursor 1s steps(2) infinite}
+@keyframes artifactCursor{50%{opacity:0}}
+.agent-demo-block{display:flex;align-items:center;justify-content:center;flex:1;color:var(--text-secondary);font-size:13px;text-align:center;padding:30px}
+@media (max-width: 768px){
+  .agent-shell{grid-template-columns:1fr;height:calc(100vh - 220px)}
+  .agent-sidebar{display:none}
+  .agent-sidebar.open{display:flex;position:absolute;inset:0;z-index:50}
+}
 
 .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
 .summary-card{background:var(--espresso);color:var(--cream);border-radius:var(--radius);padding:18px 22px;position:relative;overflow:hidden;box-shadow:var(--shadow-card)}
@@ -162,7 +259,7 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
 .loan-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
 .loan-person{font-size:15px;font-weight:700;color:var(--mocha)}
 .loan-status{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;border:1px solid}
-.loan-status.pending{background:#FFF8E1;color:#F57C00;border-color:#FFD54F}
+.loan-status.active,.loan-status.pending{background:#FFF8E1;color:#F57C00;border-color:#FFD54F}
 .loan-status.partial{background:#E3F2FD;color:var(--accent-blue);border-color:#90CAF9}
 .loan-status.settled{background:#E8F5E9;color:var(--accent-green);border-color:#A5D6A7}
 .loan-amount{font-size:22px;font-weight:800;color:var(--caramel);margin-bottom:10px}
@@ -369,9 +466,9 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
       <button class="nav-tab" onclick="navigateTo('payments')">&#x1F4C5; Payments</button>
       <button class="nav-tab" onclick="navigateTo('analytics')">Analytics</button>
       <button class="nav-tab" onclick="navigateTo('vault')">&#x1F4C1; Vault</button>
+      <button class="nav-tab" onclick="navigateTo('agent')">&#x1F916; Agent</button>
       <button class="nav-tab" onclick="navigateTo('properties')">&#x1F3E0; Properties</button>
       <button class="nav-tab" onclick="navigateTo('incometax')">&#x1F4CB; Income Tax</button>
-      <button class="nav-tab" id="navTabAgent" onclick="navigateTo('agent')" style="display:none">&#x1F916; Agent</button>
     </div>
     <div class="topnav-right">
       <div class="profile-switcher" id="profileSwitcher" onclick="toggleProfileMenu()">
@@ -413,13 +510,20 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('payments');closeMobileMenu()">&#x1F4C5; Payments</button>
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('analytics');closeMobileMenu()">Analytics</button>
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('vault');closeMobileMenu()">&#x1F4C1; Vault</button>
+      <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('agent');closeMobileMenu()">&#x1F916; Agent</button>
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('properties');closeMobileMenu()">&#x1F3E0; Properties</button>
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('incometax');closeMobileMenu()">&#x1F4CB; Income Tax</button>
-      <button class="nav-tab" id="mobileTabAgent" style="width:100%;text-align:left;display:none" onclick="navigateTo('agent');closeMobileMenu()">&#x1F916; Agent</button>
     </div>
   </div>
 
   <div class="main-content">
+
+    <div id="demoBanner" class="demo-banner" style="display:none">
+      <span class="demo-dot"></span>
+      <strong>Demo mode</strong>
+      <span>Server isn't reachable or you signed in without a real account — the figures shown are sample data and changes won't persist.</span>
+      <button type="button" class="demo-close" onclick="dismissDemoBanner()" aria-label="Dismiss">×</button>
+    </div>
 
     <!-- DASHBOARD PAGE -->
     <div class="page active" id="page-dashboard">
@@ -820,6 +924,465 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
       </div>
     </div>
 
+    <!-- AGENT PAGE -->
+    <div class="page" id="page-agent">
+      <div class="agent-shell">
+        <aside class="agent-sidebar">
+          <button class="agent-new-btn" onclick="agentNewThread()">+ New Chat</button>
+          <div class="agent-thread-list" id="agentThreadList"></div>
+        </aside>
+        <section class="agent-main">
+          <div class="agent-header">
+            <div class="agent-selectors">
+              <label>Agent
+                <select id="agentKindSelect" onchange="agentOnKindChange()">
+                  <option value="financial_advisor">&#x1F4B0; Financial Advisor</option>
+                </select>
+              </label>
+              <label>Model
+                <select id="agentModelSelect" onchange="agentOnModelChange()">
+                  <optgroup label="Anthropic">
+                    <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
+                    <option value="claude-sonnet-4-5">Claude Sonnet 4.5</option>
+                    <option value="claude-opus-4-5">Claude Opus 4.5</option>
+                  </optgroup>
+                  <optgroup label="Groq (fallback)">
+                    <option value="llama-3.3-70b-versatile">Llama 3.3 70B</option>
+                    <option value="llama-3.1-8b-instant">Llama 3.1 8B (fast)</option>
+                  </optgroup>
+                </select>
+              </label>
+            </div>
+            <div class="agent-thread-title" id="agentThreadTitle"></div>
+          </div>
+          <div class="agent-messages" id="agentMessages"></div>
+          <form class="agent-input-row" id="agentInputForm" onsubmit="agentOnSend(event)">
+            <textarea id="agentInput" rows="2" placeholder="Type your message... (⌘/Ctrl+Enter to send)" onkeydown="agentOnKeyDown(event)"></textarea>
+            <button type="submit" id="agentSendBtn">Send</button>
+          </form>
+          <div class="agent-pending-hint" id="agentPendingHint" style="display:none">
+            Confirm or reject the proposal above to continue.
+          </div>
+        </section>
+        <aside class="agent-artifact-panel" id="agentArtifactPanel" style="display:none">
+          <div class="agent-artifact-head">
+            <span class="typebadge" id="agentArtifactTypeBadge">md</span>
+            <span class="ttl" id="agentArtifactTitle">Artifact</span>
+            <button onclick="agentCopyArtifact()" title="Copy contents">Copy</button>
+            <button onclick="agentCloseArtifactPanel()" title="Close">✕</button>
+          </div>
+          <div class="agent-artifact-tabs" id="agentArtifactTabs"></div>
+          <div class="agent-artifact-body" id="agentArtifactBody"></div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- PROPERTIES PAGE -->
+  <div class="page" id="page-properties">
+    <div class="section-header">
+      <div>
+        <div class="section-title">&#x1F3E0; Properties</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">Flats, plots, land — rental income, tax &amp; Section 24 summary</div>
+      </div>
+      <button class="add-btn" onclick="openPropModal()">+ Add Property</button>
+    </div>
+
+    <!-- Research / Buying Guide (collapsible) -->
+    <div style="margin-bottom:22px">
+      <button onclick="togglePropResearch()" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:0;margin-bottom:10px">
+        <span style="font-size:13px;font-weight:600;color:var(--caramel)">&#x1F4D6; Property Research &amp; Buying Guide</span>
+        <span id="propResearchChevron" style="font-size:11px;color:var(--text-secondary)">▼</span>
+      </button>
+      <div id="propResearchPanel" style="display:none">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
+
+          <!-- Flat / Apartment checklist -->
+          <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
+            <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px">🏢 Flat / Apartment — Due Diligence</div>
+            <ul style="font-size:12px;color:var(--text-secondary);padding-left:18px;line-height:1.9;margin:0">
+              <li>Verify RERA registration number on state RERA portal</li>
+              <li>Check builder track record &amp; delivery history</li>
+              <li>Confirm Completion Certificate (CC) / OC issued</li>
+              <li>Verify title deed — free of encumbrance (EC from sub-registrar)</li>
+              <li>Check approved building plan matches actual construction</li>
+              <li>Confirm khata / property tax registration in builder/seller name</li>
+              <li>Check home loan eligibility — bank technical valuation</li>
+              <li>Stamp duty + registration: ~5–7% of agreement value (state-specific)</li>
+              <li>Society maintenance + sinking fund — get last 3 years accounts</li>
+              <li>Confirm GST rate: 5% (under-construction), exempt (OC obtained)</li>
+            </ul>
+          </div>
+
+          <!-- Plot / Land checklist -->
+          <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
+            <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px">🌱 Plot / Land — Due Diligence</div>
+            <ul style="font-size:12px;color:var(--text-secondary);padding-left:18px;line-height:1.9;margin:0">
+              <li>Obtain and verify patta / record of rights (RoR) / khata</li>
+              <li>Check conversion: agricultural land needs NA (non-agricultural) order</li>
+              <li>Confirm survey number on government land records portal</li>
+              <li>Get Encumbrance Certificate (EC) for 30 years minimum</li>
+              <li>Verify no revenue dues / Betterment Charges pending</li>
+              <li>Check layout approval from HMDA / BDA / local authority</li>
+              <li>Confirm UDS (Undivided Share) matches sale deed if gated layout</li>
+              <li>Enquire about CLU (Change of Land Use) if planning construction</li>
+              <li>Check proximity to water bodies / low-lying areas (flood risk)</li>
+              <li>Stamp duty + registration for plots: 5–7% (state-specific)</li>
+            </ul>
+          </div>
+
+          <!-- Key metrics & ratios -->
+          <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
+            <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px">📊 Key Valuation Metrics</div>
+            <table style="width:100%;font-size:12px;border-collapse:collapse">
+              <tr style="color:var(--text-secondary)"><td style="padding:5px 0;border-bottom:1px solid var(--border)"><strong style="color:var(--text-primary)">Gross Yield</strong></td><td style="padding:5px 0;border-bottom:1px solid var(--border)">Annual Rent ÷ Property Value × 100<br><em>Healthy: ≥3% in metros, ≥4% in Tier-2</em></td></tr>
+              <tr style="color:var(--text-secondary)"><td style="padding:5px 6px;border-bottom:1px solid var(--border)"><strong style="color:var(--text-primary)">Price-to-Rent</strong></td><td style="padding:5px 0;border-bottom:1px solid var(--border)">Price ÷ Annual Rent<br><em>Under 20× = buy; 20–30× = neutral; 30×+ = overpriced</em></td></tr>
+              <tr style="color:var(--text-secondary)"><td style="padding:5px 0;border-bottom:1px solid var(--border)"><strong style="color:var(--text-primary)">EMI / Income</strong></td><td style="padding:5px 0;border-bottom:1px solid var(--border)">Keep EMI ≤ 40% of net monthly income</td></tr>
+              <tr style="color:var(--text-secondary)"><td style="padding:5px 0"><strong style="color:var(--text-primary)">Total Cost</strong></td><td style="padding:5px 0">Base price + stamp duty + registration + GST + society charges + interior</td></tr>
+            </table>
+          </div>
+
+          <!-- Tax implications -->
+          <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
+            <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px">💸 Tax Implications</div>
+            <ul style="font-size:12px;color:var(--text-secondary);padding-left:18px;line-height:1.9;margin:0">
+              <li><strong style="color:var(--text-primary)">Home Loan Interest (Sec 24b):</strong> Up to ₹2L deduction (self-occupied); unlimited for let-out</li>
+              <li><strong style="color:var(--text-primary)">Principal repayment (Sec 80C):</strong> Up to ₹1.5L within the 80C limit</li>
+              <li><strong style="color:var(--text-primary)">LTCG on sale:</strong> &gt;2 years held → 12.5% (no indexation post Jul 2024 budget)</li>
+              <li><strong style="color:var(--text-primary)">STCG on sale:</strong> ≤2 years → taxed at slab rate</li>
+              <li><strong style="color:var(--text-primary)">Reinvestment exemption (Sec 54):</strong> Buy new residential property within 2 years to defer LTCG</li>
+              <li><strong style="color:var(--text-primary)">Annual Value (let-out):</strong> 30% standard deduction on net rent (Sec 24a)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Property Cards -->
+    <div id="propCardsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:28px"></div>
+
+    <!-- Property Detail Panel (shown when a property is selected) -->
+    <div id="propDetailPanel" style="display:none">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap">
+        <button onclick="closePropDetail()" style="background:none;border:1px solid var(--border);color:var(--text-secondary);padding:6px 12px;border-radius:7px;cursor:pointer;font-size:12px">&#x2190; Back</button>
+        <div id="propDetailName" style="font-size:18px;font-weight:700;color:var(--text-primary)"></div>
+        <div id="propDetailBadge" style="font-size:11px;padding:3px 9px;border-radius:5px;background:rgba(59,130,246,.12);color:var(--accent-blue);border:1px solid rgba(59,130,246,.2)"></div>
+      </div>
+
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchPropTab('overview',this)">Overview</button>
+        <button class="tab-btn" onclick="switchPropTab('agreements',this)">Rental Agreements</button>
+        <button class="tab-btn" onclick="switchPropTab('tax',this)">Property Tax</button>
+        <button class="tab-btn" onclick="switchPropTab('expenses',this)">Expenses</button>
+        <button class="tab-btn" onclick="switchPropTab('section24',this)">&#x1F4CA; Section 24</button>
+      </div>
+
+      <!-- Overview -->
+      <div class="tab-content active" id="prop-tab-overview">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:20px" id="propOverviewGrid"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+          <button class="add-btn" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border)" onclick="editCurrentProp()">&#x270F; Edit Property</button>
+          <button class="add-btn" style="background:rgba(239,68,68,.1);color:var(--accent-red);border:1px solid rgba(239,68,68,.3)" onclick="deleteCurrentProp()">&#x1F5D1; Delete</button>
+        </div>
+      </div>
+
+      <!-- Rental Agreements -->
+      <div class="tab-content" id="prop-tab-agreements">
+        <div class="section-header" style="margin-bottom:12px">
+          <div class="section-title" style="font-size:14px">Rental Agreements</div>
+          <button class="add-btn" onclick="openAgreementModal()">+ Add Agreement</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Tenant</th><th>Phone</th><th>Rent/mo</th><th>Deposit</th><th>From</th><th>To</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="agreementsTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Property Tax -->
+      <div class="tab-content" id="prop-tab-tax">
+        <div class="section-header" style="margin-bottom:12px">
+          <div class="section-title" style="font-size:14px">Property Tax Payments</div>
+          <button class="add-btn" onclick="openTaxPayModal()">+ Add Payment</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Assessment Year</th><th>Amount</th><th>Date</th><th>Receipt</th><th>Notes</th><th>Actions</th></tr></thead>
+            <tbody id="propTaxTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Expenses -->
+      <div class="tab-content" id="prop-tab-expenses">
+        <div class="section-header" style="margin-bottom:12px">
+          <div class="section-title" style="font-size:14px">Maintenance &amp; Expenses</div>
+          <button class="add-btn" onclick="openExpenseModal()">+ Add Expense</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Type</th><th>Description</th><th>Amount</th><th>Date</th><th>Receipt</th><th>Actions</th></tr></thead>
+            <tbody id="propExpensesTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Section 24 Summary -->
+      <div class="tab-content" id="prop-tab-section24">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+          <div style="font-size:14px;font-weight:600;color:var(--text-primary)">Financial Year:</div>
+          <select id="sec24FYSelect" onchange="loadSection24()" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:13px">
+            <option value="2023-24">FY 2023-24</option>
+            <option value="2024-25">FY 2024-25</option>
+            <option value="2025-26" selected>FY 2025-26</option>
+            <option value="2026-27">FY 2026-27</option>
+          </select>
+        </div>
+        <div id="sec24Summary" style="max-width:540px"></div>
+        <div style="margin-top:20px;padding:14px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:10px;font-size:12px;color:var(--text-secondary)">
+          <strong style="color:var(--accent-blue)">Section 24 — Income from House Property</strong><br><br>
+          GAV = Annual rent received &nbsp;|&nbsp; NAV = GAV − Municipal taxes paid<br>
+          Sec 24(a) standard deduction = 30% of NAV (for maintenance, covers repairs etc.)<br>
+          Sec 24(b) = Home loan interest (up to ₹2L for self-occupied; unlimited for let-out)<br>
+          <em>Net income from house property = NAV − 30% − loan interest</em>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INCOME TAX PAGE -->
+  <div class="page" id="page-incometax">
+    <div class="section-header">
+      <div>
+        <div class="section-title">&#x1F4CB; Income Tax</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">Advance tax payments, estimated liability &amp; tax-saving strategies</div>
+      </div>
+      <button class="add-btn" onclick="openModal('addAdvTax')">+ Add Tax Payment</button>
+    </div>
+
+    <!-- Summary cards -->
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px">
+      <div class="summary-card green" style="flex:1;min-width:150px">
+        <div class="summary-card-label">Total Paid (FY)</div>
+        <div class="summary-card-value green" id="atTotalPaid">₹0</div>
+      </div>
+      <div class="summary-card gold" style="flex:1;min-width:150px">
+        <div class="summary-card-label">Est. Tax Liability</div>
+        <div class="summary-card-value gold" id="atEstLiability">₹0</div>
+      </div>
+      <div class="summary-card blue" style="flex:1;min-width:150px">
+        <div class="summary-card-label">Balance to Pay</div>
+        <div class="summary-card-value blue" id="atBalance">₹0</div>
+      </div>
+      <div class="summary-card" style="flex:1;min-width:150px">
+        <div class="summary-card-label">Gross Annual Income</div>
+        <div class="summary-card-value" id="itAnnualIncome">₹0</div>
+      </div>
+    </div>
+
+    <div class="tab-bar" style="margin-bottom:20px">
+      <button class="tab-btn active" onclick="switchITTab('payments',this)">&#x1F4B3; Advance Tax Payments</button>
+      <button class="tab-btn" onclick="switchITTab('categories',this)">&#x1F4CA; Tax-Saving Categories</button>
+      <button class="tab-btn" onclick="switchITTab('strategies',this)">&#x1F4A1; Strategies</button>
+      <button class="tab-btn" onclick="switchITTab('slabs',this)">&#x1F4CB; Tax Slabs</button>
+    </div>
+
+    <!-- Payments tab -->
+    <div class="tab-content active" id="it-tab-payments">
+      <div class="section-header" style="margin-bottom:10px">
+        <span style="font-size:13px;color:var(--text-secondary)">Assessment Year</span>
+        <select id="atYearFilter" onchange="renderAdvTax()" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);padding:6px 10px;border-radius:6px;font-size:13px">
+          <option>2026-27</option><option>2025-26</option><option>2024-25</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Installment</th><th>Amount Paid</th><th>Date</th><th>Notes</th><th>Actions</th></tr></thead>
+          <tbody id="advTaxTbody"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:16px;padding:12px 16px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:10px;font-size:12px;color:var(--text-secondary)">
+        <strong style="color:var(--accent-blue)">Advance Tax Due Dates (FY 2026-27)</strong><br><br>
+        15 Jun — 15% &nbsp;|&nbsp; 15 Sep — 45% cumulative &nbsp;|&nbsp; 15 Dec — 75% cumulative &nbsp;|&nbsp; 15 Mar — 100%<br>
+        Interest u/s 234B &amp; 234C applies if payments are missed or delayed.
+      </div>
+    </div>
+
+    <!-- Tax-saving categories tab -->
+    <div class="tab-content" id="it-tab-categories">
+      <div id="itCategoriesGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px"></div>
+    </div>
+
+    <!-- Strategies tab -->
+    <div class="tab-content" id="it-tab-strategies">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
+          <div style="font-size:13px;font-weight:700;color:var(--accent-gold);margin-bottom:10px">📌 Section 80C — ₹1.5L limit</div>
+          <ul style="font-size:12px;color:var(--text-secondary);padding-left:16px;line-height:1.9;margin:0">
+            <li>ELSS Mutual Funds (best for equity exposure + lock-in 3y)</li>
+            <li>PPF — 15-year tenure, EEE tax status, 7.1% interest</li>
+            <li>NPS Tier-I (own contribution) — up to ₹1.5L within 80C</li>
+            <li>Life Insurance Premium (traditional/term)</li>
+            <li>Home Loan Principal repayment</li>
+            <li>Sukanya Samriddhi / NSC / SCSS / Tax-saver FD (5yr)</li>
+          </ul>
+        </div>
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
+          <div style="font-size:13px;font-weight:700;color:var(--accent-blue);margin-bottom:10px">💊 Section 80D — Health Insurance</div>
+          <ul style="font-size:12px;color:var(--text-secondary);padding-left:16px;line-height:1.9;margin:0">
+            <li>Self + family (below 60): up to <strong>₹25,000</strong></li>
+            <li>Parents (below 60): additional ₹25,000 = total ₹50,000</li>
+            <li>Parents (senior citizen): additional ₹50,000 = total ₹75,000</li>
+            <li>Preventive health check-up: ₹5,000 within limits</li>
+            <li>Note: 80D benefit available in both Old &amp; New regimes (partially)</li>
+          </ul>
+        </div>
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
+          <div style="font-size:13px;font-weight:700;color:var(--accent-green);margin-bottom:10px">🏛️ Section 80CCD(1B) — NPS Bonus</div>
+          <ul style="font-size:12px;color:var(--text-secondary);padding-left:16px;line-height:1.9;margin:0">
+            <li>Additional NPS Tier-I investment: up to <strong>₹50,000</strong> over &amp; above 80C limit</li>
+            <li>Effective saving: ₹15,600 at 30% slab + cess</li>
+            <li>Available under Old Tax Regime only</li>
+            <li>Employer NPS contribution (80CCD(2)): available in New Regime too</li>
+          </ul>
+        </div>
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
+          <div style="font-size:13px;font-weight:700;color:var(--caramel);margin-bottom:10px">🏠 Home Loan Deductions</div>
+          <ul style="font-size:12px;color:var(--text-secondary);padding-left:16px;line-height:1.9;margin:0">
+            <li>Sec 24(b): Interest up to <strong>₹2L</strong> (self-occupied property)</li>
+            <li>Sec 80C: Principal up to ₹1.5L (within 80C limit)</li>
+            <li>First home buyers — additional ₹50,000 u/s 80EEA (if stamp duty ≤45L)</li>
+            <li>For let-out property: full interest deductible under Sec 24</li>
+            <li>Available in Old Regime; not in New Regime (except 80CCD2)</li>
+          </ul>
+        </div>
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
+          <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px">⚖️ Old vs New Tax Regime</div>
+          <table style="width:100%;font-size:12px;border-collapse:collapse;color:var(--text-secondary)">
+            <tr><th style="text-align:left;padding:4px 0;color:var(--text-primary);border-bottom:1px solid var(--border)">Feature</th><th style="padding:4px 6px;color:var(--accent-gold);border-bottom:1px solid var(--border)">Old</th><th style="padding:4px 6px;color:var(--accent-blue);border-bottom:1px solid var(--border)">New (Default)</th></tr>
+            <tr><td style="padding:4px 0">80C / 80D / 80CCD</td><td style="padding:4px 6px;color:var(--accent-green)">Yes</td><td style="padding:4px 6px;color:var(--accent-red)">No*</td></tr>
+            <tr><td style="padding:4px 0">HRA / LTA</td><td style="padding:4px 6px;color:var(--accent-green)">Yes</td><td style="padding:4px 6px;color:var(--accent-red)">No</td></tr>
+            <tr><td style="padding:4px 0">Std Deduction</td><td style="padding:4px 6px">₹50K</td><td style="padding:4px 6px">₹75K</td></tr>
+            <tr><td style="padding:4px 0">Sec 24(b) interest</td><td style="padding:4px 6px;color:var(--accent-green)">Yes</td><td style="padding:4px 6px;color:var(--accent-red)">No</td></tr>
+            <tr><td style="padding:4px 0">Rebate u/s 87A</td><td style="padding:4px 6px">≤5L</td><td style="padding:4px 6px">≤7L</td></tr>
+          </table>
+          <div style="margin-top:8px;font-size:11px;color:var(--text-secondary)">*80CCD(2) employer NPS is available in New Regime</div>
+        </div>
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
+          <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px">📅 Advance Tax Schedule</div>
+          <table style="width:100%;font-size:12px;border-collapse:collapse;color:var(--text-secondary)">
+            <tr><th style="text-align:left;padding:4px 0;color:var(--text-primary);border-bottom:1px solid var(--border)">Due Date</th><th style="padding:4px 6px;color:var(--text-primary);border-bottom:1px solid var(--border)">Cumulative %</th></tr>
+            <tr><td style="padding:4px 0">15 June</td><td style="padding:4px 6px">15%</td></tr>
+            <tr><td style="padding:4px 0">15 September</td><td style="padding:4px 6px">45%</td></tr>
+            <tr><td style="padding:4px 0">15 December</td><td style="padding:4px 6px">75%</td></tr>
+            <tr><td style="padding:4px 0">15 March</td><td style="padding:4px 6px">100%</td></tr>
+          </table>
+          <div style="margin-top:8px;font-size:11px;color:var(--text-secondary)">Interest u/s 234B (1%/mo) + 234C applies on shortfall</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slabs tab -->
+    <div class="tab-content" id="it-tab-slabs">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:860px;flex-wrap:wrap">
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:18px">
+          <div style="font-size:13px;font-weight:700;color:var(--accent-blue);margin-bottom:12px">New Tax Regime — FY 2026-27 (Default)</div>
+          <table style="width:100%;font-size:12px;border-collapse:collapse;color:var(--text-secondary)">
+            <thead><tr><th style="text-align:left;padding:5px 0;color:var(--text-primary);border-bottom:1px solid var(--border)">Income Slab</th><th style="padding:5px 6px;color:var(--text-primary);border-bottom:1px solid var(--border)">Rate</th></tr></thead>
+            <tr><td style="padding:5px 0">Up to ₹3,00,000</td><td style="padding:5px 6px">Nil</td></tr>
+            <tr><td style="padding:5px 0">₹3L – ₹6L</td><td style="padding:5px 6px">5%</td></tr>
+            <tr><td style="padding:5px 0">₹6L – ₹9L</td><td style="padding:5px 6px">10%</td></tr>
+            <tr><td style="padding:5px 0">₹9L – ₹12L</td><td style="padding:5px 6px">15%</td></tr>
+            <tr><td style="padding:5px 0">₹12L – ₹15L</td><td style="padding:5px 6px">20%</td></tr>
+            <tr><td style="padding:5px 0">Above ₹15L</td><td style="padding:5px 6px">30%</td></tr>
+          </table>
+          <div style="margin-top:10px;font-size:11px;color:var(--text-secondary)">+ 4% health &amp; education cess. Rebate u/s 87A: full rebate if income ≤ ₹7L (New Regime from FY2024-25).<br>Standard deduction: ₹75,000 for salaried.</div>
+        </div>
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:18px">
+          <div style="font-size:13px;font-weight:700;color:var(--accent-gold);margin-bottom:12px">Old Tax Regime — FY 2026-27</div>
+          <table style="width:100%;font-size:12px;border-collapse:collapse;color:var(--text-secondary)">
+            <thead><tr><th style="text-align:left;padding:5px 0;color:var(--text-primary);border-bottom:1px solid var(--border)">Income Slab</th><th style="padding:5px 6px;color:var(--text-primary);border-bottom:1px solid var(--border)">Rate</th></tr></thead>
+            <tr><td style="padding:5px 0">Up to ₹2,50,000</td><td style="padding:5px 6px">Nil</td></tr>
+            <tr><td style="padding:5px 0">₹2.5L – ₹5L</td><td style="padding:5px 6px">5%</td></tr>
+            <tr><td style="padding:5px 0">₹5L – ₹10L</td><td style="padding:5px 6px">20%</td></tr>
+            <tr><td style="padding:5px 0">Above ₹10L</td><td style="padding:5px 6px">30%</td></tr>
+          </table>
+          <div style="margin-top:10px;font-size:11px;color:var(--text-secondary)">+ 4% cess. Surcharge above ₹50L. Rebate u/s 87A for income ≤ ₹5L.<br>Standard deduction: ₹50,000 for salaried.</div>
+        </div>
+      </div>
+      <div style="margin-top:18px;padding:14px 16px;background:rgba(198,134,66,.08);border:1px solid rgba(198,134,66,.25);border-radius:10px;font-size:12px;color:var(--text-secondary);max-width:860px">
+        <strong style="color:var(--caramel)">Tip:</strong> The estimated tax liability shown in this page uses the <em>New Tax Regime slabs</em> as the default from FY2024-25 onwards. Actual liability may differ — consult a CA for your specific deductions and surcharges.
+      </div>
+    </div>
+  </div>
+
+  <!-- EARNINGS PAGE -->
+  <div class="page" id="page-earnings">
+    <div class="section-header">
+      <div>
+        <div class="section-title">💰 Earnings</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">All income sources — auto-populated interest shown in grey</div>
+      </div>
+      <button class="add-btn" onclick="openModal('addEarning')">+ Add Source</button>
+    </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px">
+      <div class="summary-card green" style="flex:1;min-width:140px">
+        <div class="summary-card-label">Monthly Income</div>
+        <div class="summary-card-value green" id="earnMonthly">₹0</div>
+      </div>
+      <div class="summary-card gold" style="flex:1;min-width:140px">
+        <div class="summary-card-label">Annual Income</div>
+        <div class="summary-card-value gold" id="earnAnnual">₹0</div>
+      </div>
+      <div class="summary-card blue" style="flex:1;min-width:140px">
+        <div class="summary-card-label">Salary Share</div>
+        <div class="summary-card-value blue" id="earnSalaryPct">0%</div>
+      </div>
+      <div class="summary-card" style="flex:1;min-width:140px">
+        <div class="summary-card-label">Other Income</div>
+        <div class="summary-card-value" id="earnOtherAnnual">₹0</div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Source</th><th>Type</th><th>Amount</th><th>Frequency</th><th>Your Share %</th><th>Effective/Mo</th><th>Notes</th><th>Actions</th></tr></thead>
+        <tbody id="earningsTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PAYMENTS PAGE -->
+  <div class="page" id="page-payments">
+    <div class="section-header">
+      <div class="section-title">📅 Scheduled Payments</div>
+      <button class="add-btn" onclick="openModal('addPayment')">+ Add Payment</button>
+    </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px">
+      <div class="summary-card red" style="flex:1;min-width:140px">
+        <div class="summary-card-label">Monthly Outflow</div>
+        <div class="summary-card-value red" id="payMonthly">₹0</div>
+      </div>
+      <div class="summary-card gold" style="flex:1;min-width:140px">
+        <div class="summary-card-label">Annual Outflow</div>
+        <div class="summary-card-value gold" id="payAnnual">₹0</div>
+      </div>
+      <div class="summary-card blue" style="flex:1;min-width:140px">
+        <div class="summary-card-label">Due This Month</div>
+        <div class="summary-card-value blue" id="payDueCount">0 payments</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+      <button class="tab-btn active" onclick="filterPayments('all',this)" id="payFilter-all">All</button>
+      <button class="tab-btn" onclick="filterPayments('Monthly',this)" id="payFilter-Monthly">Monthly</button>
+      <button class="tab-btn" onclick="filterPayments('Annual',this)" id="payFilter-Annual">Annual</button>
+      <button class="tab-btn" onclick="filterPayments('One-time',this)" id="payFilter-One-time">One-time</button>
+      <button class="tab-btn" onclick="filterPayments('EMI',this)" id="payFilter-EMI">EMI</button>
+      <button class="tab-btn" onclick="filterPayments('SIP',this)" id="payFilter-SIP">SIP</button>
+      <button class="tab-btn" onclick="filterPayments('Insurance',this)" id="payFilter-Insurance">Insurance</button>
+    </div>
+    <div class="pay-grid" id="paymentsGrid"></div>
+  </div>
+
   </div>
 </div>
 
@@ -961,7 +1524,7 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
         <div class="form-row"><label>Date</label><input type="date" id="hl-date" required></div>
         <div class="form-row"><label>Due Date</label><input type="date" id="hl-due"></div>
         <div class="form-row"><label>Status</label>
-          <select id="hl-status"><option>Pending</option><option>Partial</option><option>Settled</option></select>
+          <select id="hl-status"><option value="active">Pending</option><option value="partial">Partial</option><option value="settled">Settled</option></select>
         </div>
       </div>
       <div class="form-row"><label>Notes</label><textarea id="hl-notes" placeholder="Optional notes..."></textarea></div>
@@ -1033,13 +1596,44 @@ const MOCK = {
     {id:3,type:'Personal Loan',lender:'Bajaj Finance',outstanding:125000,emi:5500,rate:14.0,end:'2027-01-01'},
   ],
   handLoansGiven: [
-    {id:1,person:'Rahul Sharma',phone:'9876543210',amount:50000,rate:0,date:'2025-09-15',due:'2026-03-15',status:'Pending',notes:'For house renovation'},
-    {id:2,person:'Priya Rao',phone:'8765432109',amount:25000,rate:0,date:'2026-01-10',due:'2026-07-10',status:'Partial',notes:'Returned 10,000 so far'},
-    {id:3,person:'Arun Kumar',phone:'7654321098',amount:15000,rate:0,date:'2025-05-01',due:'2025-11-01',status:'Settled',notes:'Settled in full'},
+    {id:1,person:'Rahul Sharma',phone:'9876543210',amount:50000,rate:0,date:'2025-09-15',due:'2026-03-15',status:'active',notes:'For house renovation'},
+    {id:2,person:'Priya Rao',phone:'8765432109',amount:25000,rate:0,date:'2026-01-10',due:'2026-07-10',status:'partial',notes:'Returned 10,000 so far'},
+    {id:3,person:'Arun Kumar',phone:'7654321098',amount:15000,rate:0,date:'2025-05-01',due:'2025-11-01',status:'settled',notes:'Settled in full'},
   ],
   handLoansTaken: [
-    {id:1,person:'Suresh Kondeti',phone:'9988776655',amount:100000,rate:0,date:'2025-11-01',due:'2026-05-01',status:'Pending',notes:'Emergency funds'},
-    {id:2,person:'Venkateswara Rao',phone:'9123456780',amount:30000,rate:0,date:'2026-02-14',due:'2026-08-14',status:'Partial',notes:''},
+    {id:1,person:'Suresh Kondeti',phone:'9988776655',amount:100000,rate:0,date:'2025-11-01',due:'2026-05-01',status:'active',notes:'Emergency funds'},
+    {id:2,person:'Venkateswara Rao',phone:'9123456780',amount:30000,rate:0,date:'2026-02-14',due:'2026-08-14',status:'partial',notes:''},
+  ],
+  savings: [
+    {id:1,bank_name:'HDFC Bank',account_type:'Savings',account_number:'XXXX1234',balance:185000,interest_rate:3.5,notes:'Primary salary account'},
+    {id:2,bank_name:'ICICI Bank',account_type:'Salary',account_number:'XXXX5678',balance:42000,interest_rate:3.0,notes:''},
+    {id:3,bank_name:'Kotak 811',account_type:'Savings',account_number:'XXXX9012',balance:78000,interest_rate:4.0,notes:'Online savings - higher rate'},
+  ],
+  insurance: [
+    {id:1,policy_name:'HDFC Life Click 2 Protect',insurer:'HDFC Life',policy_type:'Term',premium_amount:18500,premium_frequency:'Annual',cover_amount:10000000,start_date:'2023-04-01',maturity_date:'2053-04-01',next_due_date:'2026-04-01',nominee:'Spouse',notes:'Pure term'},
+    {id:2,policy_name:'Star Health Family Floater',insurer:'Star Health',policy_type:'Health',premium_amount:24000,premium_frequency:'Annual',cover_amount:1000000,start_date:'2024-06-15',maturity_date:null,next_due_date:'2026-06-15',nominee:'Spouse',notes:'Family floater 4 members'},
+    {id:3,policy_name:'LIC Jeevan Anand',insurer:'LIC of India',policy_type:'Endowment',premium_amount:32000,premium_frequency:'Annual',cover_amount:500000,start_date:'2018-03-10',maturity_date:'2038-03-10',next_due_date:'2026-03-10',nominee:'Spouse',notes:''},
+  ],
+  nps: [
+    {id:1,pran:'1100XXXXXX01',tier:'Tier I',total_invested:280000,current_value:362000,equity_pct:75,bonds_pct:15,govt_pct:10,notes:'NPS-A scheme'},
+  ],
+  advTax: [
+    {id:1,assessment_year:'2026-27',installment:'Q1 (15 Jun)',amount:35000,date_paid:'2026-06-12',notes:'On account'},
+    {id:2,assessment_year:'2026-27',installment:'Q2 (15 Sep)',amount:45000,date_paid:'2026-09-14',notes:''},
+    {id:3,assessment_year:'2025-26',installment:'Q4 (15 Mar)',amount:55000,date_paid:'2026-03-13',notes:'Final installment'},
+  ],
+  earnings: [
+    {id:1,source_name:'Salary - TechCorp',source_type:'Salary',amount:185000,frequency:'Monthly',share_percentage:100,is_auto:false,notes:'Net of TDS'},
+    {id:2,source_name:'Rent - Hyderabad Flat',source_type:'Rent',amount:25000,frequency:'Monthly',share_percentage:50,is_auto:false,notes:'Joint with spouse'},
+    {id:3,source_name:'Freelance Consulting',source_type:'Freelance',amount:120000,frequency:'Annual',share_percentage:100,is_auto:false,notes:'Side projects'},
+    {id:'sav_demo_1',source_name:'Savings Interest (auto)',source_type:'Interest',amount:10675,frequency:'Annual',share_percentage:100,is_auto:true,notes:'Aggregate of savings accounts'},
+  ],
+  payments: [
+    {id:1,name:'Home Loan EMI',category:'EMI',amount:32000,frequency:'Monthly',next_due_date:'2026-05-05',auto_debit:true,is_active:true,notes:'HDFC home loan'},
+    {id:2,name:'Mirae Large Cap SIP',category:'SIP',amount:5000,frequency:'Monthly',next_due_date:'2026-05-07',auto_debit:true,is_active:true,notes:''},
+    {id:3,name:'Term Insurance Premium',category:'Insurance',amount:18500,frequency:'Annual',next_due_date:'2026-04-01',auto_debit:false,is_active:true,notes:'HDFC Life Click 2 Protect'},
+    {id:4,name:'Netflix',category:'Other',amount:649,frequency:'Monthly',next_due_date:'2026-05-12',auto_debit:true,is_active:true,notes:'Premium plan'},
+    {id:5,name:'Property Tax 2026',category:'Other',amount:14500,frequency:'One-time',next_due_date:'2026-05-25',auto_debit:false,is_active:true,notes:''},
   ]
 };
 
@@ -1094,12 +1688,32 @@ function showApp(){
   document.getElementById('app').style.display='flex';
   document.getElementById('userNameDisplay').textContent=localStorage.getItem('fin_user')||'Kiran';
   document.getElementById('dashDate').textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  refreshDemoBanner();
   loadAllData();
   priceRefreshTimer=setInterval(function(){showToast('Refreshing prices...','info');},300000);
 }
 
+// Demo mode = fin_token is empty/'demo'/'demo_*' (the client-side fallback).
+// 'fin_demo_dismissed' hides the banner for the rest of the session even
+// while demo mode is active.
+function isDemoMode(){
+  var t=localStorage.getItem('fin_token')||'';
+  return !t || t==='demo' || t.indexOf('demo_')===0;
+}
+function refreshDemoBanner(){
+  var el=document.getElementById('demoBanner');
+  if(!el)return;
+  el.style.display=(isDemoMode() && !localStorage.getItem('fin_demo_dismissed')) ? 'flex' : 'none';
+}
+function dismissDemoBanner(){
+  localStorage.setItem('fin_demo_dismissed','1');
+  var el=document.getElementById('demoBanner');
+  if(el)el.style.display='none';
+}
+
 function logout(){
   clearInterval(priceRefreshTimer);
+  localStorage.removeItem('fin_demo_dismissed');
   localStorage.removeItem('fin_token');
   localStorage.removeItem('fin_user');
   document.getElementById('app').style.display='none';
@@ -1111,18 +1725,45 @@ function checkAuth(){
   if(localStorage.getItem('fin_token')){showApp();}
 }
 
+// Single source of truth for page navigation. All pages are .page inside
+// .main-content; .page.active CSS controls visibility. Desktop nav highlight
+// is driven by onclick attribute matching, which avoids index drift when a
+// new tab is added in the middle of the row.
 function navigateTo(page){
-  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
-  document.getElementById('page-'+page).classList.add('active');
-  document.querySelectorAll('.nav-tab').forEach(function(t){t.classList.remove('active')});
+  document.querySelectorAll('.main-content > .page').forEach(function(p){p.classList.remove('active')});
+  var pageEl = document.getElementById('page-'+page);
+  if (pageEl) pageEl.classList.add('active');
+  document.querySelectorAll('.topnav-tabs .nav-tab').forEach(function(b){
+    var oc = b.getAttribute('onclick')||'';
+    b.classList.toggle('active', oc.indexOf("'"+page+"'")>-1 || oc.indexOf('"'+page+'"')>-1);
+  });
   document.querySelectorAll('.mobile-tab').forEach(function(t){t.classList.remove('active')});
-  var pages=['dashboard','investments','liabilities','handloans','analytics'];
-  var idx=pages.indexOf(page);
-  var tabs=document.querySelectorAll('.nav-tab');
-  if(tabs[idx])tabs[idx].classList.add('active');
-  var mt=document.getElementById('mtab-'+page);
-  if(mt)mt.classList.add('active');
-  if(page==='analytics')setTimeout(renderAnalyticsCharts,120);
+  var mt = document.getElementById('mtab-'+page);
+  if (mt) mt.classList.add('active');
+  // Per-page hooks. Guard with typeof to tolerate scripts loaded out of order.
+  if (page==='analytics' && typeof renderAnalyticsCharts==='function') setTimeout(renderAnalyticsCharts,120);
+  if (page==='vault') {
+    if (typeof renderRecentUploads==='function') renderRecentUploads();
+    if (typeof renderCACategoryChecks==='function') renderCACategoryChecks();
+    var vn = document.getElementById('vaultNotice'); if (vn) vn.style.display='none';
+  }
+  if (page==='earnings'   && typeof loadEarnings==='function')   loadEarnings();
+  if (page==='payments'   && typeof loadPayments==='function')   loadPayments();
+  if (page==='properties' && typeof loadProperties==='function') loadProperties();
+  if (page==='incometax'  && typeof loadAdvTax==='function') {
+    loadAdvTax();
+    var ai = document.getElementById('itAnnualIncome');
+    if (ai && typeof calcAnnualIncome==='function') ai.textContent = fmt(calcAnnualIncome());
+  }
+  if (page==='agent') {
+    var demo = typeof isDemoMode === 'function' && isDemoMode();
+    var shell = document.querySelector('#page-agent .agent-shell');
+    if (demo && shell) {
+      shell.innerHTML = '<div class="agent-demo-block">Sign in with a real account to use the agent — demo mode can\'t reach the LLM.</div>';
+    } else if (typeof agentLoadThreads === 'function') {
+      agentLoadThreads();
+    }
+  }
 }
 
 function toggleMobileMenu(){document.getElementById('mobileMenu').classList.toggle('open')}
@@ -1214,7 +1855,7 @@ function calcTotals(){
   var totalAssets=stocksVal+mfVal+fdVal+usVal;
   var ccLiab=ccData.reduce(function(s,x){return s+x.outstanding},0);
   var loanLiab=loansData.reduce(function(s,x){return s+x.outstanding},0);
-  var handLiab=handLoansTaken.filter(function(l){return l.status!=='Settled'}).reduce(function(s,x){return s+x.amount},0);
+  var handLiab=handLoansTaken.filter(function(l){return l.status!=='settled'}).reduce(function(s,x){return s+x.amount},0);
   var totalLiab=ccLiab+loanLiab+handLiab;
   var netWorth=totalAssets-totalLiab;
   var stocksInv=stocksData.reduce(function(s,x){return s+x.qty*x.avgPrice},0);
@@ -1349,8 +1990,8 @@ function deleteLoan(id){loansData=loansData.filter(function(l){return l.id!==id}
 function renderHandLoans(){
   renderLoanGrid('givenGrid',handLoansGiven);
   renderLoanGrid('takenGrid',handLoansTaken);
-  var tg=handLoansGiven.filter(function(h){return h.status!=='Settled'}).reduce(function(s,h){return s+h.amount},0);
-  var tt=handLoansTaken.filter(function(h){return h.status!=='Settled'}).reduce(function(s,h){return s+h.amount},0);
+  var tg=handLoansGiven.filter(function(h){return h.status!=='settled'}).reduce(function(s,h){return s+h.amount},0);
+  var tt=handLoansTaken.filter(function(h){return h.status!=='settled'}).reduce(function(s,h){return s+h.amount},0);
   document.getElementById('givenSummary').innerHTML='<div class="summary-stat"><div class="summary-stat-label">Total Lent (Pending)</div><div class="summary-stat-value" style="color:var(--accent-green)">'+fmt(tg)+'</div></div>';
   document.getElementById('takenSummary').innerHTML='<div class="summary-stat"><div class="summary-stat-label">Total Borrowed (Pending)</div><div class="summary-stat-value" style="color:var(--accent-red)">'+fmt(tt)+'</div></div>';
 }
@@ -1358,26 +1999,37 @@ function renderLoanGrid(id,loans){
   var el=document.getElementById(id);
   if(!loans.length){el.innerHTML='<div style="color:var(--text-secondary);font-size:14px;padding:20px 0">No entries yet.</div>';return;}
   el.innerHTML=loans.map(function(l){
-    return '<div class="loan-card"><div class="loan-card-top"><div class="loan-person">'+esc(l.person)+'</div><span class="loan-status '+esc(l.status.toLowerCase())+'">'+esc(l.status)+'</span></div><div class="loan-amount">'+fmt(l.amount)+'</div>'+(l.rate>0?'<div class="loan-row"><span class="lbl">Interest</span><span class="val">'+l.rate+'% p.a.</span></div>':'')+'<div class="loan-row"><span class="lbl">Date</span><span class="val">'+dateFmt(l.date)+'</span></div>'+(l.due?'<div class="loan-row"><span class="lbl">Due</span><span class="val">'+dateFmt(l.due)+'</span></div>':'')+(l.phone?'<div class="loan-row"><span class="lbl">Phone</span><span class="val">'+esc(l.phone)+'</span></div>':'')+(l.notes?'<div class="loan-notes">'+esc(l.notes)+'</div>':'')+'<div style="display:flex;gap:6px;margin-top:12px"><button class="action-btn" onclick="cycleStatus(\''+id+'\','+l.id+')">Cycle Status</button><button class="action-btn del" onclick="deleteHandLoan(\''+id+'\','+l.id+')">Del</button></div></div>';
+    var sk=String(l.status||'active').toLowerCase();
+    return '<div class="loan-card"><div class="loan-card-top"><div class="loan-person">'+esc(l.person)+'</div><span class="loan-status '+esc(sk)+'">'+esc(hlStatusLabel(sk))+'</span></div><div class="loan-amount">'+fmt(l.amount)+'</div>'+(l.rate>0?'<div class="loan-row"><span class="lbl">Interest</span><span class="val">'+l.rate+'% p.a.</span></div>':'')+'<div class="loan-row"><span class="lbl">Date</span><span class="val">'+dateFmt(l.date)+'</span></div>'+(l.due?'<div class="loan-row"><span class="lbl">Due</span><span class="val">'+dateFmt(l.due)+'</span></div>':'')+(l.phone?'<div class="loan-row"><span class="lbl">Phone</span><span class="val">'+esc(l.phone)+'</span></div>':'')+(l.notes?'<div class="loan-notes">'+esc(l.notes)+'</div>':'')+'<div style="display:flex;gap:6px;margin-top:12px"><button class="action-btn" onclick="cycleStatus(\''+id+'\','+l.id+')">Cycle Status</button><button class="action-btn del" onclick="deleteHandLoan(\''+id+'\','+l.id+')">Del</button></div></div>';
   }).join('');
 }
-function cycleStatus(gridId,id){
+// Canonical hand-loan status is lowercase ('active'|'partial'|'settled') to
+// match the DB CHECK constraint. UI label uses 'Pending' for 'active'.
+function hlStatusLabel(s){var k=String(s||'').toLowerCase();return k==='active'?'Pending':k.charAt(0).toUpperCase()+k.slice(1);}
+async function cycleStatus(gridId,id){
   var arr=gridId==='givenGrid'?handLoansGiven:handLoansTaken;
   var item=arr.find(function(l){return l.id===id});
   if(!item)return;
-  var states=['Pending','Partial','Settled'];
-  item.status=states[(states.indexOf(item.status)+1)%3];
+  var states=['active','partial','settled'];
+  var next=states[(states.indexOf(String(item.status||'active').toLowerCase())+1)%3];
+  item.status=next;
+  if(typeof item.id==='number'&&item.id<1e12){await apiPut('/api/loans/hand-loans/'+item.id,{status:next});}
   renderHandLoans();
 }
-function deleteHandLoan(gridId,id){
+async function deleteHandLoan(gridId,id){
+  var arr=gridId==='givenGrid'?handLoansGiven:handLoansTaken;
+  var item=arr.find(function(l){return l.id===id});
+  if(item&&typeof item.id==='number'&&item.id<1e12){await apiDel('/api/loans/hand-loans/'+item.id);}
   if(gridId==='givenGrid')handLoansGiven=handLoansGiven.filter(function(l){return l.id!==id});
   else handLoansTaken=handLoansTaken.filter(function(l){return l.id!==id});
   renderHandLoans();showToast('Entry removed','info');
 }
-function saveHandLoan(e){
+async function saveHandLoan(e){
   e.preventDefault();
   var dir=document.getElementById('hl-direction').value;
-  var entry={id:Date.now(),person:document.getElementById('hl-name').value,phone:document.getElementById('hl-phone').value,amount:parseFloat(document.getElementById('hl-amount').value),rate:parseFloat(document.getElementById('hl-rate').value)||0,date:document.getElementById('hl-date').value,due:document.getElementById('hl-due').value,status:document.getElementById('hl-status').value,notes:document.getElementById('hl-notes').value};
+  var payload={person_name:document.getElementById('hl-name').value,phone:document.getElementById('hl-phone').value||null,direction:dir,amount:parseFloat(document.getElementById('hl-amount').value),date:document.getElementById('hl-date').value,due_date:document.getElementById('hl-due').value||null,interest_rate:parseFloat(document.getElementById('hl-rate').value)||0,status:document.getElementById('hl-status').value,notes:document.getElementById('hl-notes').value||null};
+  var r=await apiPost('/api/loans/hand-loans',payload);
+  var entry=r&&r.hand_loan?normHandLoan(r.hand_loan):{id:Date.now(),person:payload.person_name,phone:payload.phone,amount:payload.amount,rate:payload.interest_rate,date:payload.date,due:payload.due_date,status:payload.status,notes:payload.notes,direction:dir};
   if(dir==='given')handLoansGiven.push(entry);else handLoansTaken.push(entry);
   renderHandLoans();closeModal('addHandLoan');e.target.reset();showToast('Entry added','success');
 }
@@ -1922,7 +2574,10 @@ function srSkip() {
 }
 
 async function srConfirm() {
-  var file = srQueue[srIndex];
+  var fileEntry = srQueue[srIndex];
+  var file = fileEntry instanceof File ? fileEntry : (fileEntry && fileEntry.file) || null;
+  if (!file) { showToast('No file in queue slot', 'error'); return; }
+
   var cat = document.getElementById('srCategory').value;
   var sub = document.getElementById('srSubcategory').value;
   var fy = document.getElementById('srFY').value;
@@ -1931,39 +2586,98 @@ async function srConfirm() {
   confirmBtn.disabled = true;
   confirmBtn.textContent = 'Uploading...';
   document.getElementById('srUploadProgress').style.display = 'block';
-  // Simulate upload
-  await simulateUpload();
-  // Add to local vault
-  var newFile = {
-    id: Date.now(),
-    name: file.name || file,
+
+  // Step 1: get presigned URL
+  var meta = await apiPost('/api/vault/upload-url', {
+    filename: file.name,
+    contentType: file.type || 'application/octet-stream',
     category: cat,
     subcategory: sub,
-    fy: fy,
-    size: file.size ? formatBytes(file.size) : '-- KB',
-    date: new Date().toISOString().split('T')[0]
+    financialYear: fy,
+    description: desc || null
+  });
+  if (!meta || !meta.uploadUrl) {
+    showToast((meta && meta.error) || 'Upload setup failed', 'error');
+    confirmBtn.disabled = false; confirmBtn.textContent = 'Confirm';
+    return;
+  }
+
+  // Step 2: PUT to S3 with progress (XHR for native progress events)
+  try {
+    await new Promise(function(resolve, reject) {
+      var xhr = new XMLHttpRequest();
+      xhr.open('PUT', meta.uploadUrl);
+      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+      xhr.upload.onprogress = function(ev) {
+        if (!ev.lengthComputable) return;
+        var pct = Math.round((ev.loaded / ev.total) * 100);
+        var fill = document.getElementById('srProgressFill');
+        var pctEl = document.getElementById('srProgressPct');
+        if (fill) fill.style.width = pct + '%';
+        if (pctEl) pctEl.textContent = pct;
+      };
+      xhr.onload = function() {
+        if (xhr.status >= 200 && xhr.status < 300) resolve();
+        else reject(new Error('S3 PUT failed: HTTP ' + xhr.status));
+      };
+      xhr.onerror = function() { reject(new Error('S3 PUT network error')); };
+      xhr.send(file);
+    });
+  } catch (err) {
+    showToast(err.message || 'Upload failed', 'error');
+    confirmBtn.disabled = false; confirmBtn.textContent = 'Confirm';
+    return;
+  }
+
+  // Step 3: confirm-upload to register in DB
+  var confirmRes = await apiPost('/api/vault/confirm-upload', {
+    s3Key: meta.s3Key,
+    originalFilename: file.name,
+    displayName: file.name,
+    fileSize: file.size,
+    mimeType: file.type || 'application/octet-stream',
+    financialYear: meta.financialYear,
+    category: meta.category,
+    subcategory: meta.subcategory,
+    description: desc || null
+  });
+  if (!confirmRes || !confirmRes.file) {
+    showToast((confirmRes && confirmRes.error) || 'Registering upload failed', 'error');
+    confirmBtn.disabled = false; confirmBtn.textContent = 'Confirm';
+    return;
+  }
+
+  // Mirror in local vaultFiles list so the UI updates immediately
+  var serverFile = confirmRes.file;
+  var newFile = {
+    id: serverFile.id,
+    name: serverFile.original_filename,
+    category: serverFile.category,
+    subcategory: serverFile.subcategory,
+    fy: serverFile.financial_year,
+    size: serverFile.file_size ? formatBytes(serverFile.file_size) : '-- KB',
+    date: (serverFile.upload_date || '').split(' ')[0] || new Date().toISOString().split('T')[0]
   };
   vaultFiles.unshift(newFile);
-  var catLabel = VAULT_CATS[cat] ? VAULT_CATS[cat].label : cat;
-  var subcatLabel = VAULT_SUBCAT_LABELS[sub]||sub;
-  showToast('✅ '+newFile.name+' uploaded to '+catLabel+'/'+subcatLabel, 'success');
+
+  var catLabel = VAULT_CATS[serverFile.category] ? VAULT_CATS[serverFile.category].label : serverFile.category;
+  var subcatLabel = VAULT_SUBCAT_LABELS[serverFile.subcategory] || serverFile.subcategory;
+  showToast('✅ ' + newFile.name + ' uploaded to ' + catLabel + '/' + subcatLabel, 'success');
+
+  // Auto-process kicks off server-side; surface a hint and let user
+  // jump to the Agent page where proposals will appear.
+  try {
+    showToast('📄 Processing ' + newFile.name + '... Tap to review →', 'info');
+    var _t = document.querySelector('.toast');
+    if (_t) {
+      _t.style.cursor = 'pointer';
+      _t.onclick = function(){ if (typeof navigateTo === 'function') navigateTo('agent'); };
+    }
+  } catch (_e) {}
+
   document.getElementById('vaultNotice').style.display = 'block';
   srIndex++;
   srShowStep();
-}
-
-function simulateUpload() {
-  return new Promise(function(resolve){
-    var fill = document.getElementById('srProgressFill');
-    var pct = document.getElementById('srProgressPct');
-    var p = 0;
-    var iv = setInterval(function(){
-      p += Math.random()*18+4;
-      if(p >= 100) {p=100;clearInterval(iv);setTimeout(resolve,200);}
-      fill.style.width = p.toFixed(0)+'%';
-      pct.textContent = p.toFixed(0);
-    }, 120);
-  });
 }
 
 // ─── CA Access ────────────────────────────────────────────────────
@@ -2095,25 +2809,7 @@ renderLoansTable = function() {
   });
 };
 
-// ─── Complete navigateTo override (includes vault) ────────────────
-navigateTo = function(page) {
-  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
-  document.getElementById('page-'+page).classList.add('active');
-  document.querySelectorAll('.nav-tab').forEach(function(t){t.classList.remove('active')});
-  document.querySelectorAll('.mobile-tab').forEach(function(t){t.classList.remove('active')});
-  var pages=['dashboard','investments','liabilities','handloans','analytics','vault'];
-  var idx=pages.indexOf(page);
-  var tabs=document.querySelectorAll('.nav-tab');
-  if(tabs[idx])tabs[idx].classList.add('active');
-  var mt=document.getElementById('mtab-'+page);
-  if(mt)mt.classList.add('active');
-  if(page==='analytics')setTimeout(renderAnalyticsCharts,120);
-  if(page==='vault'){
-    renderRecentUploads();
-    renderCACategoryChecks();
-    document.getElementById('vaultNotice').style.display = 'none';
-  }
-};
+// navigateTo() above already handles every page including vault — no override needed.
 
 checkAuth();
 </script>
@@ -2190,409 +2886,6 @@ checkAuth();
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════════
-     PROPERTIES PAGE
-══════════════════════════════════════════════════════════════════════ -->
-<div class="page" id="page-properties" style="display:none">
-  <div class="section-header">
-    <div>
-      <div class="section-title">&#x1F3E0; Properties</div>
-      <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">Flats, plots, land — rental income, tax &amp; Section 24 summary</div>
-    </div>
-    <button class="add-btn" onclick="openPropModal()">+ Add Property</button>
-  </div>
-
-  <!-- Research / Buying Guide (collapsible) -->
-  <div style="margin-bottom:22px">
-    <button onclick="togglePropResearch()" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:0;margin-bottom:10px">
-      <span style="font-size:13px;font-weight:600;color:var(--caramel)">&#x1F4D6; Property Research &amp; Buying Guide</span>
-      <span id="propResearchChevron" style="font-size:11px;color:var(--text-secondary)">▼</span>
-    </button>
-    <div id="propResearchPanel" style="display:none">
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
-
-        <!-- Flat / Apartment checklist -->
-        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
-          <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px">🏢 Flat / Apartment — Due Diligence</div>
-          <ul style="font-size:12px;color:var(--text-secondary);padding-left:18px;line-height:1.9;margin:0">
-            <li>Verify RERA registration number on state RERA portal</li>
-            <li>Check builder track record &amp; delivery history</li>
-            <li>Confirm Completion Certificate (CC) / OC issued</li>
-            <li>Verify title deed — free of encumbrance (EC from sub-registrar)</li>
-            <li>Check approved building plan matches actual construction</li>
-            <li>Confirm khata / property tax registration in builder/seller name</li>
-            <li>Check home loan eligibility — bank technical valuation</li>
-            <li>Stamp duty + registration: ~5–7% of agreement value (state-specific)</li>
-            <li>Society maintenance + sinking fund — get last 3 years accounts</li>
-            <li>Confirm GST rate: 5% (under-construction), exempt (OC obtained)</li>
-          </ul>
-        </div>
-
-        <!-- Plot / Land checklist -->
-        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
-          <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px">🌱 Plot / Land — Due Diligence</div>
-          <ul style="font-size:12px;color:var(--text-secondary);padding-left:18px;line-height:1.9;margin:0">
-            <li>Obtain and verify patta / record of rights (RoR) / khata</li>
-            <li>Check conversion: agricultural land needs NA (non-agricultural) order</li>
-            <li>Confirm survey number on government land records portal</li>
-            <li>Get Encumbrance Certificate (EC) for 30 years minimum</li>
-            <li>Verify no revenue dues / Betterment Charges pending</li>
-            <li>Check layout approval from HMDA / BDA / local authority</li>
-            <li>Confirm UDS (Undivided Share) matches sale deed if gated layout</li>
-            <li>Enquire about CLU (Change of Land Use) if planning construction</li>
-            <li>Check proximity to water bodies / low-lying areas (flood risk)</li>
-            <li>Stamp duty + registration for plots: 5–7% (state-specific)</li>
-          </ul>
-        </div>
-
-        <!-- Key metrics & ratios -->
-        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
-          <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px">📊 Key Valuation Metrics</div>
-          <table style="width:100%;font-size:12px;border-collapse:collapse">
-            <tr style="color:var(--text-secondary)"><td style="padding:5px 0;border-bottom:1px solid var(--border)"><strong style="color:var(--text-primary)">Gross Yield</strong></td><td style="padding:5px 0;border-bottom:1px solid var(--border)">Annual Rent ÷ Property Value × 100<br><em>Healthy: ≥3% in metros, ≥4% in Tier-2</em></td></tr>
-            <tr style="color:var(--text-secondary)"><td style="padding:5px 6px;border-bottom:1px solid var(--border)"><strong style="color:var(--text-primary)">Price-to-Rent</strong></td><td style="padding:5px 0;border-bottom:1px solid var(--border)">Price ÷ Annual Rent<br><em>Under 20× = buy; 20–30× = neutral; 30×+ = overpriced</em></td></tr>
-            <tr style="color:var(--text-secondary)"><td style="padding:5px 0;border-bottom:1px solid var(--border)"><strong style="color:var(--text-primary)">EMI / Income</strong></td><td style="padding:5px 0;border-bottom:1px solid var(--border)">Keep EMI ≤ 40% of net monthly income</td></tr>
-            <tr style="color:var(--text-secondary)"><td style="padding:5px 0"><strong style="color:var(--text-primary)">Total Cost</strong></td><td style="padding:5px 0">Base price + stamp duty + registration + GST + society charges + interior</td></tr>
-          </table>
-        </div>
-
-        <!-- Tax implications -->
-        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
-          <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px">💸 Tax Implications</div>
-          <ul style="font-size:12px;color:var(--text-secondary);padding-left:18px;line-height:1.9;margin:0">
-            <li><strong style="color:var(--text-primary)">Home Loan Interest (Sec 24b):</strong> Up to ₹2L deduction (self-occupied); unlimited for let-out</li>
-            <li><strong style="color:var(--text-primary)">Principal repayment (Sec 80C):</strong> Up to ₹1.5L within the 80C limit</li>
-            <li><strong style="color:var(--text-primary)">LTCG on sale:</strong> &gt;2 years held → 12.5% (no indexation post Jul 2024 budget)</li>
-            <li><strong style="color:var(--text-primary)">STCG on sale:</strong> ≤2 years → taxed at slab rate</li>
-            <li><strong style="color:var(--text-primary)">Reinvestment exemption (Sec 54):</strong> Buy new residential property within 2 years to defer LTCG</li>
-            <li><strong style="color:var(--text-primary)">Annual Value (let-out):</strong> 30% standard deduction on net rent (Sec 24a)</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Property Cards -->
-  <div id="propCardsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:28px"></div>
-
-  <!-- Property Detail Panel (shown when a property is selected) -->
-  <div id="propDetailPanel" style="display:none">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap">
-      <button onclick="closePropDetail()" style="background:none;border:1px solid var(--border);color:var(--text-secondary);padding:6px 12px;border-radius:7px;cursor:pointer;font-size:12px">&#x2190; Back</button>
-      <div id="propDetailName" style="font-size:18px;font-weight:700;color:var(--text-primary)"></div>
-      <div id="propDetailBadge" style="font-size:11px;padding:3px 9px;border-radius:5px;background:rgba(59,130,246,.12);color:var(--accent-blue);border:1px solid rgba(59,130,246,.2)"></div>
-    </div>
-
-    <div class="tab-bar">
-      <button class="tab-btn active" onclick="switchPropTab('overview',this)">Overview</button>
-      <button class="tab-btn" onclick="switchPropTab('agreements',this)">Rental Agreements</button>
-      <button class="tab-btn" onclick="switchPropTab('tax',this)">Property Tax</button>
-      <button class="tab-btn" onclick="switchPropTab('expenses',this)">Expenses</button>
-      <button class="tab-btn" onclick="switchPropTab('section24',this)">&#x1F4CA; Section 24</button>
-    </div>
-
-    <!-- Overview -->
-    <div class="tab-content active" id="prop-tab-overview">
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:20px" id="propOverviewGrid"></div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
-        <button class="add-btn" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border)" onclick="editCurrentProp()">&#x270F; Edit Property</button>
-        <button class="add-btn" style="background:rgba(239,68,68,.1);color:var(--accent-red);border:1px solid rgba(239,68,68,.3)" onclick="deleteCurrentProp()">&#x1F5D1; Delete</button>
-      </div>
-    </div>
-
-    <!-- Rental Agreements -->
-    <div class="tab-content" id="prop-tab-agreements">
-      <div class="section-header" style="margin-bottom:12px">
-        <div class="section-title" style="font-size:14px">Rental Agreements</div>
-        <button class="add-btn" onclick="openAgreementModal()">+ Add Agreement</button>
-      </div>
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead><tr><th>Tenant</th><th>Phone</th><th>Rent/mo</th><th>Deposit</th><th>From</th><th>To</th><th>Status</th><th>Actions</th></tr></thead>
-          <tbody id="agreementsTbody"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Property Tax -->
-    <div class="tab-content" id="prop-tab-tax">
-      <div class="section-header" style="margin-bottom:12px">
-        <div class="section-title" style="font-size:14px">Property Tax Payments</div>
-        <button class="add-btn" onclick="openTaxPayModal()">+ Add Payment</button>
-      </div>
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead><tr><th>Assessment Year</th><th>Amount</th><th>Date</th><th>Receipt</th><th>Notes</th><th>Actions</th></tr></thead>
-          <tbody id="propTaxTbody"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Expenses -->
-    <div class="tab-content" id="prop-tab-expenses">
-      <div class="section-header" style="margin-bottom:12px">
-        <div class="section-title" style="font-size:14px">Maintenance &amp; Expenses</div>
-        <button class="add-btn" onclick="openExpenseModal()">+ Add Expense</button>
-      </div>
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead><tr><th>Type</th><th>Description</th><th>Amount</th><th>Date</th><th>Receipt</th><th>Actions</th></tr></thead>
-          <tbody id="propExpensesTbody"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Section 24 Summary -->
-    <div class="tab-content" id="prop-tab-section24">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-        <div style="font-size:14px;font-weight:600;color:var(--text-primary)">Financial Year:</div>
-        <select id="sec24FYSelect" onchange="loadSection24()" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:13px">
-          <option value="2023-24">FY 2023-24</option>
-          <option value="2024-25">FY 2024-25</option>
-          <option value="2025-26" selected>FY 2025-26</option>
-          <option value="2026-27">FY 2026-27</option>
-        </select>
-      </div>
-      <div id="sec24Summary" style="max-width:540px"></div>
-      <div style="margin-top:20px;padding:14px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:10px;font-size:12px;color:var(--text-secondary)">
-        <strong style="color:var(--accent-blue)">Section 24 — Income from House Property</strong><br><br>
-        GAV = Annual rent received &nbsp;|&nbsp; NAV = GAV − Municipal taxes paid<br>
-        Sec 24(a) standard deduction = 30% of NAV (for maintenance, covers repairs etc.)<br>
-        Sec 24(b) = Home loan interest (up to ₹2L for self-occupied; unlimited for let-out)<br>
-        <em>Net income from house property = NAV − 30% − loan interest</em>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- INCOME TAX PAGE -->
-<div class="page" id="page-incometax" style="display:none">
-  <div class="section-header">
-    <div>
-      <div class="section-title">&#x1F4CB; Income Tax</div>
-      <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">Advance tax payments, estimated liability &amp; tax-saving strategies</div>
-    </div>
-    <button class="add-btn" onclick="openModal('addAdvTax')">+ Add Tax Payment</button>
-  </div>
-
-  <!-- Summary cards -->
-  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px">
-    <div class="summary-card green" style="flex:1;min-width:150px">
-      <div class="summary-card-label">Total Paid (FY)</div>
-      <div class="summary-card-value green" id="atTotalPaid">₹0</div>
-    </div>
-    <div class="summary-card gold" style="flex:1;min-width:150px">
-      <div class="summary-card-label">Est. Tax Liability</div>
-      <div class="summary-card-value gold" id="atEstLiability">₹0</div>
-    </div>
-    <div class="summary-card blue" style="flex:1;min-width:150px">
-      <div class="summary-card-label">Balance to Pay</div>
-      <div class="summary-card-value blue" id="atBalance">₹0</div>
-    </div>
-    <div class="summary-card" style="flex:1;min-width:150px">
-      <div class="summary-card-label">Gross Annual Income</div>
-      <div class="summary-card-value" id="itAnnualIncome">₹0</div>
-    </div>
-  </div>
-
-  <div class="tab-bar" style="margin-bottom:20px">
-    <button class="tab-btn active" onclick="switchITTab('payments',this)">&#x1F4B3; Advance Tax Payments</button>
-    <button class="tab-btn" onclick="switchITTab('categories',this)">&#x1F4CA; Tax-Saving Categories</button>
-    <button class="tab-btn" onclick="switchITTab('strategies',this)">&#x1F4A1; Strategies</button>
-    <button class="tab-btn" onclick="switchITTab('slabs',this)">&#x1F4CB; Tax Slabs</button>
-  </div>
-
-  <!-- Payments tab -->
-  <div class="tab-content active" id="it-tab-payments">
-    <div class="section-header" style="margin-bottom:10px">
-      <span style="font-size:13px;color:var(--text-secondary)">Assessment Year</span>
-      <select id="atYearFilter" onchange="renderAdvTax()" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);padding:6px 10px;border-radius:6px;font-size:13px">
-        <option>2026-27</option><option>2025-26</option><option>2024-25</option>
-      </select>
-    </div>
-    <div class="table-wrap">
-      <table class="data-table">
-        <thead><tr><th>Installment</th><th>Amount Paid</th><th>Date</th><th>Notes</th><th>Actions</th></tr></thead>
-        <tbody id="advTaxTbody"></tbody>
-      </table>
-    </div>
-    <div style="margin-top:16px;padding:12px 16px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:10px;font-size:12px;color:var(--text-secondary)">
-      <strong style="color:var(--accent-blue)">Advance Tax Due Dates (FY 2026-27)</strong><br><br>
-      15 Jun — 15% &nbsp;|&nbsp; 15 Sep — 45% cumulative &nbsp;|&nbsp; 15 Dec — 75% cumulative &nbsp;|&nbsp; 15 Mar — 100%<br>
-      Interest u/s 234B &amp; 234C applies if payments are missed or delayed.
-    </div>
-  </div>
-
-  <!-- Tax-saving categories tab -->
-  <div class="tab-content" id="it-tab-categories">
-    <div id="itCategoriesGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px"></div>
-  </div>
-
-  <!-- Strategies tab -->
-  <div class="tab-content" id="it-tab-strategies">
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
-      <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
-        <div style="font-size:13px;font-weight:700;color:var(--accent-gold);margin-bottom:10px">📌 Section 80C — ₹1.5L limit</div>
-        <ul style="font-size:12px;color:var(--text-secondary);padding-left:16px;line-height:1.9;margin:0">
-          <li>ELSS Mutual Funds (best for equity exposure + lock-in 3y)</li>
-          <li>PPF — 15-year tenure, EEE tax status, 7.1% interest</li>
-          <li>NPS Tier-I (own contribution) — up to ₹1.5L within 80C</li>
-          <li>Life Insurance Premium (traditional/term)</li>
-          <li>Home Loan Principal repayment</li>
-          <li>Sukanya Samriddhi / NSC / SCSS / Tax-saver FD (5yr)</li>
-        </ul>
-      </div>
-      <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
-        <div style="font-size:13px;font-weight:700;color:var(--accent-blue);margin-bottom:10px">💊 Section 80D — Health Insurance</div>
-        <ul style="font-size:12px;color:var(--text-secondary);padding-left:16px;line-height:1.9;margin:0">
-          <li>Self + family (below 60): up to <strong>₹25,000</strong></li>
-          <li>Parents (below 60): additional ₹25,000 = total ₹50,000</li>
-          <li>Parents (senior citizen): additional ₹50,000 = total ₹75,000</li>
-          <li>Preventive health check-up: ₹5,000 within limits</li>
-          <li>Note: 80D benefit available in both Old &amp; New regimes (partially)</li>
-        </ul>
-      </div>
-      <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
-        <div style="font-size:13px;font-weight:700;color:var(--accent-green);margin-bottom:10px">🏛️ Section 80CCD(1B) — NPS Bonus</div>
-        <ul style="font-size:12px;color:var(--text-secondary);padding-left:16px;line-height:1.9;margin:0">
-          <li>Additional NPS Tier-I investment: up to <strong>₹50,000</strong> over &amp; above 80C limit</li>
-          <li>Effective saving: ₹15,600 at 30% slab + cess</li>
-          <li>Available under Old Tax Regime only</li>
-          <li>Employer NPS contribution (80CCD(2)): available in New Regime too</li>
-        </ul>
-      </div>
-      <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
-        <div style="font-size:13px;font-weight:700;color:var(--caramel);margin-bottom:10px">🏠 Home Loan Deductions</div>
-        <ul style="font-size:12px;color:var(--text-secondary);padding-left:16px;line-height:1.9;margin:0">
-          <li>Sec 24(b): Interest up to <strong>₹2L</strong> (self-occupied property)</li>
-          <li>Sec 80C: Principal up to ₹1.5L (within 80C limit)</li>
-          <li>First home buyers — additional ₹50,000 u/s 80EEA (if stamp duty ≤45L)</li>
-          <li>For let-out property: full interest deductible under Sec 24</li>
-          <li>Available in Old Regime; not in New Regime (except 80CCD2)</li>
-        </ul>
-      </div>
-      <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
-        <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px">⚖️ Old vs New Tax Regime</div>
-        <table style="width:100%;font-size:12px;border-collapse:collapse;color:var(--text-secondary)">
-          <tr><th style="text-align:left;padding:4px 0;color:var(--text-primary);border-bottom:1px solid var(--border)">Feature</th><th style="padding:4px 6px;color:var(--accent-gold);border-bottom:1px solid var(--border)">Old</th><th style="padding:4px 6px;color:var(--accent-blue);border-bottom:1px solid var(--border)">New (Default)</th></tr>
-          <tr><td style="padding:4px 0">80C / 80D / 80CCD</td><td style="padding:4px 6px;color:var(--accent-green)">Yes</td><td style="padding:4px 6px;color:var(--accent-red)">No*</td></tr>
-          <tr><td style="padding:4px 0">HRA / LTA</td><td style="padding:4px 6px;color:var(--accent-green)">Yes</td><td style="padding:4px 6px;color:var(--accent-red)">No</td></tr>
-          <tr><td style="padding:4px 0">Std Deduction</td><td style="padding:4px 6px">₹50K</td><td style="padding:4px 6px">₹75K</td></tr>
-          <tr><td style="padding:4px 0">Sec 24(b) interest</td><td style="padding:4px 6px;color:var(--accent-green)">Yes</td><td style="padding:4px 6px;color:var(--accent-red)">No</td></tr>
-          <tr><td style="padding:4px 0">Rebate u/s 87A</td><td style="padding:4px 6px">≤5L</td><td style="padding:4px 6px">≤7L</td></tr>
-        </table>
-        <div style="margin-top:8px;font-size:11px;color:var(--text-secondary)">*80CCD(2) employer NPS is available in New Regime</div>
-      </div>
-      <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">
-        <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px">📅 Advance Tax Schedule</div>
-        <table style="width:100%;font-size:12px;border-collapse:collapse;color:var(--text-secondary)">
-          <tr><th style="text-align:left;padding:4px 0;color:var(--text-primary);border-bottom:1px solid var(--border)">Due Date</th><th style="padding:4px 6px;color:var(--text-primary);border-bottom:1px solid var(--border)">Cumulative %</th></tr>
-          <tr><td style="padding:4px 0">15 June</td><td style="padding:4px 6px">15%</td></tr>
-          <tr><td style="padding:4px 0">15 September</td><td style="padding:4px 6px">45%</td></tr>
-          <tr><td style="padding:4px 0">15 December</td><td style="padding:4px 6px">75%</td></tr>
-          <tr><td style="padding:4px 0">15 March</td><td style="padding:4px 6px">100%</td></tr>
-        </table>
-        <div style="margin-top:8px;font-size:11px;color:var(--text-secondary)">Interest u/s 234B (1%/mo) + 234C applies on shortfall</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Slabs tab -->
-  <div class="tab-content" id="it-tab-slabs">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:860px;flex-wrap:wrap">
-      <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:18px">
-        <div style="font-size:13px;font-weight:700;color:var(--accent-blue);margin-bottom:12px">New Tax Regime — FY 2026-27 (Default)</div>
-        <table style="width:100%;font-size:12px;border-collapse:collapse;color:var(--text-secondary)">
-          <thead><tr><th style="text-align:left;padding:5px 0;color:var(--text-primary);border-bottom:1px solid var(--border)">Income Slab</th><th style="padding:5px 6px;color:var(--text-primary);border-bottom:1px solid var(--border)">Rate</th></tr></thead>
-          <tr><td style="padding:5px 0">Up to ₹3,00,000</td><td style="padding:5px 6px">Nil</td></tr>
-          <tr><td style="padding:5px 0">₹3L – ₹6L</td><td style="padding:5px 6px">5%</td></tr>
-          <tr><td style="padding:5px 0">₹6L – ₹9L</td><td style="padding:5px 6px">10%</td></tr>
-          <tr><td style="padding:5px 0">₹9L – ₹12L</td><td style="padding:5px 6px">15%</td></tr>
-          <tr><td style="padding:5px 0">₹12L – ₹15L</td><td style="padding:5px 6px">20%</td></tr>
-          <tr><td style="padding:5px 0">Above ₹15L</td><td style="padding:5px 6px">30%</td></tr>
-        </table>
-        <div style="margin-top:10px;font-size:11px;color:var(--text-secondary)">+ 4% health &amp; education cess. Rebate u/s 87A: full rebate if income ≤ ₹7L (New Regime from FY2024-25).<br>Standard deduction: ₹75,000 for salaried.</div>
-      </div>
-      <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:18px">
-        <div style="font-size:13px;font-weight:700;color:var(--accent-gold);margin-bottom:12px">Old Tax Regime — FY 2026-27</div>
-        <table style="width:100%;font-size:12px;border-collapse:collapse;color:var(--text-secondary)">
-          <thead><tr><th style="text-align:left;padding:5px 0;color:var(--text-primary);border-bottom:1px solid var(--border)">Income Slab</th><th style="padding:5px 6px;color:var(--text-primary);border-bottom:1px solid var(--border)">Rate</th></tr></thead>
-          <tr><td style="padding:5px 0">Up to ₹2,50,000</td><td style="padding:5px 6px">Nil</td></tr>
-          <tr><td style="padding:5px 0">₹2.5L – ₹5L</td><td style="padding:5px 6px">5%</td></tr>
-          <tr><td style="padding:5px 0">₹5L – ₹10L</td><td style="padding:5px 6px">20%</td></tr>
-          <tr><td style="padding:5px 0">Above ₹10L</td><td style="padding:5px 6px">30%</td></tr>
-        </table>
-        <div style="margin-top:10px;font-size:11px;color:var(--text-secondary)">+ 4% cess. Surcharge above ₹50L. Rebate u/s 87A for income ≤ ₹5L.<br>Standard deduction: ₹50,000 for salaried.</div>
-      </div>
-    </div>
-    <div style="margin-top:18px;padding:14px 16px;background:rgba(198,134,66,.08);border:1px solid rgba(198,134,66,.25);border-radius:10px;font-size:12px;color:var(--text-secondary);max-width:860px">
-      <strong style="color:var(--caramel)">Tip:</strong> The estimated tax liability shown in this page uses the <em>New Tax Regime slabs</em> as the default from FY2024-25 onwards. Actual liability may differ — consult a CA for your specific deductions and surcharges.
-    </div>
-  </div>
-</div>
-
-<!-- AGENT ADMIN PAGE -->
-<div class="page" id="page-agent" style="display:none">
-  <div class="section-header">
-    <div>
-      <div class="section-title">&#x1F916; Agent Admin</div>
-      <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">LLM call usage, costs &amp; recent activity (Anthropic + Groq)</div>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <label style="font-size:12px;color:var(--text-secondary)">Window:</label>
-      <select id="agentDaysSelect" onchange="loadAgentAdmin()" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);padding:6px 10px;border-radius:6px;font-size:13px">
-        <option value="1">24h</option>
-        <option value="7">7 days</option>
-        <option value="30" selected>30 days</option>
-        <option value="90">90 days</option>
-      </select>
-      <button class="add-btn" onclick="loadAgentAdmin()">↻ Refresh</button>
-    </div>
-  </div>
-
-  <div id="agentConfigBanner" style="margin-bottom:18px"></div>
-
-  <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:24px">
-    <div class="summary-card" style="flex:1;min-width:140px"><div class="summary-card-label">Calls</div><div class="summary-card-value" id="agentCalls">0</div></div>
-    <div class="summary-card green" style="flex:1;min-width:140px"><div class="summary-card-label">Tokens In</div><div class="summary-card-value green" id="agentTokensIn">0</div></div>
-    <div class="summary-card blue" style="flex:1;min-width:140px"><div class="summary-card-label">Tokens Out</div><div class="summary-card-value blue" id="agentTokensOut">0</div></div>
-    <div class="summary-card gold" style="flex:1;min-width:140px"><div class="summary-card-label">Cost (USD)</div><div class="summary-card-value gold" id="agentCost">$0.00</div></div>
-    <div class="summary-card" style="flex:1;min-width:140px"><div class="summary-card-label">Errors</div><div class="summary-card-value" id="agentErrors" style="color:var(--accent-red)">0</div></div>
-  </div>
-
-  <div class="tab-bar" style="margin-bottom:18px">
-    <button class="tab-btn active" onclick="switchAgentTab('byTask',this)">By Task Type</button>
-    <button class="tab-btn" onclick="switchAgentTab('errors',this)">Recent Errors</button>
-    <button class="tab-btn" onclick="switchAgentTab('calls',this)">Call History</button>
-  </div>
-
-  <div class="tab-content active" id="agent-tab-byTask">
-    <div class="table-wrap">
-      <table class="data-table">
-        <thead><tr><th>Task Type</th><th>Calls</th><th>Tokens In</th><th>Tokens Out</th><th>Cost (USD)</th></tr></thead>
-        <tbody id="agentByTaskTbody"><tr><td colspan="5" style="text-align:center;color:var(--text-secondary);padding:20px">Loading…</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="tab-content" id="agent-tab-errors">
-    <div class="table-wrap">
-      <table class="data-table">
-        <thead><tr><th>Time</th><th>Task</th><th>Error</th></tr></thead>
-        <tbody id="agentErrorsTbody"><tr><td colspan="3" style="text-align:center;color:var(--text-secondary);padding:20px">No errors</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="tab-content" id="agent-tab-calls">
-    <div class="table-wrap">
-      <table class="data-table">
-        <thead><tr><th>Time</th><th>User</th><th>Task</th><th>Provider</th><th>Model</th><th>Tokens</th><th>Cost</th><th>Latency</th><th>Status</th></tr></thead>
-        <tbody id="agentCallsTbody"><tr><td colspan="9" style="text-align:center;color:var(--text-secondary);padding:20px">Loading…</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
 <!-- Property Add/Edit Modal -->
 <div class="modal-overlay" id="modal-addProperty">
   <div class="modal-box" style="max-width:600px">
@@ -2800,76 +3093,6 @@ checkAuth();
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════════════
-     EARNINGS PAGE
-══════════════════════════════════════════════════════════════════════ -->
-<div class="page" id="page-earnings" style="display:none">
-  <div class="section-header">
-    <div>
-      <div class="section-title">💰 Earnings</div>
-      <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">All income sources — auto-populated interest shown in grey</div>
-    </div>
-    <button class="add-btn" onclick="openModal('addEarning')">+ Add Source</button>
-  </div>
-  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px">
-    <div class="summary-card green" style="flex:1;min-width:140px">
-      <div class="summary-card-label">Monthly Income</div>
-      <div class="summary-card-value green" id="earnMonthly">₹0</div>
-    </div>
-    <div class="summary-card gold" style="flex:1;min-width:140px">
-      <div class="summary-card-label">Annual Income</div>
-      <div class="summary-card-value gold" id="earnAnnual">₹0</div>
-    </div>
-    <div class="summary-card blue" style="flex:1;min-width:140px">
-      <div class="summary-card-label">Salary Share</div>
-      <div class="summary-card-value blue" id="earnSalaryPct">0%</div>
-    </div>
-    <div class="summary-card" style="flex:1;min-width:140px">
-      <div class="summary-card-label">Other Income</div>
-      <div class="summary-card-value" id="earnOtherAnnual">₹0</div>
-    </div>
-  </div>
-  <div class="table-wrap">
-    <table class="data-table">
-      <thead><tr><th>Source</th><th>Type</th><th>Amount</th><th>Frequency</th><th>Your Share %</th><th>Effective/Mo</th><th>Notes</th><th>Actions</th></tr></thead>
-      <tbody id="earningsTbody"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════════════════════════════════════
-     PAYMENTS PAGE
-══════════════════════════════════════════════════════════════════════ -->
-<div class="page" id="page-payments" style="display:none">
-  <div class="section-header">
-    <div class="section-title">📅 Scheduled Payments</div>
-    <button class="add-btn" onclick="openModal('addPayment')">+ Add Payment</button>
-  </div>
-  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px">
-    <div class="summary-card red" style="flex:1;min-width:140px">
-      <div class="summary-card-label">Monthly Outflow</div>
-      <div class="summary-card-value red" id="payMonthly">₹0</div>
-    </div>
-    <div class="summary-card gold" style="flex:1;min-width:140px">
-      <div class="summary-card-label">Annual Outflow</div>
-      <div class="summary-card-value gold" id="payAnnual">₹0</div>
-    </div>
-    <div class="summary-card blue" style="flex:1;min-width:140px">
-      <div class="summary-card-label">Due This Month</div>
-      <div class="summary-card-value blue" id="payDueCount">0 payments</div>
-    </div>
-  </div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-    <button class="tab-btn active" onclick="filterPayments('all',this)" id="payFilter-all">All</button>
-    <button class="tab-btn" onclick="filterPayments('Monthly',this)" id="payFilter-Monthly">Monthly</button>
-    <button class="tab-btn" onclick="filterPayments('Annual',this)" id="payFilter-Annual">Annual</button>
-    <button class="tab-btn" onclick="filterPayments('One-time',this)" id="payFilter-One-time">One-time</button>
-    <button class="tab-btn" onclick="filterPayments('EMI',this)" id="payFilter-EMI">EMI</button>
-    <button class="tab-btn" onclick="filterPayments('SIP',this)" id="payFilter-SIP">SIP</button>
-    <button class="tab-btn" onclick="filterPayments('Insurance',this)" id="payFilter-Insurance">Insurance</button>
-  </div>
-  <div class="pay-grid" id="paymentsGrid"></div>
-</div>
 
 <!-- ══════════════════════════════════════════════════════════════════════
      NEW INVESTMENT MODALS
@@ -3384,7 +3607,7 @@ async function apiDel(url) {
 var savingsData = [];
 async function loadSavings() {
   var r = await apiFetch('/api/investments/savings');
-  savingsData = r && r.savings_accounts ? r.savings_accounts : [];
+  savingsData = (r && r.savings_accounts) || MOCK.savings;
   renderSavings();
 }
 function renderSavings() {
@@ -3420,7 +3643,7 @@ async function deleteSavings(id) {
 var insuranceData = [];
 async function loadInsurance() {
   var r = await apiFetch('/api/investments/insurance');
-  insuranceData = r && r.insurance_policies ? r.insurance_policies : [];
+  insuranceData = (r && r.insurance_policies) || MOCK.insurance;
   renderInsurance();
 }
 function renderInsurance() {
@@ -3459,7 +3682,7 @@ async function deleteInsurance(id) {
 var npsData = [];
 async function loadNPS() {
   var r = await apiFetch('/api/investments/nps');
-  npsData = r && r.nps_accounts ? r.nps_accounts : [];
+  npsData = (r && r.nps_accounts) || MOCK.nps;
   renderNPS();
 }
 function renderNPS() {
@@ -3502,7 +3725,7 @@ var advTaxData = [];
 async function loadAdvTax() {
   var year = document.getElementById('atYearFilter') ? document.getElementById('atYearFilter').value : '2026-27';
   var r = await apiFetch('/api/tax/advance?year='+encodeURIComponent(year));
-  advTaxData = r && r.advance_tax ? r.advance_tax : [];
+  advTaxData = (r && r.advance_tax) || MOCK.advTax;
   renderAdvTax();
 }
 function renderAdvTax() {
@@ -3565,7 +3788,7 @@ function calcAnnualIncome() {
 var earningsData = [];
 async function loadEarnings() {
   var r = await apiFetch('/api/earnings');
-  earningsData = r && r.earnings ? r.earnings : [];
+  earningsData = (r && r.earnings) || MOCK.earnings;
   renderEarnings();
 }
 function renderEarnings() {
@@ -3709,7 +3932,7 @@ var paymentsData = [];
 var paymentsFilter = 'all';
 async function loadPayments() {
   var r = await apiFetch('/api/payments');
-  paymentsData = r && r.scheduled_payments ? r.scheduled_payments : [];
+  paymentsData = (r && r.scheduled_payments) || MOCK.payments;
   renderPayments();
 }
 function filterPayments(f, btn) {
@@ -3773,21 +3996,7 @@ loadAllData = async function() {
   await Promise.all([loadSavings(), loadInsurance(), loadNPS(), loadAdvTax(), loadEarnings(), loadPayments()]);
 };
 
-var _origNavigateTo = navigateTo;
-navigateTo = function(page) {
-  _origNavigateTo(page);
-  var pages = ['dashboard','investments','liabilities','handloans','analytics','vault','earnings','payments','properties'];
-  pages.forEach(function(p){
-    var el = document.getElementById('page-'+p);
-    if (el) el.style.display = p===page ? '' : 'none';
-    var mt = document.getElementById('mtab-'+p);
-    if (mt) mt.classList.toggle('active', p===page);
-  });
-  if (page==='earnings') { renderEarnings(); }
-  if (page==='payments') { renderPayments(); }
-  if (page==='properties') { loadProperties(); }
-  if (page==='investments') { /* tabs handled by switchInvTab */ }
-};
+// navigateTo handles every page directly — no wrapper needed.
 
 // Patch switchInvTab to handle new tabs
 var _origSwitchInvTab = switchInvTab;
@@ -4263,27 +4472,7 @@ function renderITCategories() {
   }).join('');
 }
 
-// Update navigateTo to include incometax
-var _prevNavigateTo2 = navigateTo;
-navigateTo = function(page) {
-  var allPages = ['dashboard','investments','liabilities','handloans','analytics','vault','earnings','payments','properties','incometax'];
-  allPages.forEach(function(p){
-    var el = document.getElementById('page-'+p);
-    if (el) el.style.display = p===page ? '' : 'none';
-    var mt = document.getElementById('mtab-'+p);
-    if (mt) mt.classList.toggle('active', p===page);
-  });
-  // Update desktop nav-tab active state
-  document.querySelectorAll('.topnav-tabs .nav-tab').forEach(function(b){
-    var onclick = b.getAttribute('onclick')||'';
-    b.classList.toggle('active', onclick.indexOf("'"+page+"'")>-1 || onclick.indexOf('"'+page+'"')>-1);
-  });
-  if (page==='earnings') { loadEarnings(); }
-  if (page==='payments') { loadPayments(); }
-  if (page==='properties') { loadProperties(); }
-  if (page==='incometax') { loadAdvTax(); document.getElementById('itAnnualIncome').textContent = fmt(calcAnnualIncome()); }
-  if (page==='analytics') { setTimeout(renderAnalyticsCharts,120); }
-};
+// navigateTo above already handles incometax — no wrapper needed.
 
 // ─── PROPERTIES RESEARCH PANEL ───────────────────────────────────────────────
 function togglePropResearch() {
@@ -4324,8 +4513,13 @@ async function previewImport(content) {
   importDetectedType = r.detected_type !== 'unknown' ? r.detected_type : 'stocks';
   var section = document.getElementById('importPreviewSection');
   section.style.display = '';
-  document.getElementById('importDetectedType').textContent = 'Detected: ' + {stocks:'Indian Stocks', mutual_funds:'Mutual Funds', earnings:'Earnings', unknown:'Unknown (select below)'}[r.detected_type] || r.detected_type;
-  document.getElementById('importRowCount').textContent = r.row_count + ' rows in file, ' + importRows.length + ' importable';
+  var TYPE_LABEL = {stocks:'Indian Stocks', mutual_funds:'Mutual Funds', earnings:'Earnings', unknown:'Unknown (select below)'};
+  document.getElementById('importDetectedType').textContent = 'Detected: ' + (TYPE_LABEL[r.detected_type] || r.detected_type || 'Unknown');
+  var hint = '';
+  if (r.detected_type === 'unknown' || !importRows.length) {
+    hint = '<div style="color:var(--accent-red);font-size:12px;margin-top:6px">Couldn\'t auto-detect this format. Headers seen: <code>'+esc((r.headers||[]).join(', '))+'</code>. Pick a type below to import anyway.</div>';
+  }
+  document.getElementById('importRowCount').innerHTML = (r.row_count||0) + ' rows in file, ' + importRows.length + ' importable.' + hint;
   document.getElementById('importTypeOverride').value = importDetectedType;
   document.getElementById('importResultMsg').innerHTML = '';
   renderImportPreview(importRows, importDetectedType);
@@ -4359,10 +4553,11 @@ async function commitImport() {
     +(r.skipped?' <span style="color:var(--text-secondary)">· '+r.skipped+' skipped</span>':'')
     +(r.errors&&r.errors.length?'<div style="color:var(--accent-red);font-size:11px;margin-top:6px">Errors: '+r.errors.join(', ')+'</div>':'');
   showToast('Imported '+r.inserted+' rows', 'success');
-  // Refresh relevant data
-  if (type==='stocks') loadInvestments();
-  if (type==='mutual_funds') loadInvestments();
-  if (type==='earnings') loadEarnings();
+  // Refresh relevant data — loadAllData re-fetches stocks/MFs/etc.
+  if (type==='stocks' || type==='mutual_funds') {
+    if (typeof loadAllData === 'function') loadAllData();
+  }
+  if (type==='earnings' && typeof loadEarnings === 'function') loadEarnings();
 }
 
 function clearImport() {
@@ -4371,126 +4566,585 @@ function clearImport() {
   document.getElementById('importFileInput').value = '';
 }
 
-// ─── AGENT ADMIN PAGE ─────────────────────────────────────────────────────────
-var _isAdmin = false;
+// ─── AGENT CHAT PAGE ────────────────────────────────────────────────────────
+var agentState = {
+  threads: [],
+  activeId: null,
+  messages: [],          // current thread messages
+  streaming: false,
+  pendingProposal: null, // { tool_use_id, message_id, summary, mutation, name }
+  evtSource: null,
+  // Live artifacts (Claude.ai-style side panel). identifier -> {identifier,type,language,title,content,status,message_id}
+  artifacts: {},
+  artifactOrder: [],     // identifiers in insertion order, for tabs
+  activeArtifact: null   // identifier currently shown in panel
+};
 
-async function checkAdminAndShowAgentTab() {
-  try {
-    var r = await apiFetch('/api/auth/me');
-    _isAdmin = !!(r && r.user && r.user.is_admin);
-  } catch (e) { _isAdmin = false; }
-  var tab = document.getElementById('navTabAgent');
-  var mt = document.getElementById('mobileTabAgent');
-  if (tab) tab.style.display = _isAdmin ? '' : 'none';
-  if (mt) mt.style.display = _isAdmin ? '' : 'none';
+async function agentLoadThreads() {
+  var r = await apiFetch('/api/chat/threads');
+  agentState.threads = (r && r.threads) || [];
+  agentRenderThreadList();
 }
 
-function switchAgentTab(tab, btn) {
-  document.querySelectorAll('#page-agent .tab-btn').forEach(function(b){b.classList.remove('active')});
-  document.querySelectorAll('#page-agent .tab-content').forEach(function(c){c.classList.remove('active')});
-  if (btn) btn.classList.add('active');
-  var el = document.getElementById('agent-tab-'+tab);
-  if (el) el.classList.add('active');
-}
-
-function fmtUSD(n) { return '$' + Number(n||0).toFixed(4); }
-function fmtN0(n) { return Number(n||0).toLocaleString('en-IN'); }
-function shortTime(ts) {
-  if (!ts) return '—';
-  try { return new Date(ts.replace(' ','T')+'Z').toLocaleString(); } catch(e) { return ts; }
-}
-
-async function loadAgentAdmin() {
-  if (!_isAdmin) return;
-  var days = document.getElementById('agentDaysSelect').value || 30;
-
-  // Banner: configured?
-  var usage = await apiFetch('/api/admin/agent-usage?days='+days);
-  if (!usage) {
-    document.getElementById('agentConfigBanner').innerHTML = '<div style="padding:12px 16px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:10px;color:var(--accent-red);font-size:13px">⚠ Failed to load agent usage. Are you admin?</div>';
+function agentRenderThreadList() {
+  var el = document.getElementById('agentThreadList');
+  if (!el) return;
+  if (!agentState.threads.length) {
+    el.innerHTML = '<div class="agent-empty-list">No chats yet — start one with + New Chat.</div>';
     return;
   }
-  var configured = usage.configured;
-  var bannerColor = configured ? 'rgba(34,197,94,.08)' : 'rgba(245,158,11,.08)';
-  var bannerBorder = configured ? 'rgba(34,197,94,.25)' : 'rgba(245,158,11,.25)';
-  var bannerText = configured
-    ? '✓ Anthropic agent configured · model: '+esc(usage.model||'—')
-    : '⚠ ANTHROPIC_API_KEY not set in environment. Agent calls will fail with 503 until configured.';
-  document.getElementById('agentConfigBanner').innerHTML =
-    '<div style="padding:12px 16px;background:'+bannerColor+';border:1px solid '+bannerBorder+';border-radius:10px;font-size:13px;color:var(--text-primary)">'+bannerText+'</div>';
+  var pinned = agentState.threads.filter(function(t){ return t.agent_kind === 'upload_processor'; });
+  var rest   = agentState.threads.filter(function(t){ return t.agent_kind !== 'upload_processor'; });
 
-  // Totals
-  var t = usage.totals || {};
-  document.getElementById('agentCalls').textContent = fmtN0(t.calls);
-  document.getElementById('agentTokensIn').textContent = fmtN0(t.tokens_in);
-  document.getElementById('agentTokensOut').textContent = fmtN0(t.tokens_out);
-  document.getElementById('agentCost').textContent = fmtUSD(t.cost_usd);
-  document.getElementById('agentErrors').textContent = fmtN0(t.errors);
+  var renderRow = function(t, isPinned) {
+    var active = t.id === agentState.activeId ? ' active' : '';
+    var pendingBadge = (isPinned && t.pending_count > 0)
+      ? '<span class="agent-thread-badge">'+t.pending_count+'</span>' : '';
+    return '<div class="agent-thread'+active+(isPinned ? ' pinned' : '')+'" onclick="agentOpenThread('+t.id+')">'
+      + '<span class="title">'+esc(t.title || 'New chat')+'</span>'
+      + pendingBadge
+      + '<span class="menu" onclick="event.stopPropagation();agentThreadMenu('+t.id+')">⋯</span>'
+      + '</div>';
+  };
 
-  // By task type
-  var byTask = (usage.by_task_type || []);
-  var btb = document.getElementById('agentByTaskTbody');
-  btb.innerHTML = byTask.length ? byTask.map(function(r){
-    return '<tr>'
-      +'<td>'+esc(r.task_type||'—')+'</td>'
-      +'<td>'+fmtN0(r.calls)+'</td>'
-      +'<td>'+fmtN0(r.tokens_in)+'</td>'
-      +'<td>'+fmtN0(r.tokens_out)+'</td>'
-      +'<td>'+fmtUSD(r.cost_usd)+'</td>'
-    +'</tr>';
-  }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text-secondary);padding:20px">No calls in this window</td></tr>';
-
-  // Recent errors
-  var errs = (usage.recent_errors || []);
-  var etb = document.getElementById('agentErrorsTbody');
-  etb.innerHTML = errs.length ? errs.map(function(r){
-    return '<tr>'
-      +'<td style="font-size:11px">'+esc(shortTime(r.created_at))+'</td>'
-      +'<td>'+esc(r.task_type||'—')+'</td>'
-      +'<td style="color:var(--accent-red);font-size:12px">'+esc((r.error||'').slice(0,200))+'</td>'
-    +'</tr>';
-  }).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--text-secondary);padding:20px">No errors</td></tr>';
-
-  // Recent calls
-  var calls = await apiFetch('/api/admin/agent-calls?limit=50');
-  var rows = (calls && calls.calls) || [];
-  var ctb = document.getElementById('agentCallsTbody');
-  ctb.innerHTML = rows.length ? rows.map(function(r){
-    var statusColor = r.error ? 'var(--accent-red)' : 'var(--accent-green)';
-    var status = r.error ? 'error' : 'ok';
-    return '<tr>'
-      +'<td style="font-size:11px">'+esc(shortTime(r.created_at))+'</td>'
-      +'<td>'+fmtN0(r.user_id)+'</td>'
-      +'<td>'+esc(r.task_type||'—')+'</td>'
-      +'<td>'+esc(r.provider||'anthropic')+'</td>'
-      +'<td style="font-size:11px">'+esc(r.model||'—')+'</td>'
-      +'<td>'+fmtN0((r.tokens_in||0)+(r.tokens_out||0))+'</td>'
-      +'<td>'+fmtUSD(r.cost_usd)+'</td>'
-      +'<td>'+fmtN0(r.latency_ms)+' ms</td>'
-      +'<td style="color:'+statusColor+';font-weight:600">'+status+'</td>'
-    +'</tr>';
-  }).join('') : '<tr><td colspan="9" style="text-align:center;color:var(--text-secondary);padding:20px">No recent calls</td></tr>';
+  var html = '';
+  pinned.forEach(function(t){ html += renderRow(t, true); });
+  if (pinned.length && rest.length) html += '<div class="agent-thread-divider"></div>';
+  rest.forEach(function(t){ html += renderRow(t, false); });
+  el.innerHTML = html;
 }
 
-// Hook into navigateTo
-var _prevNavigateTo3 = navigateTo;
-navigateTo = function(page) {
-  _prevNavigateTo3(page);
-  var el = document.getElementById('page-agent');
-  if (el) el.style.display = page === 'agent' ? '' : 'none';
-  if (page === 'agent') loadAgentAdmin();
-};
+async function agentNewThread() {
+  var r = await apiPost('/api/chat/threads', {});
+  if (!r || !r.id) return;
+  await agentLoadThreads();
+  await agentOpenThread(r.id);
+}
 
-// Run admin check on init + after login
-document.addEventListener('DOMContentLoaded', function(){
-  if (localStorage.getItem('fin_token')) checkAdminAndShowAgentTab();
-});
-var _prevTryLogin2 = tryLogin;
-tryLogin = async function(email, password) {
-  var ok = await _prevTryLogin2(email, password);
-  if (ok) await checkAdminAndShowAgentTab();
-  return ok;
-};
+async function agentOpenThread(id) {
+  if (agentState.streaming) return;
+  agentState.activeId = id;
+  agentState.pendingProposal = null;
+  agentState.artifacts = {};
+  agentState.artifactOrder = [];
+  agentState.activeArtifact = null;
+  agentRenderThreadList();
+  var r = await apiFetch('/api/chat/threads/'+id);
+  if (!r || !r.thread) { showToast('Thread not found','error'); return; }
+  agentState.messages = r.messages || [];
+  (r.artifacts || []).forEach(function(a){
+    agentState.artifacts[a.identifier] = {
+      identifier: a.identifier, type: a.type, language: a.language,
+      title: a.title, content: a.content || '', status: a.status,
+      message_id: a.message_id
+    };
+    agentState.artifactOrder.push(a.identifier);
+  });
+  if (agentState.artifactOrder.length) {
+    agentState.activeArtifact = agentState.artifactOrder[agentState.artifactOrder.length - 1];
+  }
+  agentRenderArtifactPanel();
+  // Restore selectors and title
+  document.getElementById('agentKindSelect').value = r.thread.agent_kind;
+  document.getElementById('agentModelSelect').value = r.thread.model;
+  document.getElementById('agentThreadTitle').textContent = r.thread.title || '';
+  // Restore pending proposal if the last assistant message is still streaming
+  var lastAsst = [...agentState.messages].reverse().find(function(m){return m.role==='assistant'});
+  if (lastAsst && lastAsst.status === 'streaming') {
+    var tu = lastAsst.tool_uses ? JSON.parse(lastAsst.tool_uses) : [];
+    var p = tu.find(function(u){return u.name && u.name.indexOf('propose_')===0});
+    if (p) {
+      // We don't have the mutation in DB; rebuild via PATCH-on-confirm flow.
+      // The mutation is rebuilt server-side from the stored input on confirm
+      // (handled by the confirm endpoint via tools.buildProposal lookup).
+      agentState.pendingProposal = { tool_use_id: p.id, message_id: lastAsst.id, name: p.name, input: p.input, summary: '(restored proposal)', mutation: null };
+    }
+  }
+  agentRenderMessages();
+  agentUpdateInputState();
+}
+
+async function agentThreadMenu(id) {
+  var name = prompt('Rename thread (or leave blank to delete):', '');
+  if (name === null) return;
+  if (name.trim()) {
+    await apiPut('/api/chat/threads/'+id, { title: name.trim() });
+  } else {
+    if (!confirm('Delete this chat?')) return;
+    await apiDel('/api/chat/threads/'+id);
+    if (agentState.activeId === id) {
+      agentState.activeId = null; agentState.messages = [];
+      document.getElementById('agentMessages').innerHTML = '';
+      document.getElementById('agentThreadTitle').textContent = '';
+    }
+  }
+  await agentLoadThreads();
+}
+
+async function agentOnKindChange() {
+  if (!agentState.activeId) return;
+  await apiPut('/api/chat/threads/'+agentState.activeId, { agent_kind: document.getElementById('agentKindSelect').value });
+}
+async function agentOnModelChange() {
+  if (!agentState.activeId) return;
+  await apiPut('/api/chat/threads/'+agentState.activeId, { model: document.getElementById('agentModelSelect').value });
+}
+
+function agentRenderMessages() {
+  var el = document.getElementById('agentMessages');
+  if (!el) return;
+  if (!agentState.messages.length) {
+    el.innerHTML = '<div class="agent-empty-state">Send your first message to start the conversation.</div>';
+    return;
+  }
+  el.innerHTML = agentState.messages.map(agentRenderOneMessage).join('');
+  // Render pending proposal card after the last message if applicable
+  if (agentState.pendingProposal) {
+    el.insertAdjacentHTML('beforeend', agentRenderProposalCard(agentState.pendingProposal, 'pending'));
+  }
+  el.scrollTop = el.scrollHeight;
+}
+
+function agentRenderOneMessage(m) {
+  if (m.role === 'user') {
+    return '<div class="agent-msg user">'+esc(m.content || '')+'</div>';
+  }
+  if (m.role === 'tool') {
+    var t; try { t = JSON.parse(m.content); } catch (_) { t = { name: '?' }; }
+    var label = t.name === 'proposal_result'
+      ? (t.result && t.result.rejected ? '✗ Rejected' : (t.is_error ? '✗ Failed: ' + (t.result && t.result.error || '') : '✓ Applied'))
+      : '🛠 ' + (t.name || '');
+    return '<div class="agent-tool-chip" onclick="this.classList.toggle(\'open\')">'
+      + esc(label) + '<pre>' + esc(JSON.stringify(t.result, null, 2)) + '</pre></div>';
+  }
+  // assistant
+  var html = '<div class="agent-msg assistant" data-msg-id="'+m.id+'">'+esc(m.content || '');
+  if (m.status === 'streaming' && (!m.tool_uses || m.tool_uses === 'null')) {
+    html += '<div class="interrupted">(interrupted — send a new message to continue)</div>';
+  }
+  // Attach any artifacts whose message_id matches this message as inline chips.
+  var attached = agentState.artifactOrder
+    .map(function(id){ return agentState.artifacts[id]; })
+    .filter(function(a){ return a && a.message_id === m.id; });
+  if (attached.length) {
+    html += '<div style="display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin-top:8px">';
+    attached.forEach(function(a){
+      var liveCls = a.status === 'streaming' ? ' live' : '';
+      var typeLabel = a.type === 'code' ? (a.language || 'code') : a.type;
+      var icon = a.type === 'svg' ? '🖼' : a.type === 'html' ? '🌐' : a.type === 'code' ? '⌨' : '📄';
+      html += '<span class="agent-artifact-chip'+liveCls+'" onclick="agentShowArtifact(\''+esc(a.identifier)+'\')">'
+        + '<span class="ico">'+icon+'</span>'
+        + '<span class="ti">'+esc(a.title || a.identifier)+'</span>'
+        + '<span class="badge">'+esc(typeLabel || '')+'</span>'
+        + '</span>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function agentRenderProposalCard(p, state) {
+  var cls = state === 'applied' ? ' applied' : state === 'rejected' ? ' rejected' : '';
+  var actions = state === 'pending'
+    ? '<div class="actions"><button class="confirm" onclick="agentConfirmProposal()">Confirm</button>'
+      + '<button class="reject" onclick="agentRejectProposal()">Reject</button></div>'
+    : '<div class="actions"><span>'+(state === 'applied' ? '✓ Done' : '✗ Rejected')+'</span></div>';
+  return '<div class="agent-proposal'+cls+'" data-tool-use-id="'+esc(p.tool_use_id)+'">'
+    + '<div class="summary">🛠 '+esc(p.summary)+'</div>' + actions + '</div>';
+}
+
+function agentUpdateInputState() {
+  var btn = document.getElementById('agentSendBtn');
+  var input = document.getElementById('agentInput');
+  var hint = document.getElementById('agentPendingHint');
+  var blocked = agentState.streaming || !!agentState.pendingProposal || !agentState.activeId;
+  input.disabled = blocked;
+  btn.disabled = blocked;
+  if (agentState.streaming) btn.textContent = 'Stop';
+  else btn.textContent = 'Send';
+  hint.style.display = agentState.pendingProposal ? '' : 'none';
+}
+
+function agentOnKeyDown(e) {
+  // ⌘/Ctrl+Enter to send; plain Enter inserts newline.
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    e.preventDefault();
+    agentOnSend(e);
+  }
+}
+
+async function agentOnSend(e) {
+  e.preventDefault();
+  if (agentState.streaming) { agentStopStream(); return; }
+  if (!agentState.activeId) {
+    // Auto-create a thread on first send
+    var r = await apiPost('/api/chat/threads', {});
+    if (!r || !r.id) return;
+    agentState.activeId = r.id;
+    await agentLoadThreads();
+  }
+  var input = document.getElementById('agentInput');
+  var content = input.value.trim();
+  if (!content) return;
+  input.value = '';
+
+  // Optimistically append the user message
+  agentState.messages.push({ id: 'tmp_user_'+Date.now(), role: 'user', content: content, status: 'final' });
+  agentState.streaming = true;
+  agentUpdateInputState();
+  agentRenderMessages();
+
+  await agentRunStream(content);
+}
+
+async function agentRunStream(content) {
+  var token = localStorage.getItem('fin_token');
+  var url = '/api/chat/threads/'+agentState.activeId+'/stream';
+  // EventSource doesn't support POST or custom headers, so we use fetch + ReadableStream parsing.
+  try {
+    var resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+token },
+      body: JSON.stringify({ content: content })
+    });
+    if (!resp.ok) {
+      var err = await resp.json().catch(function(){return{};});
+      showToast(err.error || ('HTTP '+resp.status), 'error');
+      agentState.streaming = false; agentUpdateInputState(); return;
+    }
+    var reader = resp.body.getReader();
+    var decoder = new TextDecoder();
+    var buffer = '';
+    var assistantMsg = null;
+
+    while (true) {
+      var chunk = await reader.read();
+      if (chunk.done) break;
+      buffer += decoder.decode(chunk.value, { stream: true });
+      var events = buffer.split('\n\n');
+      buffer = events.pop(); // last partial
+      for (var i = 0; i < events.length; i++) {
+        var lines = events[i].split('\n');
+        var name = '', dataStr = '';
+        for (var j = 0; j < lines.length; j++) {
+          if (lines[j].indexOf('event:') === 0) name = lines[j].slice(6).trim();
+          else if (lines[j].indexOf('data:')  === 0) dataStr += lines[j].slice(5).trim();
+        }
+        if (!name) continue;
+        var data; try { data = JSON.parse(dataStr); } catch (_) { data = {}; }
+        if (name === 'thread_meta') {
+          // Replace the tmp_user_* id with the real one
+          var lastUser = [...agentState.messages].reverse().find(function(m){return m.role==='user'});
+          if (lastUser) lastUser.id = data.user_message_id;
+        } else if (name === 'assistant_start') {
+          assistantMsg = { id: data.message_id, role: 'assistant', content: '', tool_uses: null, status: 'streaming' };
+          agentState.messages.push(assistantMsg);
+          agentRenderMessages();
+        } else if (name === 'text') {
+          if (assistantMsg) { assistantMsg.content += data.delta; agentRenderMessages(); }
+        } else if (name === 'tool_use') {
+          // Insert a tool chip immediately so the user sees what was called
+          agentState.messages.push({ id: 'tmp_tu_'+data.id, role: 'tool', content: JSON.stringify({ tool_use_id: data.id, name: data.name, result: { running: true }, is_error: false }), status: 'final' });
+          agentRenderMessages();
+        } else if (name === 'tool_result') {
+          // Replace the running chip with the actual result
+          var idx = agentState.messages.findIndex(function(m){
+            if (m.role !== 'tool') return false;
+            try { return JSON.parse(m.content).tool_use_id === data.tool_use_id; } catch(_) { return false; }
+          });
+          if (idx >= 0) {
+            try {
+              var prev = JSON.parse(agentState.messages[idx].content);
+              agentState.messages[idx].content = JSON.stringify({ tool_use_id: prev.tool_use_id, name: prev.name, result: data.result, is_error: data.status === 'error' });
+            } catch(_){}
+          }
+          // Reset assistantMsg so next text deltas open a new bubble (the model
+          // will continue its turn after the read tools).
+          assistantMsg = null;
+          agentRenderMessages();
+        } else if (name === 'proposal') {
+          agentState.pendingProposal = data;
+          agentRenderMessages();
+        } else if (name === 'artifact_start') {
+          agentArtifactStart(data, assistantMsg && assistantMsg.id);
+        } else if (name === 'artifact_delta') {
+          agentArtifactDelta(data);
+        } else if (name === 'artifact_end') {
+          agentArtifactEnd(data);
+        } else if (name === 'done') {
+          if (assistantMsg) assistantMsg.status = 'final';
+          agentState.streaming = false;
+          agentUpdateInputState();
+        } else if (name === 'error') {
+          showToast(data.message || 'Stream error', 'error');
+          agentState.streaming = false;
+          agentUpdateInputState();
+        }
+      }
+    }
+  } catch (err) {
+    showToast('Network error: '+err.message, 'error');
+  } finally {
+    agentState.streaming = false;
+    agentUpdateInputState();
+    agentLoadThreads();  // refresh sidebar (updated_at, possibly new title)
+  }
+}
+
+function agentStopStream() {
+  // Best-effort abort. We don't keep the AbortController in scope here for
+  // simplicity; closing the tab/page also terminates the read loop.
+  agentState.streaming = false;
+  agentUpdateInputState();
+}
+
+async function agentConfirmProposal() {
+  if (!agentState.pendingProposal) return;
+  var p = agentState.pendingProposal;
+  // Optimistic UI
+  var card = document.querySelector('.agent-proposal');
+  if (card) { card.classList.add('applied'); card.querySelector('.actions').innerHTML = '<span>✓ Working...</span>'; }
+
+  var r = await apiPost('/api/chat/threads/'+agentState.activeId+'/confirm', {
+    tool_use_id: p.tool_use_id,
+    message_id:  p.message_id,
+    decision:    'confirm',
+    mutation:    p.mutation
+  });
+  if (!r || (r.applied === false && r.error)) {
+    showToast((r && r.error) || 'Confirmation failed', 'error');
+    if (card) { card.classList.remove('applied'); card.classList.add('rejected'); card.querySelector('.actions').innerHTML = '<span>✗ Failed</span>'; }
+  }
+  agentState.pendingProposal = null;
+  // Re-fetch the thread to pick up the new tool message
+  if (agentState.activeId) {
+    var t = await apiFetch('/api/chat/threads/'+agentState.activeId);
+    if (t && t.messages) { agentState.messages = t.messages; agentRenderMessages(); }
+  }
+  agentUpdateInputState();
+}
+
+async function agentRejectProposal() {
+  if (!agentState.pendingProposal) return;
+  var p = agentState.pendingProposal;
+  var card = document.querySelector('.agent-proposal');
+  if (card) { card.classList.add('rejected'); card.querySelector('.actions').innerHTML = '<span>✗ Rejected</span>'; }
+
+  await apiPost('/api/chat/threads/'+agentState.activeId+'/confirm', {
+    tool_use_id: p.tool_use_id,
+    message_id:  p.message_id,
+    decision:    'reject'
+  });
+  agentState.pendingProposal = null;
+  if (agentState.activeId) {
+    var t = await apiFetch('/api/chat/threads/'+agentState.activeId);
+    if (t && t.messages) { agentState.messages = t.messages; agentRenderMessages(); }
+  }
+  agentUpdateInputState();
+}
+
+// ─── Live artifacts ────────────────────────────────────────────────────────
+function agentArtifactStart(data, messageId) {
+  var id = data.identifier;
+  var a = agentState.artifacts[id];
+  if (a) {
+    // Reused identifier — overwrite as a fresh streaming artifact.
+    a.type = data.type; a.language = data.language; a.title = data.title;
+    a.content = ''; a.status = 'streaming'; a.message_id = messageId;
+  } else {
+    agentState.artifacts[id] = {
+      identifier: id, type: data.type, language: data.language,
+      title: data.title, content: '', status: 'streaming', message_id: messageId
+    };
+    agentState.artifactOrder.push(id);
+  }
+  agentState.activeArtifact = id;
+  agentRenderMessages();
+  agentRenderArtifactPanel();
+}
+
+function agentArtifactDelta(data) {
+  var a = agentState.artifacts[data.identifier];
+  if (!a) return;
+  a.content += data.delta || '';
+  // Only the active artifact is in the DOM — append directly to avoid
+  // re-rendering the whole panel on every token.
+  if (agentState.activeArtifact === a.identifier) {
+    agentRenderArtifactBody(a);
+  }
+}
+
+function agentArtifactEnd(data) {
+  var a = agentState.artifacts[data.identifier];
+  if (!a) return;
+  a.status = 'final';
+  if (typeof data.title === 'string') a.title = data.title;
+  agentRenderMessages();
+  agentRenderArtifactPanel();
+}
+
+function agentShowArtifact(identifier) {
+  if (!agentState.artifacts[identifier]) return;
+  agentState.activeArtifact = identifier;
+  agentRenderArtifactPanel();
+}
+
+function agentCloseArtifactPanel() {
+  agentState.activeArtifact = null;
+  agentRenderArtifactPanel();
+}
+
+function agentCopyArtifact() {
+  var a = agentState.artifacts[agentState.activeArtifact];
+  if (!a) return;
+  navigator.clipboard.writeText(a.content || '').then(
+    function(){ showToast('Copied to clipboard'); },
+    function(){ showToast('Copy failed', 'error'); }
+  );
+}
+
+function agentRenderArtifactPanel() {
+  var panel = document.getElementById('agentArtifactPanel');
+  var shell = document.querySelector('.agent-shell');
+  if (!panel || !shell) return;
+  var hasAny = agentState.artifactOrder.length > 0;
+  var open = hasAny && agentState.activeArtifact && agentState.artifacts[agentState.activeArtifact];
+  if (!open) {
+    panel.style.display = 'none';
+    shell.classList.remove('has-artifact');
+    return;
+  }
+  panel.style.display = 'flex';
+  shell.classList.add('has-artifact');
+
+  var a = agentState.artifacts[agentState.activeArtifact];
+  var typeBadge = document.getElementById('agentArtifactTypeBadge');
+  var titleEl = document.getElementById('agentArtifactTitle');
+  var typeLabel = a.type === 'code' ? (a.language || 'code') : a.type;
+  typeBadge.textContent = typeLabel || 'md';
+  typeBadge.className = 'typebadge' + (a.status === 'streaming' ? ' live' : '');
+  titleEl.textContent = a.title || a.identifier;
+
+  var tabsEl = document.getElementById('agentArtifactTabs');
+  if (agentState.artifactOrder.length > 1) {
+    tabsEl.style.display = 'flex';
+    tabsEl.innerHTML = agentState.artifactOrder.map(function(id){
+      var ax = agentState.artifacts[id];
+      var active = id === agentState.activeArtifact ? ' active' : '';
+      return '<span class="agent-artifact-tab'+active+'" onclick="agentShowArtifact(\''+esc(id)+'\')">'
+        + esc(ax.title || id) + '</span>';
+    }).join('');
+  } else {
+    tabsEl.style.display = 'none';
+    tabsEl.innerHTML = '';
+  }
+  agentRenderArtifactBody(a);
+}
+
+function agentRenderArtifactBody(a) {
+  var body = document.getElementById('agentArtifactBody');
+  if (!body) return;
+  var live = a.status === 'streaming';
+  var cursor = live ? '<span class="agent-artifact-cursor"></span>' : '';
+  if (a.type === 'html') {
+    // Sandboxed iframe — no scripts, no same-origin. Re-render with srcdoc.
+    body.innerHTML = '<iframe sandbox="allow-same-origin" srcdoc=""></iframe>';
+    var iframe = body.querySelector('iframe');
+    if (iframe) iframe.srcdoc = a.content || '';
+  } else if (a.type === 'svg') {
+    // Inline SVG. We trust the model's SVG output but it's still rendered
+    // inside a div — no script execution from svg context in modern browsers.
+    body.innerHTML = '<div class="svgwrap">' + (a.content || '') + cursor + '</div>';
+  } else if (a.type === 'code') {
+    body.innerHTML = '<pre>' + esc(a.content || '') + cursor + '</pre>';
+  } else {
+    // markdown (default)
+    body.innerHTML = '<div class="md">' + agentRenderMarkdown(a.content || '') + cursor + '</div>';
+  }
+  // Keep scroll pinned to bottom while streaming so live deltas stay visible.
+  if (live) body.scrollTop = body.scrollHeight;
+}
+
+// Tiny markdown renderer — handles headings, bold/italic, inline code,
+// fenced code blocks, lists, paragraphs, and pipe-tables. Good enough for
+// agent reports; not a full CommonMark implementation.
+function agentRenderMarkdown(src) {
+  if (!src) return '';
+  var s = String(src);
+  var out = '';
+  var lines = s.split('\n');
+  var i = 0;
+  function flushParagraph(buf) {
+    if (!buf.length) return;
+    var text = buf.join(' ').trim();
+    if (text) out += '<p>' + agentMdInline(text) + '</p>';
+  }
+  var paraBuf = [];
+  while (i < lines.length) {
+    var ln = lines[i];
+    // Fenced code
+    if (/^```/.test(ln)) {
+      flushParagraph(paraBuf); paraBuf = [];
+      var lang = ln.slice(3).trim();
+      var codeBuf = [];
+      i++;
+      while (i < lines.length && !/^```/.test(lines[i])) { codeBuf.push(lines[i]); i++; }
+      i++; // consume closing fence (or EOF)
+      out += '<pre><code'+(lang?' data-lang="'+esc(lang)+'"':'')+'>' + esc(codeBuf.join('\n')) + '</code></pre>';
+      continue;
+    }
+    // Heading
+    var hm = /^(#{1,6})\s+(.*)$/.exec(ln);
+    if (hm) { flushParagraph(paraBuf); paraBuf = []; out += '<h'+hm[1].length+'>'+agentMdInline(hm[2])+'</h'+hm[1].length+'>'; i++; continue; }
+    // Pipe table — header | --- | rows
+    if (/\|/.test(ln) && i+1 < lines.length && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[i+1])) {
+      flushParagraph(paraBuf); paraBuf = [];
+      var headerCells = ln.split('|').map(function(c){return c.trim();}).filter(function(c){return c.length;});
+      i += 2;
+      var rows = [];
+      while (i < lines.length && /\|/.test(lines[i]) && lines[i].trim()) {
+        rows.push(lines[i].split('|').map(function(c){return c.trim();}).filter(function(c){return c.length;}));
+        i++;
+      }
+      out += '<table><thead><tr>' + headerCells.map(function(c){return '<th>'+agentMdInline(c)+'</th>';}).join('') + '</tr></thead>';
+      if (rows.length) {
+        out += '<tbody>' + rows.map(function(r){
+          return '<tr>' + r.map(function(c){return '<td>'+agentMdInline(c)+'</td>';}).join('') + '</tr>';
+        }).join('') + '</tbody>';
+      }
+      out += '</table>';
+      continue;
+    }
+    // List item (unordered or ordered)
+    if (/^\s*([-*]|\d+\.)\s+/.test(ln)) {
+      flushParagraph(paraBuf); paraBuf = [];
+      var ordered = /^\s*\d+\./.test(ln);
+      var items = [];
+      while (i < lines.length && /^\s*([-*]|\d+\.)\s+/.test(lines[i])) {
+        items.push(lines[i].replace(/^\s*([-*]|\d+\.)\s+/, ''));
+        i++;
+      }
+      out += (ordered ? '<ol>' : '<ul>') + items.map(function(it){return '<li>'+agentMdInline(it)+'</li>';}).join('') + (ordered ? '</ol>' : '</ul>');
+      continue;
+    }
+    // Blank line ends paragraph
+    if (!ln.trim()) { flushParagraph(paraBuf); paraBuf = []; i++; continue; }
+    paraBuf.push(ln);
+    i++;
+  }
+  flushParagraph(paraBuf);
+  return out;
+}
+
+function agentMdInline(s) {
+  s = esc(s);
+  s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>');
+  s = s.replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  return s;
+}
 </script>
 
 </body>

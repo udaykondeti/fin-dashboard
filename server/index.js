@@ -21,6 +21,7 @@ const earningsRoutes = require('./routes/earnings');
 const propertiesRoutes = require('./routes/properties');
 const activityRoutes = require('./routes/activity');
 const importRoutes = require('./routes/import');
+const chatRoutes = require('./routes/chat');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -39,28 +40,36 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// CORS — explicit allowlist. Defaults to same-origin only. Production must
-// set CORS_ORIGIN (comma-separated) if cross-origin clients are expected;
-// "*" is no longer allowed silently.
+// CORS — explicit allowlist for cross-origin clients, plus an automatic
+// same-origin pass for browser POSTs that include an Origin header pointing
+// at our own host. Production should still set CORS_ORIGIN if any external
+// origins need access; "*" is no longer allowed silently.
 const allowedOrigins = (CORS_ORIGIN || '')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
 
 if (isProd && allowedOrigins.length === 0) {
-  console.warn('[cors] CORS_ORIGIN not set in production — cross-origin requests will be blocked.');
+  console.warn('[cors] CORS_ORIGIN not set — using same-origin only (Origin must equal request Host).');
 }
 
-app.use(cors({
-  origin: (origin, cb) => {
-    // Same-origin / non-browser requests have no Origin header.
-    if (!origin) return cb(null, true);
-    if (allowedOrigins.includes(origin)) return cb(null, true);
-    return cb(new Error('Origin not allowed by CORS policy'));
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+// Use the request-aware form of cors() so the origin callback can compare
+// the incoming Origin header against the request's own Host. Browsers send
+// Origin on POSTs even for same-origin requests, which the previous config
+// (which only allowed missing-Origin requests) was rejecting.
+app.use(cors((req, callback) => {
+  callback(null, {
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      const originHost = origin.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+      if (originHost === req.headers.host) return cb(null, true);
+      if (allowedOrigins.includes(origin)) return cb(null, true);
+      return cb(new Error('Origin not allowed by CORS policy'));
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+  });
 }));
 
 // Body parsing middleware
@@ -98,6 +107,7 @@ app.use('/api/earnings', earningsRoutes);
 app.use('/api/properties', propertiesRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/import', importRoutes);
+app.use('/api/chat', chatRoutes);
 
 const authMiddleware = require('./middleware/auth');
 const vaultRoutes = require('./routes/vault');
@@ -113,6 +123,24 @@ app.use('/api/admin', authMiddleware, requireAdmin, adminRoutes);
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'fin.kirakon.com', timestamp: new Date().toISOString() });
+});
+
+// Config diagnostic — reports which optional integrations are reachable
+// from inside the running process. Returns booleans only, never secrets.
+// Useful for verifying env-var propagation through pm2 / ecosystem.config.
+app.get('/api/health/config', (req, res) => {
+  res.json({
+    anthropic: !!process.env.ANTHROPIC_API_KEY,
+    groq: !!process.env.GROQ_API_KEY,
+    s3: {
+      bucket: !!process.env.S3_BUCKET,
+      access_key: !!process.env.AWS_ACCESS_KEY_ID,
+      secret_key: !!process.env.AWS_SECRET_ACCESS_KEY
+    },
+    cors_origin_set: !!CORS_ORIGIN,
+    node_env: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Catch-all: serve the frontend for any non-API route. The global no-cache

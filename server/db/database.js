@@ -369,7 +369,40 @@ function initializeDatabase() {
 
     CREATE INDEX IF NOT EXISTS idx_agent_calls_user_time ON agent_calls(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_agent_calls_task_time ON agent_calls(task_type, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS agent_threads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      title TEXT NOT NULL DEFAULT 'New chat',
+      agent_kind TEXT NOT NULL DEFAULT 'financial_advisor',
+      model TEXT NOT NULL DEFAULT 'claude-haiku-4-5',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_agent_threads_user ON agent_threads(user_id, updated_at DESC);
+
+    CREATE TABLE IF NOT EXISTS agent_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      thread_id INTEGER NOT NULL,
+      role TEXT NOT NULL CHECK(role IN ('user','assistant','tool')),
+      content TEXT,
+      tool_uses TEXT,
+      status TEXT NOT NULL DEFAULT 'final' CHECK(status IN ('streaming','final')),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (thread_id) REFERENCES agent_threads(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_agent_messages_thread ON agent_messages(thread_id, id);
   `);
+
+  // Add thread_id link column for chat-driven calls. Idempotent: a second
+  // run throws "duplicate column name", which we swallow.
+  try { db.exec('ALTER TABLE agent_calls ADD COLUMN thread_id INTEGER'); }
+  catch (e) {
+    if (!/duplicate column/i.test(e.message)) throw e;
+  }
 
   console.log('Database tables initialized.');
   seedData();
@@ -497,6 +530,34 @@ function runMigrations() {
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           PRIMARY KEY (name, user_id)
         );
+      `);
+    } },
+    { id: 19, name: 'vault_files.processed_at',     run: () => addColumnIfMissing('vault_files', 'processed_at',     'ALTER TABLE vault_files ADD COLUMN processed_at DATETIME') },
+    { id: 20, name: 'vault_files.processing_error', run: () => addColumnIfMissing('vault_files', 'processing_error', 'ALTER TABLE vault_files ADD COLUMN processing_error TEXT') },
+    { id: 21, name: 'create_agent_artifacts', run: () => {
+      // Live artifacts emitted by the chat agent (Claude.ai-style side-panel
+      // renders for substantial generated content — markdown reports, HTML
+      // snippets, SVG charts, code). Streamed in real time via SSE; persisted
+      // here so they reload on thread switch. `identifier` is the model-
+      // supplied stable id used to disambiguate or update artifacts within a
+      // thread; `(thread_id, identifier)` is the natural key.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS agent_artifacts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          thread_id INTEGER NOT NULL,
+          message_id INTEGER,
+          identifier TEXT NOT NULL,
+          type TEXT NOT NULL DEFAULT 'markdown',
+          language TEXT,
+          title TEXT NOT NULL DEFAULT 'Artifact',
+          content TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'streaming' CHECK(status IN ('streaming','final')),
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (thread_id) REFERENCES agent_threads(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_agent_artifacts_thread ON agent_artifacts(thread_id, id);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_artifacts_thread_ident ON agent_artifacts(thread_id, identifier);
       `);
     } },
   ];

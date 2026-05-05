@@ -151,6 +151,21 @@ async function getDownloadPresignedUrl(bucket, key, expiresIn = 3600) {
 }
 
 /**
+ * Download an object from S3 as a Node Buffer. Used by server-side
+ * processors (e.g., vault auto-process) that need the raw bytes rather
+ * than a presigned URL.
+ */
+async function getObjectBuffer(bucket, key) {
+  const client = getS3Client();
+  const cmd = new GetObjectCommand({ Bucket: bucket, Key: key });
+  const out = await client.send(cmd);
+  // out.Body is a Readable stream in Node; collect to Buffer.
+  const chunks = [];
+  for await (const chunk of out.Body) chunks.push(chunk);
+  return Buffer.concat(chunks);
+}
+
+/**
  * Lists objects in a bucket under a given prefix.
  * @param {string} bucket
  * @param {string} prefix
@@ -235,6 +250,7 @@ module.exports = {
   ensureBucketExists,
   getUploadPresignedUrl,
   getDownloadPresignedUrl,
+  getObjectBuffer,
   listFiles,
   deleteFile,
   getFYFolder,
