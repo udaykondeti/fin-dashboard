@@ -74,12 +74,13 @@ router.post('/login', loginLimiter, async (req, res) => {
         id: user.id,
         email: user.email,
         name: user.name,
-        created_at: user.created_at
+        created_at: user.created_at,
+        is_admin: !!user.is_admin
       }
     });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ error: 'Login failed', message: err.message });
+    res.status(500).json({ error: 'Login failed' });
   }
 });
 
@@ -89,7 +90,7 @@ router.post('/login', loginLimiter, async (req, res) => {
  */
 router.get('/me', authMiddleware, (req, res) => {
   try {
-    const user = db.prepare('SELECT id, email, name, created_at FROM users WHERE id = ?').get(req.user.id);
+    const user = db.prepare('SELECT id, email, name, created_at, is_admin FROM users WHERE id = ?').get(req.user.id);
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });

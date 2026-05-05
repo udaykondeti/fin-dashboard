@@ -371,6 +371,7 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
       <button class="nav-tab" onclick="navigateTo('vault')">&#x1F4C1; Vault</button>
       <button class="nav-tab" onclick="navigateTo('properties')">&#x1F3E0; Properties</button>
       <button class="nav-tab" onclick="navigateTo('incometax')">&#x1F4CB; Income Tax</button>
+      <button class="nav-tab" id="navTabAgent" onclick="navigateTo('agent')" style="display:none">&#x1F916; Agent</button>
     </div>
     <div class="topnav-right">
       <div class="profile-switcher" id="profileSwitcher" onclick="toggleProfileMenu()">
@@ -414,6 +415,7 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('vault');closeMobileMenu()">&#x1F4C1; Vault</button>
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('properties');closeMobileMenu()">&#x1F3E0; Properties</button>
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('incometax');closeMobileMenu()">&#x1F4CB; Income Tax</button>
+      <button class="nav-tab" id="mobileTabAgent" style="width:100%;text-align:left;display:none" onclick="navigateTo('agent');closeMobileMenu()">&#x1F916; Agent</button>
     </div>
   </div>
 
@@ -1065,9 +1067,14 @@ function showToast(msg,type){
 async function tryLogin(email,password){
   try{
     var res=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,password:password})});
-    if(res.ok){var data=await res.json();localStorage.setItem('fin_token',data.token||'demo');localStorage.setItem('fin_user',data.user&&data.user.name||'Kiran');return true;}
+    if(res.ok){
+      var data=await res.json();
+      if(!data || !data.token) return false;
+      localStorage.setItem('fin_token',data.token);
+      localStorage.setItem('fin_user',(data.user && data.user.name) || email);
+      return true;
+    }
   }catch(e){}
-  if(password.length>=4){localStorage.setItem('fin_token','demo_'+Date.now());localStorage.setItem('fin_user','Kiran');return true;}
   return false;
 }
 
@@ -1078,7 +1085,7 @@ document.getElementById('loginForm').addEventListener('submit',async function(e)
   btn.textContent='Signing in...';btn.disabled=true;err.style.display='none';
   var ok=await tryLogin(document.getElementById('loginEmail').value,document.getElementById('loginPassword').value);
   if(ok){showApp();}
-  else{err.textContent='Invalid credentials. Enter any password (4+ chars) for demo mode.';err.style.display='block';}
+  else{err.textContent='Invalid email or password.';err.style.display='block';}
   btn.textContent='Sign In';btn.disabled=false;
 });
 
@@ -2523,6 +2530,69 @@ checkAuth();
   </div>
 </div>
 
+<!-- AGENT ADMIN PAGE -->
+<div class="page" id="page-agent" style="display:none">
+  <div class="section-header">
+    <div>
+      <div class="section-title">&#x1F916; Agent Admin</div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">LLM call usage, costs &amp; recent activity (Anthropic + Groq)</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <label style="font-size:12px;color:var(--text-secondary)">Window:</label>
+      <select id="agentDaysSelect" onchange="loadAgentAdmin()" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);padding:6px 10px;border-radius:6px;font-size:13px">
+        <option value="1">24h</option>
+        <option value="7">7 days</option>
+        <option value="30" selected>30 days</option>
+        <option value="90">90 days</option>
+      </select>
+      <button class="add-btn" onclick="loadAgentAdmin()">↻ Refresh</button>
+    </div>
+  </div>
+
+  <div id="agentConfigBanner" style="margin-bottom:18px"></div>
+
+  <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:24px">
+    <div class="summary-card" style="flex:1;min-width:140px"><div class="summary-card-label">Calls</div><div class="summary-card-value" id="agentCalls">0</div></div>
+    <div class="summary-card green" style="flex:1;min-width:140px"><div class="summary-card-label">Tokens In</div><div class="summary-card-value green" id="agentTokensIn">0</div></div>
+    <div class="summary-card blue" style="flex:1;min-width:140px"><div class="summary-card-label">Tokens Out</div><div class="summary-card-value blue" id="agentTokensOut">0</div></div>
+    <div class="summary-card gold" style="flex:1;min-width:140px"><div class="summary-card-label">Cost (USD)</div><div class="summary-card-value gold" id="agentCost">$0.00</div></div>
+    <div class="summary-card" style="flex:1;min-width:140px"><div class="summary-card-label">Errors</div><div class="summary-card-value" id="agentErrors" style="color:var(--accent-red)">0</div></div>
+  </div>
+
+  <div class="tab-bar" style="margin-bottom:18px">
+    <button class="tab-btn active" onclick="switchAgentTab('byTask',this)">By Task Type</button>
+    <button class="tab-btn" onclick="switchAgentTab('errors',this)">Recent Errors</button>
+    <button class="tab-btn" onclick="switchAgentTab('calls',this)">Call History</button>
+  </div>
+
+  <div class="tab-content active" id="agent-tab-byTask">
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Task Type</th><th>Calls</th><th>Tokens In</th><th>Tokens Out</th><th>Cost (USD)</th></tr></thead>
+        <tbody id="agentByTaskTbody"><tr><td colspan="5" style="text-align:center;color:var(--text-secondary);padding:20px">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="tab-content" id="agent-tab-errors">
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Time</th><th>Task</th><th>Error</th></tr></thead>
+        <tbody id="agentErrorsTbody"><tr><td colspan="3" style="text-align:center;color:var(--text-secondary);padding:20px">No errors</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="tab-content" id="agent-tab-calls">
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Time</th><th>User</th><th>Task</th><th>Provider</th><th>Model</th><th>Tokens</th><th>Cost</th><th>Latency</th><th>Status</th></tr></thead>
+        <tbody id="agentCallsTbody"><tr><td colspan="9" style="text-align:center;color:var(--text-secondary);padding:20px">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- Property Add/Edit Modal -->
 <div class="modal-overlay" id="modal-addProperty">
   <div class="modal-box" style="max-width:600px">
@@ -3171,11 +3241,62 @@ function renderProfileManage() {
     var meta = '';
     if (p.legal_name) meta += '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px">'+esc(p.legal_name)+'</div>';
     if (p.pan_number) meta += '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px">PAN: '+esc(maskPan(p.pan_number))+'</div>';
-    return '<div class="profile-manage-item">'
+    var actions = '<button class="action-btn" onclick="openProfileEdit('+p.id+')">Edit</button>'
+      +(p.is_default?'':' <button class="action-btn del" onclick="deleteProfile('+p.id+')">Delete</button>');
+    var head = '<div class="profile-manage-item">'
       +'<span><span class="profile-color-dot" style="background:'+esc(p.color)+'"></span>'+esc(p.icon)+' '+esc(p.name)+(p.is_default?' <span style="font-size:10px;color:var(--accent-gold)">(default)</span>':'')+meta+'</span>'
-      +(p.is_default?'':'<button class="action-btn del" onclick="deleteProfile('+p.id+')">Delete</button>')
+      +'<span style="display:flex;gap:6px">'+actions+'</span>'
       +'</div>';
+    var editForm = '<div id="profileEdit-'+p.id+'" style="display:none;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px">'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
+        +'<input id="pe-name-'+p.id+'" placeholder="Name" value="'+esc(p.name||'')+'" style="background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);padding:6px 8px;border-radius:6px;font-size:12px">'
+        +'<input id="pe-color-'+p.id+'" type="color" value="'+esc(p.color||'#94a3b8')+'" style="height:32px;width:100%;border:1px solid var(--border);border-radius:6px;background:var(--bg-primary)">'
+        +'<input id="pe-icon-'+p.id+'" placeholder="Icon" value="'+esc(p.icon||'👤')+'" style="background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);padding:6px 8px;border-radius:6px;font-size:12px">'
+        +'<input id="pe-legal-'+p.id+'" placeholder="Legal name" value="'+esc(p.legal_name||'')+'" style="background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);padding:6px 8px;border-radius:6px;font-size:12px">'
+        +'<input id="pe-pan-'+p.id+'" placeholder="PAN (ABCDE1234F)" value="'+esc(p.pan_number||'')+'" style="background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);padding:6px 8px;border-radius:6px;font-size:12px;text-transform:uppercase">'
+        +'<input id="pe-aadh-'+p.id+'" placeholder="Aadhaar last 4" maxlength="4" value="'+esc(p.aadhaar_last4||'')+'" style="background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);padding:6px 8px;border-radius:6px;font-size:12px">'
+      +'</div>'
+      +'<div style="display:flex;gap:8px;justify-content:flex-end">'
+        +'<button class="btn-cancel" onclick="closeProfileEdit('+p.id+')">Cancel</button>'
+        +'<button class="btn-save" onclick="saveProfileEdit('+p.id+')">Save</button>'
+      +'</div>'
+    +'</div>';
+    return head + editForm;
   }).join('');
+}
+
+function openProfileEdit(id) {
+  var el = document.getElementById('profileEdit-'+id);
+  if (el) el.style.display = '';
+}
+function closeProfileEdit(id) {
+  var el = document.getElementById('profileEdit-'+id);
+  if (el) el.style.display = 'none';
+}
+async function saveProfileEdit(id) {
+  var name = document.getElementById('pe-name-'+id).value.trim();
+  var color = document.getElementById('pe-color-'+id).value;
+  var icon = document.getElementById('pe-icon-'+id).value.trim() || '👤';
+  var legal = document.getElementById('pe-legal-'+id).value.trim();
+  var pan = document.getElementById('pe-pan-'+id).value.trim();
+  var aadh = document.getElementById('pe-aadh-'+id).value.trim();
+  if (!name) return showToast('Name is required','error');
+  if (pan && !PAN_RE.test(pan)) return showToast('PAN must look like ABCDE1234F','error');
+  if (aadh && !AADHAAR4_RE.test(aadh)) return showToast('Aadhaar must be exactly 4 digits','error');
+  var body = {name:name, color:color, icon:icon};
+  body.legal_name = legal || null;
+  body.pan_number = pan ? pan.toUpperCase() : null;
+  body.aadhaar_last4 = aadh || null;
+  var token = localStorage.getItem('fin_token');
+  var res = await fetch('/api/profiles/'+id, {method:'PUT', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body:JSON.stringify(body)});
+  var r = await res.json().catch(function(){return null});
+  if (res.ok) {
+    await loadProfiles();
+    renderProfileManage();
+    showToast('Profile updated','success');
+  } else {
+    showToast((r && r.error) || 'Update failed','error');
+  }
 }
 
 var PAN_RE = /^[A-Z]{5}\d{4}[A-Z]$/i;
@@ -4249,6 +4370,127 @@ function clearImport() {
   document.getElementById('importPreviewSection').style.display = 'none';
   document.getElementById('importFileInput').value = '';
 }
+
+// ─── AGENT ADMIN PAGE ─────────────────────────────────────────────────────────
+var _isAdmin = false;
+
+async function checkAdminAndShowAgentTab() {
+  try {
+    var r = await apiFetch('/api/auth/me');
+    _isAdmin = !!(r && r.user && r.user.is_admin);
+  } catch (e) { _isAdmin = false; }
+  var tab = document.getElementById('navTabAgent');
+  var mt = document.getElementById('mobileTabAgent');
+  if (tab) tab.style.display = _isAdmin ? '' : 'none';
+  if (mt) mt.style.display = _isAdmin ? '' : 'none';
+}
+
+function switchAgentTab(tab, btn) {
+  document.querySelectorAll('#page-agent .tab-btn').forEach(function(b){b.classList.remove('active')});
+  document.querySelectorAll('#page-agent .tab-content').forEach(function(c){c.classList.remove('active')});
+  if (btn) btn.classList.add('active');
+  var el = document.getElementById('agent-tab-'+tab);
+  if (el) el.classList.add('active');
+}
+
+function fmtUSD(n) { return '$' + Number(n||0).toFixed(4); }
+function fmtN0(n) { return Number(n||0).toLocaleString('en-IN'); }
+function shortTime(ts) {
+  if (!ts) return '—';
+  try { return new Date(ts.replace(' ','T')+'Z').toLocaleString(); } catch(e) { return ts; }
+}
+
+async function loadAgentAdmin() {
+  if (!_isAdmin) return;
+  var days = document.getElementById('agentDaysSelect').value || 30;
+
+  // Banner: configured?
+  var usage = await apiFetch('/api/admin/agent-usage?days='+days);
+  if (!usage) {
+    document.getElementById('agentConfigBanner').innerHTML = '<div style="padding:12px 16px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:10px;color:var(--accent-red);font-size:13px">⚠ Failed to load agent usage. Are you admin?</div>';
+    return;
+  }
+  var configured = usage.configured;
+  var bannerColor = configured ? 'rgba(34,197,94,.08)' : 'rgba(245,158,11,.08)';
+  var bannerBorder = configured ? 'rgba(34,197,94,.25)' : 'rgba(245,158,11,.25)';
+  var bannerText = configured
+    ? '✓ Anthropic agent configured · model: '+esc(usage.model||'—')
+    : '⚠ ANTHROPIC_API_KEY not set in environment. Agent calls will fail with 503 until configured.';
+  document.getElementById('agentConfigBanner').innerHTML =
+    '<div style="padding:12px 16px;background:'+bannerColor+';border:1px solid '+bannerBorder+';border-radius:10px;font-size:13px;color:var(--text-primary)">'+bannerText+'</div>';
+
+  // Totals
+  var t = usage.totals || {};
+  document.getElementById('agentCalls').textContent = fmtN0(t.calls);
+  document.getElementById('agentTokensIn').textContent = fmtN0(t.tokens_in);
+  document.getElementById('agentTokensOut').textContent = fmtN0(t.tokens_out);
+  document.getElementById('agentCost').textContent = fmtUSD(t.cost_usd);
+  document.getElementById('agentErrors').textContent = fmtN0(t.errors);
+
+  // By task type
+  var byTask = (usage.by_task_type || []);
+  var btb = document.getElementById('agentByTaskTbody');
+  btb.innerHTML = byTask.length ? byTask.map(function(r){
+    return '<tr>'
+      +'<td>'+esc(r.task_type||'—')+'</td>'
+      +'<td>'+fmtN0(r.calls)+'</td>'
+      +'<td>'+fmtN0(r.tokens_in)+'</td>'
+      +'<td>'+fmtN0(r.tokens_out)+'</td>'
+      +'<td>'+fmtUSD(r.cost_usd)+'</td>'
+    +'</tr>';
+  }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text-secondary);padding:20px">No calls in this window</td></tr>';
+
+  // Recent errors
+  var errs = (usage.recent_errors || []);
+  var etb = document.getElementById('agentErrorsTbody');
+  etb.innerHTML = errs.length ? errs.map(function(r){
+    return '<tr>'
+      +'<td style="font-size:11px">'+esc(shortTime(r.created_at))+'</td>'
+      +'<td>'+esc(r.task_type||'—')+'</td>'
+      +'<td style="color:var(--accent-red);font-size:12px">'+esc((r.error||'').slice(0,200))+'</td>'
+    +'</tr>';
+  }).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--text-secondary);padding:20px">No errors</td></tr>';
+
+  // Recent calls
+  var calls = await apiFetch('/api/admin/agent-calls?limit=50');
+  var rows = (calls && calls.calls) || [];
+  var ctb = document.getElementById('agentCallsTbody');
+  ctb.innerHTML = rows.length ? rows.map(function(r){
+    var statusColor = r.error ? 'var(--accent-red)' : 'var(--accent-green)';
+    var status = r.error ? 'error' : 'ok';
+    return '<tr>'
+      +'<td style="font-size:11px">'+esc(shortTime(r.created_at))+'</td>'
+      +'<td>'+fmtN0(r.user_id)+'</td>'
+      +'<td>'+esc(r.task_type||'—')+'</td>'
+      +'<td>'+esc(r.provider||'anthropic')+'</td>'
+      +'<td style="font-size:11px">'+esc(r.model||'—')+'</td>'
+      +'<td>'+fmtN0((r.tokens_in||0)+(r.tokens_out||0))+'</td>'
+      +'<td>'+fmtUSD(r.cost_usd)+'</td>'
+      +'<td>'+fmtN0(r.latency_ms)+' ms</td>'
+      +'<td style="color:'+statusColor+';font-weight:600">'+status+'</td>'
+    +'</tr>';
+  }).join('') : '<tr><td colspan="9" style="text-align:center;color:var(--text-secondary);padding:20px">No recent calls</td></tr>';
+}
+
+// Hook into navigateTo
+var _prevNavigateTo3 = navigateTo;
+navigateTo = function(page) {
+  _prevNavigateTo3(page);
+  var el = document.getElementById('page-agent');
+  if (el) el.style.display = page === 'agent' ? '' : 'none';
+  if (page === 'agent') loadAgentAdmin();
+};
+
+// Run admin check on init + after login
+document.addEventListener('DOMContentLoaded', function(){
+  if (localStorage.getItem('fin_token')) checkAdminAndShowAgentTab();
+});
+var _prevTryLogin2 = tryLogin;
+tryLogin = async function(email, password) {
+  var ok = await _prevTryLogin2(email, password);
+  if (ok) await checkAdminAndShowAgentTab();
+  return ok;
+};
 </script>
 
 </body>

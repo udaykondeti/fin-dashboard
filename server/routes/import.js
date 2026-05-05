@@ -147,43 +147,97 @@ router.post('/preview', (req, res) => {
   });
 });
 
+const MAX_IMPORT_ROWS = 5000;
+const ALLOWED_FREQUENCIES = new Set(['Monthly','Annual','Quarterly','Weekly','One-time']);
+
+function safeStr(v, max) {
+  if (v == null) return null;
+  const s = String(v).trim();
+  return s.length > max ? s.slice(0, max) : s;
+}
+
+function safeNum(v, opts) {
+  const n = typeof v === 'number' ? v : parseFloat(v);
+  if (!Number.isFinite(n)) return null;
+  if (opts && opts.min != null && n < opts.min) return null;
+  if (opts && opts.max != null && n > opts.max) return null;
+  return n;
+}
+
 // POST /api/import/commit  — save parsed rows to DB
 router.post('/commit', (req, res) => {
   const { type, rows } = req.body;
-  if (!type || !rows || !rows.length) return res.status(400).json({ error: 'type and rows required' });
+  if (!type || !Array.isArray(rows) || !rows.length) {
+    return res.status(400).json({ error: 'type and rows required' });
+  }
+  if (rows.length > MAX_IMPORT_ROWS) {
+    return res.status(413).json({ error: `Too many rows. Max ${MAX_IMPORT_ROWS} per import.` });
+  }
   const userId = req.user.id;
 
-  let inserted = 0, skipped = 0, errors = [];
+  const result = { inserted: 0, skipped: 0, errors: [] };
 
-  if (type === 'stocks') {
-    const stmt = db.prepare(`INSERT INTO stocks (user_id, symbol, company_name, quantity, avg_buy_price) VALUES (?,?,?,?,?)`);
-    for (const r of rows) {
-      try {
-        stmt.run(userId, r.symbol, r.company_name || r.symbol, r.quantity || 0, r.avg_buy_price || 0);
-        inserted++;
-      } catch (e) { errors.push(r.symbol + ': ' + e.message); skipped++; }
+  try {
+    if (type === 'stocks') {
+      const stmt = db.prepare(`INSERT INTO stocks (user_id, symbol, company_name, quantity, avg_buy_price) VALUES (?,?,?,?,?)`);
+      const tx = db.transaction((rs) => {
+        for (const r of rs) {
+          const symbol = safeStr(r.symbol, 32);
+          const name = safeStr(r.company_name || r.symbol, 200);
+          const qty = safeNum(r.quantity, { min: 0, max: 1e9 });
+          const price = safeNum(r.avg_buy_price, { min: 0, max: 1e9 });
+          if (!symbol || qty == null || qty <= 0) {
+            result.skipped++; result.errors.push((symbol || '<row>') + ': invalid symbol or quantity');
+            continue;
+          }
+          stmt.run(userId, symbol, name || symbol, qty, price || 0);
+          result.inserted++;
+        }
+      });
+      tx(rows);
+    } else if (type === 'mutual_funds') {
+      const stmt = db.prepare(`INSERT INTO mutual_funds (user_id, fund_name, units, avg_nav, fund_type) VALUES (?,?,?,?,?)`);
+      const tx = db.transaction((rs) => {
+        for (const r of rs) {
+          const name = safeStr(r.fund_name, 300);
+          const units = safeNum(r.units, { min: 0, max: 1e12 });
+          const nav = safeNum(r.avg_nav, { min: 0, max: 1e9 });
+          const ftype = safeStr(r.fund_type, 50) || 'Equity';
+          if (!name || units == null || units <= 0) {
+            result.skipped++; result.errors.push((name || '<row>') + ': invalid fund_name or units');
+            continue;
+          }
+          stmt.run(userId, name, units, nav || 0, ftype);
+          result.inserted++;
+        }
+      });
+      tx(rows);
+    } else if (type === 'earnings') {
+      const stmt = db.prepare(`INSERT INTO earnings (user_id, source_name, source_type, amount, frequency) VALUES (?,?,?,?,?)`);
+      const tx = db.transaction((rs) => {
+        for (const r of rs) {
+          const name = safeStr(r.source_name, 200);
+          const amount = safeNum(r.amount, { min: 0, max: 1e10 });
+          const freq = ALLOWED_FREQUENCIES.has(r.frequency) ? r.frequency : 'Monthly';
+          const stype = safeStr(r.source_type, 50) || 'other';
+          if (!name || amount == null || amount <= 0) {
+            result.skipped++; result.errors.push((name || '<row>') + ': invalid source_name or amount');
+            continue;
+          }
+          stmt.run(userId, name, stype, amount, freq);
+          result.inserted++;
+        }
+      });
+      tx(rows);
+    } else {
+      return res.status(400).json({ error: 'Unsupported import type: ' + type });
     }
-  } else if (type === 'mutual_funds') {
-    const stmt = db.prepare(`INSERT INTO mutual_funds (user_id, fund_name, units, avg_nav, fund_type) VALUES (?,?,?,?,?)`);
-    for (const r of rows) {
-      try {
-        stmt.run(userId, r.fund_name, r.units || 0, r.avg_nav || 0, r.fund_type || 'Equity');
-        inserted++;
-      } catch (e) { errors.push(r.fund_name + ': ' + e.message); skipped++; }
-    }
-  } else if (type === 'earnings') {
-    const stmt = db.prepare(`INSERT INTO earnings (user_id, source_name, source_type, amount, frequency) VALUES (?,?,?,?,?)`);
-    for (const r of rows) {
-      try {
-        stmt.run(userId, r.source_name, r.source_type || 'other', r.amount || 0, r.frequency || 'Monthly');
-        inserted++;
-      } catch (e) { errors.push(r.source_name + ': ' + e.message); skipped++; }
-    }
-  } else {
-    return res.status(400).json({ error: 'Unsupported import type: ' + type });
+  } catch (err) {
+    console.error('[import] commit error:', err);
+    return res.status(500).json({ error: 'Import failed' });
   }
 
-  res.json({ inserted, skipped, errors: errors.slice(0, 10) });
+  res.json({ inserted: result.inserted, skipped: result.skipped, errors: result.errors.slice(0, 10) });
 });
 
 module.exports = router;
