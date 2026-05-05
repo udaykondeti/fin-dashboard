@@ -1661,9 +1661,14 @@ function showToast(msg,type){
 async function tryLogin(email,password){
   try{
     var res=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,password:password})});
-    if(res.ok){var data=await res.json();localStorage.setItem('fin_token',data.token||'demo');localStorage.setItem('fin_user',data.user&&data.user.name||'Kiran');return true;}
+    if(res.ok){
+      var data=await res.json();
+      if(!data || !data.token) return false;
+      localStorage.setItem('fin_token',data.token);
+      localStorage.setItem('fin_user',(data.user && data.user.name) || email);
+      return true;
+    }
   }catch(e){}
-  if(password.length>=4){localStorage.setItem('fin_token','demo_'+Date.now());localStorage.setItem('fin_user','Kiran');return true;}
   return false;
 }
 
@@ -1674,7 +1679,7 @@ document.getElementById('loginForm').addEventListener('submit',async function(e)
   btn.textContent='Signing in...';btn.disabled=true;err.style.display='none';
   var ok=await tryLogin(document.getElementById('loginEmail').value,document.getElementById('loginPassword').value);
   if(ok){showApp();}
-  else{err.textContent='Invalid credentials. Enter any password (4+ chars) for demo mode.';err.style.display='block';}
+  else{err.textContent='Invalid email or password.';err.style.display='block';}
   btn.textContent='Sign In';btn.disabled=false;
 });
 
@@ -3459,11 +3464,62 @@ function renderProfileManage() {
     var meta = '';
     if (p.legal_name) meta += '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px">'+esc(p.legal_name)+'</div>';
     if (p.pan_number) meta += '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px">PAN: '+esc(maskPan(p.pan_number))+'</div>';
-    return '<div class="profile-manage-item">'
+    var actions = '<button class="action-btn" onclick="openProfileEdit('+p.id+')">Edit</button>'
+      +(p.is_default?'':' <button class="action-btn del" onclick="deleteProfile('+p.id+')">Delete</button>');
+    var head = '<div class="profile-manage-item">'
       +'<span><span class="profile-color-dot" style="background:'+esc(p.color)+'"></span>'+esc(p.icon)+' '+esc(p.name)+(p.is_default?' <span style="font-size:10px;color:var(--accent-gold)">(default)</span>':'')+meta+'</span>'
-      +(p.is_default?'':'<button class="action-btn del" onclick="deleteProfile('+p.id+')">Delete</button>')
+      +'<span style="display:flex;gap:6px">'+actions+'</span>'
       +'</div>';
+    var editForm = '<div id="profileEdit-'+p.id+'" style="display:none;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px">'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
+        +'<input id="pe-name-'+p.id+'" placeholder="Name" value="'+esc(p.name||'')+'" style="background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);padding:6px 8px;border-radius:6px;font-size:12px">'
+        +'<input id="pe-color-'+p.id+'" type="color" value="'+esc(p.color||'#94a3b8')+'" style="height:32px;width:100%;border:1px solid var(--border);border-radius:6px;background:var(--bg-primary)">'
+        +'<input id="pe-icon-'+p.id+'" placeholder="Icon" value="'+esc(p.icon||'👤')+'" style="background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);padding:6px 8px;border-radius:6px;font-size:12px">'
+        +'<input id="pe-legal-'+p.id+'" placeholder="Legal name" value="'+esc(p.legal_name||'')+'" style="background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);padding:6px 8px;border-radius:6px;font-size:12px">'
+        +'<input id="pe-pan-'+p.id+'" placeholder="PAN (ABCDE1234F)" value="'+esc(p.pan_number||'')+'" style="background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);padding:6px 8px;border-radius:6px;font-size:12px;text-transform:uppercase">'
+        +'<input id="pe-aadh-'+p.id+'" placeholder="Aadhaar last 4" maxlength="4" value="'+esc(p.aadhaar_last4||'')+'" style="background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);padding:6px 8px;border-radius:6px;font-size:12px">'
+      +'</div>'
+      +'<div style="display:flex;gap:8px;justify-content:flex-end">'
+        +'<button class="btn-cancel" onclick="closeProfileEdit('+p.id+')">Cancel</button>'
+        +'<button class="btn-save" onclick="saveProfileEdit('+p.id+')">Save</button>'
+      +'</div>'
+    +'</div>';
+    return head + editForm;
   }).join('');
+}
+
+function openProfileEdit(id) {
+  var el = document.getElementById('profileEdit-'+id);
+  if (el) el.style.display = '';
+}
+function closeProfileEdit(id) {
+  var el = document.getElementById('profileEdit-'+id);
+  if (el) el.style.display = 'none';
+}
+async function saveProfileEdit(id) {
+  var name = document.getElementById('pe-name-'+id).value.trim();
+  var color = document.getElementById('pe-color-'+id).value;
+  var icon = document.getElementById('pe-icon-'+id).value.trim() || '👤';
+  var legal = document.getElementById('pe-legal-'+id).value.trim();
+  var pan = document.getElementById('pe-pan-'+id).value.trim();
+  var aadh = document.getElementById('pe-aadh-'+id).value.trim();
+  if (!name) return showToast('Name is required','error');
+  if (pan && !PAN_RE.test(pan)) return showToast('PAN must look like ABCDE1234F','error');
+  if (aadh && !AADHAAR4_RE.test(aadh)) return showToast('Aadhaar must be exactly 4 digits','error');
+  var body = {name:name, color:color, icon:icon};
+  body.legal_name = legal || null;
+  body.pan_number = pan ? pan.toUpperCase() : null;
+  body.aadhaar_last4 = aadh || null;
+  var token = localStorage.getItem('fin_token');
+  var res = await fetch('/api/profiles/'+id, {method:'PUT', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body:JSON.stringify(body)});
+  var r = await res.json().catch(function(){return null});
+  if (res.ok) {
+    await loadProfiles();
+    renderProfileManage();
+    showToast('Profile updated','success');
+  } else {
+    showToast((r && r.error) || 'Update failed','error');
+  }
 }
 
 var PAN_RE = /^[A-Z]{5}\d{4}[A-Z]$/i;

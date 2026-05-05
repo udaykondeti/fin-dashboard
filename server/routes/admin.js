@@ -64,7 +64,7 @@ router.get('/agent-usage', (req, res) => {
     });
   } catch (err) {
     console.error('[admin] agent-usage error:', err);
-    res.status(500).json({ error: 'Database error', message: err.message });
+    res.status(500).json({ error: 'Database error' });
   }
 });
 
@@ -101,17 +101,27 @@ router.get('/agent-calls', (req, res) => {
       LIMIT ? OFFSET ?
     `).all(...params, limit, offset);
 
+    // Strip prompt previews unless explicitly requested with ?include_previews=1
+    // and limited to a single user — defends against bulk exfil of cross-user
+    // prompt content even by an admin token.
+    const includePreviews = req.query.include_previews === '1' && filterUserId;
+    const sanitised = rows.map(r => {
+      const o = Object.assign({}, r);
+      if (!includePreviews) { delete o.input_preview; delete o.output_preview; }
+      return o;
+    });
+
     const totalRow = db.prepare(`SELECT COUNT(*) AS n FROM agent_calls ${where}`).get(...params);
 
     res.json({
-      calls: rows,
+      calls: sanitised,
       total: totalRow.n,
       limit,
       offset
     });
   } catch (err) {
     console.error('[admin] agent-calls error:', err);
-    res.status(500).json({ error: 'Database error', message: err.message });
+    res.status(500).json({ error: 'Database error' });
   }
 });
 
