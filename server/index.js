@@ -91,6 +91,17 @@ app.use((req, res, next) => {
 // Serve static files from the public directory.
 app.use(express.static(path.join(__dirname, '../public')));
 
+// v2 React app (built by `cd client && npm run build` → client/dist).
+// Mounted at /v2/*; SPA fallback below sends every /v2/* path to v2 index.html
+// so client-side routing works on hard refresh. Falls through to v1 if dist
+// hasn't been built yet, so production never 404s the static asset.
+const v2Dist = path.join(__dirname, '../client/dist');
+const fs = require('fs');
+const v2Built = fs.existsSync(path.join(v2Dist, 'index.html'));
+if (v2Built) {
+  app.use('/v2', express.static(v2Dist));
+}
+
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/investments', investmentRoutes);
@@ -143,7 +154,17 @@ app.get('/api/health/config', (req, res) => {
   });
 });
 
-// Catch-all: serve the frontend for any non-API route. The global no-cache
+// v2 SPA fallback — any /v2/* deep link returns client/dist/index.html so
+// React Router can resolve the route. Registered above the v1 catch-all.
+if (v2Built) {
+  app.get('/v2/*', (req, res) => {
+    res.sendFile(path.join(v2Dist, 'index.html'), (err) => {
+      if (err) res.status(404).json({ error: 'Not found' });
+    });
+  });
+}
+
+// Catch-all: serve the v1 frontend for any non-API route. The global no-cache
 // middleware above applies, so this path also instructs the browser to
 // revalidate on every refresh.
 app.get('*', (req, res) => {

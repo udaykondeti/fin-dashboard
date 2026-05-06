@@ -15,6 +15,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build v2 React client
+        # Builds into client/dist; rsync below will ship it to EC2 where
+        # server/index.js mounts it at /v2/*. If the client/ dir is absent
+        # (e.g. an old branch), skip silently.
+        run: |
+          if [ -f client/package.json ]; then
+            cd client
+            npm install --silent
+            npm run build
+          else
+            echo "client/ not present, skipping v2 build"
+          fi
+
       - name: Configure SSH
         env:
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
@@ -33,6 +50,7 @@ jobs:
           rsync -avz --delete \
             --exclude='.git' \
             --exclude='node_modules' \
+            --exclude='client/node_modules' \
             --exclude='data' \
             --exclude='.github' \
             -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes" \
