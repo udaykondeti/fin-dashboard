@@ -5475,7 +5475,12 @@ function agentStopStream() {
 
 async function agentConfirmProposal() {
   if (!agentState.pendingProposal) return;
+  // CLEAR pendingProposal SYNCHRONOUSLY so rapid double-clicks (or
+  // duplicate render-cycle dispatches) don't all fire the same confirm —
+  // previously this only cleared after the await completed, leaving a
+  // window where N quick clicks produced N inserts.
   var p = agentState.pendingProposal;
+  agentState.pendingProposal = null;
   // Optimistic UI
   var card = document.querySelector('.agent-proposal');
   if (card) { card.classList.add('applied'); card.querySelector('.actions').innerHTML = '<span>✓ Working...</span>'; }
@@ -5490,7 +5495,7 @@ async function agentConfirmProposal() {
     showToast((r && r.error) || 'Confirmation failed', 'error');
     if (card) { card.classList.remove('applied'); card.classList.add('rejected'); card.querySelector('.actions').innerHTML = '<span>✗ Failed</span>'; }
   }
-  agentState.pendingProposal = null;
+  // pendingProposal already cleared synchronously at function start
   // Re-fetch the thread to pick up the new tool message
   if (agentState.activeId) {
     var t = await apiFetch('/api/chat/threads/'+agentState.activeId);
