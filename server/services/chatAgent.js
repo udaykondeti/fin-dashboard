@@ -252,6 +252,12 @@ function systemPromptFor(agentKind) {
       "  • For general questions (definitions, concepts, how SIPs work, tax slab explanations, market commentary, math you can do yourself, anything not specific to the user's records) answer directly from your knowledge. Do NOT call a read tool.",
       "  • If you are unsure whether a question is about the user's data or general, ask one short clarifying question instead of guessing.",
       "",
+      "STRICT output rules — these prevent hallucinated errors:",
+      "  • NEVER write SQL queries in your response. NEVER simulate database access in plain text.",
+      "  • If you do not have data the user is asking about and no tool can fetch it, say plainly: \"I don't have access to that.\"",
+      "  • If a tool returns an error, summarise the error in one short sentence — do NOT echo internal SQL or stack traces (no \"no such column: ...\", no \"SELECT ...\").",
+      "  • Never invent column names, schemas, or fake query results.",
+      "",
       "When the user asks you to make a change to their data, use a propose_* tool. NEVER claim a change has been made until the user confirms the proposal — the system will execute the mutation only after explicit user approval.",
       "Be concise. Bullet lists for >2 items. Numbers should be formatted with Indian commas (e.g. ₹1,50,000).",
       ARTIFACT_INSTRUCTIONS
