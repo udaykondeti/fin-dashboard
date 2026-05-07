@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db/database');
 const authMiddleware = require('../middleware/auth');
-const { getPrice: fetchYahooPrice, getIndianStockPrice } = require('../services/priceService');
+const { getPrice: fetchYahooPrice, getIndianStockPrice, getUsdInrRate } = require('../services/priceService');
 const { getNavByCode } = require('../services/amfiNav');
 
 const router = express.Router();
@@ -480,6 +480,24 @@ router.delete('/us-stocks/:id', (req, res) => {
  * GET /api/investments/prices?symbols=TCS.NS,INFY.NS,GOOGL
  * Proxy to Yahoo Finance for live stock prices
  */
+/**
+ * GET /api/investments/usd-inr
+ *
+ * Returns the live USD→INR rate (Yahoo USDINR=X, cached 1h server-side).
+ * Frontend uses this to scale US stock values into INR — replaces the
+ * previous hardcoded 84.0 fallback in the UI. Response shape:
+ *   { rate: 88.21, source: 'live'|'cache'|'fallback', age_sec: 0 }
+ */
+router.get('/usd-inr', async (req, res) => {
+  try {
+    const fx = await getUsdInrRate();
+    res.json({ rate: fx.rate, source: fx.source, age_sec: fx.staleSec || 0 });
+  } catch (err) {
+    console.error('[usd-inr] error:', err);
+    res.status(500).json({ error: 'Failed to fetch USD/INR rate' });
+  }
+});
+
 router.get('/prices', async (req, res) => {
   try {
     const { symbols } = req.query;
