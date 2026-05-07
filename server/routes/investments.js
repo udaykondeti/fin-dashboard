@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db/database');
 const authMiddleware = require('../middleware/auth');
 const { getPrice: fetchYahooPrice, getIndianStockPrice } = require('../services/priceService');
+const { getNavByCode } = require('../services/amfiNav');
 
 const router = express.Router();
 
@@ -148,13 +149,37 @@ router.delete('/stocks/:id', (req, res) => {
 /**
  * GET /api/investments/mutual-funds
  */
-router.get('/mutual-funds', (req, res) => {
+router.get('/mutual-funds', async (req, res) => {
   try {
     const funds = db.prepare('SELECT * FROM mutual_funds WHERE user_id = ? ORDER BY created_at DESC').all(req.user.id);
-    res.json({ mutual_funds: funds });
+    if (!funds.length) return res.json({ mutual_funds: funds });
+
+    // Live NAV resolution per row:
+    //   1. yahoo_symbol set → use Yahoo (for ETFs like GOLDIETF.NS)
+    //   2. scheme_code set  → look up AMFI NAVAll.txt
+    //   3. otherwise        → no live NAV, fall back to avg_nav
+    const enriched = await Promise.all(funds.map(async f => {
+      let nav = null, source = 'fallback';
+      try {
+        if (f.yahoo_symbol) {
+          const r = await fetchYahooPrice(f.yahoo_symbol);
+          if (r && r.price != null) { nav = r.price; source = 'yahoo'; }
+        } else if (f.scheme_code) {
+          const r = await getNavByCode(f.scheme_code);
+          if (r && r.nav != null)   { nav = r.nav;   source = 'amfi:'+r.date; }
+        }
+      } catch (_) { /* swallow per-row errors */ }
+      return {
+        ...f,
+        current_nav: nav != null ? nav : f.current_nav,
+        live_nav: nav != null,
+        nav_source: source
+      };
+    }));
+    res.json({ mutual_funds: enriched });
   } catch (err) {
     console.error('Get MFs error:', err);
-    res.status(500).json({ error: 'Failed to fetch mutual funds', message: err.message });
+    res.status(500).json({ error: 'Failed to fetch mutual funds' });
   }
 });
 
@@ -191,7 +216,8 @@ router.put('/mutual-funds/:id', (req, res) => {
     const existing = db.prepare('SELECT * FROM mutual_funds WHERE id = ? AND user_id = ?').get(id, req.user.id);
     if (!existing) return res.status(404).json({ error: 'Mutual fund not found' });
 
-    const { fund_name, folio_number, units, avg_nav, fund_type, sip_amount, sip_date, notes } = req.body;
+    const { fund_name, folio_number, units, avg_nav, fund_type, sip_amount, sip_date, notes,
+            scheme_code, yahoo_symbol } = req.body;
 
     db.prepare(`
       UPDATE mutual_funds SET
@@ -202,13 +228,18 @@ router.put('/mutual-funds/:id', (req, res) => {
         fund_type = COALESCE(?, fund_type),
         sip_amount = COALESCE(?, sip_amount),
         sip_date = COALESCE(?, sip_date),
-        notes = ?
+        notes = ?,
+        scheme_code = ?,
+        yahoo_symbol = ?
       WHERE id = ? AND user_id = ?
     `).run(
       fund_name || null, folio_number || null, units || null, avg_nav || null,
       fund_type || null, sip_amount !== undefined ? sip_amount : null,
       sip_date !== undefined ? sip_date : null,
       notes !== undefined ? notes : existing.notes,
+      // Empty string clears, undefined leaves untouched
+      scheme_code   === undefined ? existing.scheme_code   : (scheme_code   ? String(scheme_code).trim() : null),
+      yahoo_symbol  === undefined ? existing.yahoo_symbol  : (yahoo_symbol  ? String(yahoo_symbol).trim().toUpperCase() : null),
       id, req.user.id
     );
 

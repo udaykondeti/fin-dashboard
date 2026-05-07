@@ -538,6 +538,8 @@ function runMigrations() {
     { id: 24, name: 'earnings.tds_rate',             run: () => addColumnIfMissing('earnings', 'tds_rate', 'ALTER TABLE earnings ADD COLUMN tds_rate REAL') },
     { id: 25, name: 'earnings.actual_received',      run: () => addColumnIfMissing('earnings', 'actual_received', 'ALTER TABLE earnings ADD COLUMN actual_received REAL') },
     { id: 26, name: 'us_stocks.yahoo_symbol',        run: () => addColumnIfMissing('us_stocks', 'yahoo_symbol', 'ALTER TABLE us_stocks ADD COLUMN yahoo_symbol TEXT') },
+    { id: 27, name: 'mutual_funds.scheme_code',      run: () => addColumnIfMissing('mutual_funds', 'scheme_code', 'ALTER TABLE mutual_funds ADD COLUMN scheme_code TEXT') },
+    { id: 28, name: 'mutual_funds.yahoo_symbol',     run: () => addColumnIfMissing('mutual_funds', 'yahoo_symbol', 'ALTER TABLE mutual_funds ADD COLUMN yahoo_symbol TEXT') },
     { id: 22, name: 'rename_financial_advisor_to_assistant', run: () => {
       // The 'financial_advisor' agent_kind had India/INR/tax-regime
       // opinions baked into its system prompt. Replaced with a generic

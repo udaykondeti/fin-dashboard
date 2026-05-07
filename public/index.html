@@ -1936,7 +1936,7 @@ async function apiFetch(url){
 
 // Normalize API snake_case → frontend camelCase
 function normStock(s){return{id:s.id,symbol:s.symbol,exchange:s.exchange||'NSE',company:s.company_name,qty:s.quantity,avgPrice:s.avg_buy_price,currentPrice:s.current_price||s.avg_buy_price,livePrice:!!s.live_price,resolvedSymbol:s.resolved_symbol||null,yahooSymbol:s.yahoo_symbol||null,priceError:s.price_error||null,priceTried:s.price_tried||null,notes:s.notes};}
-function normMF(m){return{id:m.id,name:m.fund_name,type:m.fund_type||'Equity',folio:m.folio_number,units:m.units,avgNav:m.avg_nav,currentNav:m.current_nav||m.avg_nav,sip:m.sip_amount||0,notes:m.notes};}
+function normMF(m){return{id:m.id,name:m.fund_name,type:m.fund_type||'Equity',folio:m.folio_number,units:m.units,avgNav:m.avg_nav,currentNav:m.current_nav||m.avg_nav,sip:m.sip_amount||0,liveNav:!!m.live_nav,navSource:m.nav_source||null,schemeCode:m.scheme_code||null,yahooSymbol:m.yahoo_symbol||null,notes:m.notes};}
 function normFD(f){return{id:f.id,bank:f.bank_name,type:f.fd_type||'Cumulative',principal:f.principal,rate:f.interest_rate,start:f.start_date,end:f.maturity_date,notes:f.notes};}
 function normUSStock(s){return{id:s.id,symbol:s.symbol,company:s.company_name,qty:s.quantity,avgPrice:s.avg_buy_price_usd,currentPrice:s.current_price_usd||s.avg_buy_price_usd,livePrice:!!s.live_price,yahooSymbol:s.yahoo_symbol||null,resolvedSymbol:s.resolved_symbol||null,notes:s.notes};}
 function normCC(c){return{id:c.id,name:c.card_name,bank:c.bank,limit:c.card_limit,outstanding:c.outstanding_balance||0,due:c.due_date,minPayment:c.min_payment||0,last4:c.last4||'0000',notes:c.notes};}
@@ -2142,7 +2142,15 @@ function renderMFTable(){
   var rows=mfsData.map(function(m){
     var inv=m.units*m.avgNav,val=m.units*m.currentNav,pl=val-inv,plp=(pl/inv)*100;
     totalInv+=inv;totalVal+=val;
-    return '<tr><td><strong>'+esc(m.name)+'</strong></td><td><span style="font-size:11px;background:rgba(59,130,246,.1);color:var(--accent-blue);padding:2px 7px;border-radius:4px">'+esc(m.type)+'</span></td><td>'+m.units.toFixed(3)+'</td><td>'+fmt(m.avgNav)+'</td><td>'+fmt(m.currentNav)+'<span class="badge-live">LIVE</span></td><td>'+fmt(Math.round(inv))+'</td><td>'+fmt(Math.round(val))+'</td><td class="'+plClass(pl)+'">'+fmt(Math.round(pl))+'</td><td class="'+plClass(plp)+'">'+fmtPct(plp)+'</td><td>'+(m.sip>0?fmt(m.sip)+'/mo':'--')+'</td><td><button class="action-btn del" onclick="deleteMF('+m.id+')">Del</button></td></tr>';
+    var liveTag;
+    if (m.liveNav) {
+      var src = m.yahooSymbol ? ('Yahoo: '+m.yahooSymbol) : (m.navSource && m.navSource.indexOf('amfi:')===0 ? 'AMFI '+m.navSource.slice(5) : 'live');
+      liveTag = '<span class="badge-live" style="cursor:pointer" title="'+esc(src)+' — click to set scheme code or Yahoo symbol" onclick="event.stopPropagation();setMfNavSource('+m.id+')">LIVE</span>';
+    } else {
+      var hint = 'Live NAV unavailable. Click to set AMFI scheme code (5–6 digit number, e.g. 118989) or Yahoo symbol for ETFs.';
+      liveTag = '<span class="badge-live" style="background:rgba(148,163,184,.15);color:#94a3b8;border-color:rgba(148,163,184,.3);cursor:pointer" title="'+esc(hint)+'" onclick="event.stopPropagation();setMfNavSource('+m.id+')">N/A ✎</span>';
+    }
+    return '<tr><td><strong>'+esc(m.name)+'</strong></td><td><span style="font-size:11px;background:rgba(59,130,246,.1);color:var(--accent-blue);padding:2px 7px;border-radius:4px">'+esc(m.type)+'</span></td><td>'+m.units.toFixed(3)+'</td><td>'+fmt(m.avgNav)+'</td><td>'+fmt(m.currentNav)+liveTag+'</td><td>'+fmt(Math.round(inv))+'</td><td>'+fmt(Math.round(val))+'</td><td class="'+plClass(pl)+'">'+fmt(Math.round(pl))+'</td><td class="'+plClass(plp)+'">'+fmtPct(plp)+'</td><td>'+(m.sip>0?fmt(m.sip)+'/mo':'--')+'</td><td><button class="action-btn del" onclick="deleteMF('+m.id+')">Del</button></td></tr>';
   });
   var tp=totalVal-totalInv,tpp=totalInv>0?(tp/totalInv)*100:0;
   tbody.innerHTML=rows.join('')+'<tr class="total-row"><td colspan="5">Total</td><td>'+fmt(Math.round(totalInv))+'</td><td>'+fmt(Math.round(totalVal))+'</td><td class="'+plClass(tp)+'">'+fmt(Math.round(tp))+'</td><td class="'+plClass(tpp)+'">'+fmtPct(tpp)+'</td><td></td><td></td></tr>';
@@ -2168,6 +2176,45 @@ async function deleteMF(id){
   await apiDel('/api/investments/mutual-funds/'+id);
   await loadAllData();
   showToast('Fund removed','info');
+}
+
+// Set AMFI scheme code (preferred) or Yahoo symbol (for ETFs) so the row
+// gets a live NAV. Empty input clears both. Scheme codes are 5-6 digit
+// numbers from amfiindia.com/spages/NAVAll.txt; ETFs use the NSE/BSE
+// symbol with .NS / .BO suffix.
+async function setMfNavSource(mfId) {
+  var m = mfsData.find(function(x){ return x.id === mfId; });
+  if (!m) return;
+  var msg = 'Live NAV source for "' + (m.name || '') + '"\n\n'
+    + 'Pick ONE:\n'
+    + '  • Scheme code  (e.g. 118989  — from amfiindia.com NAVAll.txt)\n'
+    + '  • Yahoo symbol (e.g. GOLDIETF.NS  — only for ETFs)\n\n'
+    + 'Enter the scheme code first; you can clear and re-prompt for Yahoo if needed.\n'
+    + 'Leave empty to clear the override.';
+  var input = window.prompt(msg, m.schemeCode || m.yahooSymbol || '');
+  if (input === null) return;
+  var trimmed = input.trim();
+  var body;
+  if (!trimmed) {
+    body = { scheme_code: '', yahoo_symbol: '' };
+  } else if (/^\d{4,7}$/.test(trimmed)) {
+    body = { scheme_code: trimmed, yahoo_symbol: '' };
+  } else {
+    body = { scheme_code: '', yahoo_symbol: trimmed };
+  }
+  var token = localStorage.getItem('fin_token');
+  var res = await fetch('/api/investments/mutual-funds/' + mfId, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    var err = await res.json().catch(function(){return {error:'Save failed'};});
+    showToast(err.error || 'Save failed', 'error');
+    return;
+  }
+  showToast(trimmed ? 'Override set → reloading NAVs…' : 'Override cleared', 'success');
+  await loadAllData();
 }
 
 function renderFDGrid(){
