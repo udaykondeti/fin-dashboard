@@ -116,6 +116,16 @@ router.post('/threads/:id/confirm', async (req, res) => {
   const tu = asst.tool_uses ? JSON.parse(asst.tool_uses) : [];
   if (!tu.some(u => u.id === tool_use_id)) return res.status(400).json({ error: 'tool_use_id not on this message' });
 
+  // Server-side dedup against rapid double-clicks: if a tool_result row
+  // for THIS tool_use_id already exists in the thread, the previous
+  // confirm already dispatched. Bail early so we don't insert the same
+  // stock/loan/payment a second time.
+  const alreadyResolved = msgs.some(m =>
+    m.role === 'tool' && typeof m.content === 'string' &&
+    m.content.indexOf('"tool_use_id":"' + tool_use_id + '"') !== -1
+  );
+  if (alreadyResolved) return res.json({ ok: true, applied: false, error: 'Already resolved' });
+
   if (decision === 'reject') {
     chatAgent.recordToolResult({ threadId: id, userId: req.user.id, message_id: Number(message_id),
       tool_use_id, result: { rejected: true }, is_error: false });
