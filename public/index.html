@@ -668,7 +668,9 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
           <table class="data-table">
             <thead><tr>
               <th>Symbol</th><th>Company</th><th>Qty</th><th>Avg (USD)</th>
-              <th>Current (USD)</th><th>Invested (INR)</th><th>Value (INR)</th>
+              <th>Current (USD)</th>
+              <th>Invested (USD)</th><th>Value (USD)</th>
+              <th>Invested (INR)</th><th>Value (INR)</th>
               <th>P&amp;L (INR)</th><th>P&amp;L %</th><th>Actions</th>
             </tr></thead>
             <tbody id="usStocksTbody"></tbody>
@@ -1485,11 +1487,11 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
     <div class="modal-title">Add US Stock</div>
     <form class="modal-form" onsubmit="saveUSStock(event)">
       <div class="form-grid">
-        <div class="form-row"><label>Symbol</label><input type="text" id="us-symbol" placeholder="AAPL" required></div>
+        <div class="form-row"><label>Symbol</label><input type="text" id="us-symbol" placeholder="AAPL" required onblur="autoFetchUsPrice()" oninput="this.value=this.value.toUpperCase()"></div>
         <div class="form-row"><label>Company</label><input type="text" id="us-company" placeholder="Apple Inc." required></div>
-        <div class="form-row"><label>Quantity</label><input type="number" id="us-qty" min="0.0001" step="0.0001" required></div>
+        <div class="form-row"><label>Quantity <span style="font-size:11px;color:var(--text-secondary)">(up to 6 decimals)</span></label><input type="number" id="us-qty" min="0.000001" step="0.000001" required></div>
         <div class="form-row"><label>Avg Price (USD)</label><input type="number" id="us-avgprice" min="0.01" step="0.01" required></div>
-        <div class="form-row"><label>Current Price (USD)</label><input type="number" id="us-currentprice" min="0.01" step="0.01" placeholder="Optional"></div>
+        <div class="form-row"><label>Current Price (USD) <span id="us-currentprice-status" style="font-size:11px;color:var(--text-secondary)">— auto-filled from Yahoo on symbol blur; can override</span></label><input type="number" id="us-currentprice" min="0.01" step="0.01" placeholder="Auto-fetched"></div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn-cancel" onclick="closeModal('addUSStock')">Cancel</button>
@@ -2058,20 +2060,74 @@ function deleteFD(id){fdsData=fdsData.filter(function(f){return f.id!==id});rend
 
 function renderUSTable(){
   var tbody=document.getElementById('usStocksTbody');
-  var totalInv=0,totalVal=0;
+  var totalInvUsd=0,totalValUsd=0,totalInv=0,totalVal=0;
   var rows=usStocksData.map(function(s){
-    var inv=s.qty*s.avgPrice*USD_INR,val=s.qty*s.currentPrice*USD_INR,pl=val-inv,plp=(pl/inv)*100;
-    totalInv+=inv;totalVal+=val;
-    return '<tr><td><strong>'+esc(s.symbol)+'</strong></td><td>'+esc(s.company)+'</td><td>'+s.qty+'</td><td>'+fmtUSD(s.avgPrice)+'</td><td>'+fmtUSD(s.currentPrice)+'<span class="badge-live">LIVE</span></td><td>'+fmt(Math.round(inv))+'</td><td>'+fmt(Math.round(val))+'</td><td class="'+plClass(pl)+'">'+fmt(Math.round(pl))+'</td><td class="'+plClass(plp)+'">'+fmtPct(plp)+'</td><td><button class="action-btn del" onclick="deleteUSStock('+s.id+')">Del</button></td></tr>';
+    var invUsd = s.qty*s.avgPrice;
+    var valUsd = s.qty*s.currentPrice;
+    var inv = invUsd * USD_INR;
+    var val = valUsd * USD_INR;
+    var pl=val-inv, plp=invUsd>0?((valUsd-invUsd)/invUsd)*100:0;
+    totalInvUsd+=invUsd; totalValUsd+=valUsd; totalInv+=inv; totalVal+=val;
+    var liveTag = s.livePrice
+      ? '<span class="badge-live" title="Live from Yahoo">LIVE</span>'
+      : '<span class="badge-live" style="background:rgba(148,163,184,.15);color:#94a3b8;border-color:rgba(148,163,184,.3)" title="Live price unavailable — showing avg buy price">N/A</span>';
+    return '<tr>'
+      +'<td><strong>'+esc(s.symbol)+'</strong></td>'
+      +'<td>'+esc(s.company)+'</td>'
+      +'<td>'+(Math.round(s.qty * 1e6)/1e6)+'</td>'
+      +'<td>'+fmtUSD(s.avgPrice)+'</td>'
+      +'<td>'+fmtUSD(s.currentPrice)+liveTag+'</td>'
+      +'<td>'+fmtUSD(invUsd)+'</td>'
+      +'<td>'+fmtUSD(valUsd)+'</td>'
+      +'<td>'+fmt(Math.round(inv))+'</td>'
+      +'<td>'+fmt(Math.round(val))+'</td>'
+      +'<td class="'+plClass(pl)+'">'+fmt(Math.round(pl))+'</td>'
+      +'<td class="'+plClass(plp)+'">'+fmtPct(plp)+'</td>'
+      +'<td><button class="action-btn del" onclick="deleteUSStock('+s.id+')">Del</button></td>'
+      +'</tr>';
   });
   var tp=totalVal-totalInv,tpp=totalInv>0?(tp/totalInv)*100:0;
-  tbody.innerHTML=rows.join('')+'<tr class="total-row"><td colspan="5">Total</td><td>'+fmt(Math.round(totalInv))+'</td><td>'+fmt(Math.round(totalVal))+'</td><td class="'+plClass(tp)+'">'+fmt(Math.round(tp))+'</td><td class="'+plClass(tpp)+'">'+fmtPct(tpp)+'</td><td></td></tr>';
+  tbody.innerHTML=rows.join('')+'<tr class="total-row"><td colspan="5">Total</td>'
+    +'<td>'+fmtUSD(totalInvUsd)+'</td><td>'+fmtUSD(totalValUsd)+'</td>'
+    +'<td>'+fmt(Math.round(totalInv))+'</td><td>'+fmt(Math.round(totalVal))+'</td>'
+    +'<td class="'+plClass(tp)+'">'+fmt(Math.round(tp))+'</td>'
+    +'<td class="'+plClass(tpp)+'">'+fmtPct(tpp)+'</td>'
+    +'<td></td></tr>';
 }
 function saveUSStock(e){
   e.preventDefault();
   var cp=parseFloat(document.getElementById('us-currentprice').value)||parseFloat(document.getElementById('us-avgprice').value);
   usStocksData.push({id:Date.now(),symbol:document.getElementById('us-symbol').value.toUpperCase(),company:document.getElementById('us-company').value,qty:parseFloat(document.getElementById('us-qty').value),avgPrice:parseFloat(document.getElementById('us-avgprice').value),currentPrice:cp});
   renderUSTable();renderSummaryCards();closeModal('addUSStock');e.target.reset();showToast('US Stock added','success');
+}
+
+// Yahoo lookup as the user tabs out of the symbol field. Populates Current
+// Price (USD) and, if Company is empty, the company name. Does nothing if
+// the symbol box is blank or Yahoo errors out.
+async function autoFetchUsPrice(){
+  var symEl = document.getElementById('us-symbol');
+  var statusEl = document.getElementById('us-currentprice-status');
+  var sym = (symEl.value || '').trim().toUpperCase();
+  if (!sym) return;
+  if (statusEl) statusEl.textContent = '— fetching ' + sym + '…';
+  try {
+    var token = localStorage.getItem('fin_token');
+    var res = await fetch('/api/investments/prices?symbols=' + encodeURIComponent(sym), {
+      headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var data = await res.json();
+    var first = data && data.prices && data.prices[0];
+    if (first && first.price != null) {
+      var cpEl = document.getElementById('us-currentprice');
+      if (cpEl && !cpEl.value) cpEl.value = first.price;
+      if (statusEl) statusEl.textContent = '— live: ' + first.price.toFixed(2);
+    } else {
+      if (statusEl) statusEl.textContent = '— no live price for ' + sym;
+    }
+  } catch (err) {
+    if (statusEl) statusEl.textContent = '— lookup failed: ' + err.message;
+  }
 }
 function deleteUSStock(id){usStocksData=usStocksData.filter(function(s){return s.id!==id});renderUSTable();renderSummaryCards();showToast('Removed','info')}
 
