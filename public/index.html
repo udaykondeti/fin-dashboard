@@ -294,6 +294,82 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
 .btn-save{padding:9px 20px;background:var(--caramel);color:var(--espresso);border:none;border-radius:7px;cursor:pointer;font-size:13px;font-weight:700}
 .btn-save:hover{opacity:.88}
 
+/* ── Modal-card variant (used by Add Profile, Add Insurance, Add NPS, Add
+   Earning, Add Payment, Add Property, Add Tax Pay, Add Expense, etc.).
+   Previously these classes were referenced by HTML but had no CSS, so the
+   modals rendered as unstyled browser default. This block matches the
+   visual style of the .modal-box variant: cream surface, coffee borders,
+   sticky header with close button, scrollable body. ────────────────── */
+.modal-card{
+  background: var(--cream);
+  color: var(--text-primary);
+  border-radius: 14px;
+  padding: 0;
+  width: 100%;
+  max-width: 580px;
+  max-height: calc(100vh - 80px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--bdr-coffee, var(--border));
+  box-shadow: 0 20px 60px rgba(44,26,14,.25);
+}
+.modal-header{
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--bdr-coffee, var(--border));
+  font-size: 16px; font-weight: 800; color: var(--mocha);
+  background: var(--foam, var(--cream));
+}
+.modal-close{
+  background: none; border: none; cursor: pointer;
+  font-size: 18px; color: var(--text-secondary);
+  width: 30px; height: 30px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+}
+.modal-close:hover{ background: var(--latte); color: var(--text-primary); }
+.modal-body{
+  padding: 18px 22px 20px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+}
+.form-2col{
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 4px;
+}
+@media (max-width: 600px){ .form-2col{ grid-template-columns: 1fr; gap: 0; } }
+/* Inputs / selects / labels inside modal-body, mirroring .modal-form rules */
+.modal-body .form-row{ margin-bottom: 14px; }
+.modal-body label{
+  display: block; font-size: 11px; font-weight: 700;
+  color: var(--text-secondary); margin-bottom: 5px;
+  text-transform: uppercase; letter-spacing: .5px;
+}
+.modal-body input,
+.modal-body select,
+.modal-body textarea{
+  width: 100%; padding: 10px 12px;
+  background: var(--cream);
+  border: 1px solid var(--bdr-coffee, var(--border));
+  border-radius: 8px; color: var(--text-primary);
+  font-size: 13px; outline: none;
+  transition: border-color .15s, box-shadow .15s;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+.modal-body input:focus,
+.modal-body select:focus,
+.modal-body textarea:focus{
+  border-color: var(--caramel);
+  box-shadow: 0 0 0 3px rgba(198,134,66,.15);
+}
+.modal-body select option{ background: #fff; }
+.modal-body textarea{ min-height: 72px; resize: vertical; }
+.modal-body .modal-footer{
+  margin-top: 18px; padding-top: 14px;
+  border-top: 1px solid var(--bdr-coffee, var(--border));
+}
+
 .skeleton{background:linear-gradient(90deg,var(--steam) 25%,var(--latte) 50%,var(--steam) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 .spinner{width:32px;height:32px;border:3px solid var(--steam);border-top-color:var(--caramel);border-radius:50%;animation:spin .7s linear infinite;margin:40px auto}
