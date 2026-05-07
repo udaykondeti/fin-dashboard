@@ -488,6 +488,30 @@ router.delete('/us-stocks/:id', (req, res) => {
  * previous hardcoded 84.0 fallback in the UI. Response shape:
  *   { rate: 88.21, source: 'live'|'cache'|'fallback', age_sec: 0 }
  */
+/**
+ * GET /api/investments/lookup-indian?symbol=AZAD
+ *
+ * Variant-fallback lookup for the Add Indian Stock modal. Tries .NS,
+ * stripped-suffix .NS, .BO, etc. and returns the first hit's price + name
+ * so the company field can be auto-filled.
+ */
+router.get('/lookup-indian', async (req, res) => {
+  try {
+    const symbol = (req.query.symbol || '').trim();
+    if (!symbol) return res.status(400).json({ error: 'symbol query param required' });
+    const r = await getIndianStockPrice(symbol);
+    res.json({
+      price: r && r.price != null ? r.price : null,
+      name:  r && r.name ? r.name : null,
+      resolved_symbol: r && r.resolved_symbol ? r.resolved_symbol : null,
+      tried: r && r.tried ? r.tried : null
+    });
+  } catch (err) {
+    console.error('[lookup-indian] error:', err);
+    res.status(500).json({ error: 'Lookup failed' });
+  }
+});
+
 router.get('/usd-inr', async (req, res) => {
   try {
     const fx = await getUsdInrRate();

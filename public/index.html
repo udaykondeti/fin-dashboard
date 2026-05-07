@@ -1522,7 +1522,7 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
     <div class="modal-title">Add Indian Stock</div>
     <form class="modal-form" onsubmit="saveStock(event)">
       <div class="form-grid">
-        <div class="form-row"><label>Symbol</label><input type="text" id="s-symbol" placeholder="RELIANCE" required></div>
+        <div class="form-row"><label>Symbol</label><input type="text" id="s-symbol" placeholder="RELIANCE" required onblur="autoFetchInPrice()" oninput="this.value=this.value.toUpperCase()"></div>
         <div class="form-row"><label>Company Name</label><input type="text" id="s-company" placeholder="Reliance Industries" required></div>
         <div class="form-row"><label>Quantity</label><input type="number" id="s-qty" min="0.01" step="0.01" required></div>
         <div class="form-row"><label>Avg Buy Price (Rs)</label><input type="number" id="s-avgprice" min="0.01" step="0.01" required></div>
@@ -2344,13 +2344,13 @@ async function autoFetchUsPrice(){
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     var data = await res.json();
-    // Endpoint returns { prices: { AAPL: { price, ... }, ... } } — a DICT
-    // keyed by symbol, not an array. Earlier code read [0] which is
-    // always undefined, so the field never auto-filled.
     var entry = data && data.prices && data.prices[sym];
     if (entry && entry.price != null) {
       var cpEl = document.getElementById('us-currentprice');
       if (cpEl && !cpEl.value) cpEl.value = Number(entry.price).toFixed(2);
+      // Auto-fill the Company field too if user hasn't typed anything yet.
+      var coEl = document.getElementById('us-company');
+      if (coEl && !coEl.value && entry.name) coEl.value = entry.name;
       if (statusEl) statusEl.textContent = '— live: $' + Number(entry.price).toFixed(2);
     } else {
       if (statusEl) statusEl.textContent = '— no live price for ' + sym;
@@ -2358,6 +2358,30 @@ async function autoFetchUsPrice(){
   } catch (err) {
     if (statusEl) statusEl.textContent = '— lookup failed: ' + err.message;
   }
+}
+
+// Indian-stock equivalent. Uses /lookup-indian which runs the variant
+// fallback (.NS / .BO / suffix-stripped) so users can type "AZADEQ" or
+// "AZAD" and still get the right price + company name.
+async function autoFetchInPrice(){
+  var symEl = document.getElementById('s-symbol');
+  if (!symEl) return;
+  var sym = (symEl.value || '').trim().toUpperCase();
+  if (!sym) return;
+  try {
+    var token = localStorage.getItem('fin_token');
+    var res = await fetch('/api/investments/lookup-indian?symbol=' + encodeURIComponent(sym), {
+      headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+    });
+    if (!res.ok) return;
+    var data = await res.json();
+    if (data.price != null) {
+      var cpEl = document.getElementById('s-currentprice');
+      if (cpEl && !cpEl.value) cpEl.value = Number(data.price).toFixed(2);
+      var coEl = document.getElementById('s-company');
+      if (coEl && !coEl.value && data.name) coEl.value = data.name;
+    }
+  } catch (_) { /* silent — user can fill manually */ }
 }
 async function deleteUSStock(id){
   if (!window.confirm('Delete this US stock holding?')) return;

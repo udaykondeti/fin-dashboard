@@ -49,6 +49,9 @@ async function getPrice(symbol) {
       price,
       previousClose,
       currency,
+      // Yahoo's chart meta carries shortName / longName for the security.
+      // Used by the frontend to auto-fill the Company field on Add Stock.
+      name: meta.shortName || meta.longName || null,
       change: price && previousClose ? price - previousClose : null,
       changePercent: price && previousClose ? ((price - previousClose) / previousClose) * 100 : null,
       marketState: meta.marketState || 'CLOSED'
@@ -132,6 +135,9 @@ async function getIndianStockPrice(rawSymbol) {
   for (const sym of variants) {
     const r = await getPrice(sym);
     if (r && r.price != null) {
+      // Strip Yahoo's exchange suffix from the resolved name when surfaced
+      // to the UI — "AZAD ENGINEERING LIMITED" reads better than the raw
+      // "AZAD.NS" symbol echo.
       return { ...r, live: true, resolved_symbol: sym, tried: variants };
     }
   }
