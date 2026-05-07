@@ -601,7 +601,7 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
         <div class="table-wrap">
           <table class="data-table">
             <thead><tr>
-              <th>Symbol</th><th>Company</th><th>Qty</th><th>Avg Price</th>
+              <th>Symbol</th><th>Exch</th><th>Company</th><th>Qty</th><th>Avg Price</th>
               <th>Current Price</th><th>Invested</th><th>Current Value</th>
               <th>P&amp;L</th><th>P&amp;L %</th><th>Docs</th><th>Actions</th>
             </tr></thead>
@@ -1896,10 +1896,16 @@ function renderStocksTable(){
       var naTitle = 'Live price unavailable. Tried: ' + triedStr + '. Click to set the correct Yahoo symbol (e.g. TATAMOTORS.NS).';
       liveTag = '<span class="badge-live" style="background:rgba(148,163,184,.15);color:#94a3b8;border-color:rgba(148,163,184,.3);cursor:pointer" title="'+esc(naTitle)+'" onclick="event.stopPropagation();setYahooSymbol('+s.id+')">N/A ✎</span>';
     }
-    return '<tr><td><strong>'+esc(s.symbol)+'</strong></td><td>'+esc(s.company)+'</td><td>'+s.qty+'</td><td>'+fmt(s.avgPrice)+'</td><td>'+fmt(s.currentPrice)+liveTag+'</td><td>'+fmt(Math.round(inv))+'</td><td>'+fmt(Math.round(val))+'</td><td class="'+plClass(pl)+'">'+fmt(Math.round(pl))+'</td><td class="'+plClass(plp)+'">'+fmtPct(plp)+'</td><td><button class="action-btn del" onclick="deleteStock('+s.id+')">Del</button></td></tr>';
+    // Exchange: prefer the variant Yahoo actually resolved (.NS=NSE, .BO=BSE);
+    // fall back to the stored exchange column (defaults to NSE).
+    var resolvedSrc = s.yahooSymbol || s.resolvedSymbol || '';
+    var exch = /\.BO$/i.test(resolvedSrc) ? 'BSE' : (/\.NS$/i.test(resolvedSrc) ? 'NSE' : (s.exchange || 'NSE'));
+    var exchColor = exch === 'BSE' ? '#A0522D' : '#5C7F4E';
+    var exchTag = '<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:'+exchColor+'1f;color:'+exchColor+';border:1px solid '+exchColor+'40">'+exch+'</span>';
+    return '<tr><td><strong>'+esc(s.symbol)+'</strong></td><td>'+exchTag+'</td><td>'+esc(s.company)+'</td><td>'+s.qty+'</td><td>'+fmt(s.avgPrice)+'</td><td>'+fmt(s.currentPrice)+liveTag+'</td><td>'+fmt(Math.round(inv))+'</td><td>'+fmt(Math.round(val))+'</td><td class="'+plClass(pl)+'">'+fmt(Math.round(pl))+'</td><td class="'+plClass(plp)+'">'+fmtPct(plp)+'</td><td><button class="action-btn del" onclick="deleteStock('+s.id+')">Del</button></td></tr>';
   });
   var tp=totalVal-totalInv,tpp=totalInv>0?(tp/totalInv)*100:0;
-  tbody.innerHTML=rows.join('')+'<tr class="total-row"><td colspan="5">Total</td><td>'+fmt(Math.round(totalInv))+'</td><td>'+fmt(Math.round(totalVal))+'</td><td class="'+plClass(tp)+'">'+fmt(Math.round(tp))+'</td><td class="'+plClass(tpp)+'">'+fmtPct(tpp)+'</td><td></td></tr>';
+  tbody.innerHTML=rows.join('')+'<tr class="total-row"><td colspan="6">Total</td><td>'+fmt(Math.round(totalInv))+'</td><td>'+fmt(Math.round(totalVal))+'</td><td class="'+plClass(tp)+'">'+fmt(Math.round(tp))+'</td><td class="'+plClass(tpp)+'">'+fmtPct(tpp)+'</td><td></td></tr>';
 }
 
 function saveStock(e){
