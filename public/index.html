@@ -4595,10 +4595,11 @@ async function commitImport() {
   var r = await apiPost('/api/import/commit', {type: type, rows: importRows});
   var msg = document.getElementById('importResultMsg');
   if (!r || r.error) { showToast(r?r.error:'Import failed','error'); return; }
-  msg.innerHTML = '<span style="color:var(--accent-green);font-weight:700">&#x2714; Imported '+r.inserted+' rows</span>'
+  var ins = r.inserted || 0, upd = r.updated || 0;
+  msg.innerHTML = '<span style="color:var(--accent-green);font-weight:700">&#x2714; '+ins+' new, '+upd+' updated</span>'
     +(r.skipped?' <span style="color:var(--text-secondary)">· '+r.skipped+' skipped</span>':'')
     +(r.errors&&r.errors.length?'<div style="color:var(--accent-red);font-size:11px;margin-top:6px">Errors: '+r.errors.join(', ')+'</div>':'');
-  showToast('Imported '+r.inserted+' rows', 'success');
+  showToast(ins+' new, '+upd+' updated', 'success');
   // Refresh relevant data — loadAllData re-fetches stocks/MFs/etc.
   if (type==='stocks' || type==='mutual_funds') {
     if (typeof loadAllData === 'function') loadAllData();

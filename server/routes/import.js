@@ -200,6 +200,16 @@ function safeNum(v, opts) {
 }
 
 // POST /api/import/commit  — save parsed rows to DB
+//
+// Upsert semantics: a broker holdings export is a *snapshot* of the current
+// portfolio, not a list of new transactions. Re-uploading the same CSV
+// should refresh the existing rows (qty + avg) rather than create
+// duplicates. So:
+//   - stocks         — match on (user_id, symbol)         → UPDATE, else INSERT
+//   - mutual_funds   — match on (user_id, fund_name)      → UPDATE, else INSERT
+//   - earnings       — match on (user_id, source_name)    → UPDATE, else INSERT
+// If multiple existing rows match (legacy duplicates), the lowest-id row is
+// kept and updated; the rest are deleted in the same transaction.
 router.post('/commit', (req, res) => {
   try {
     const { type, rows } = req.body || {};
@@ -210,10 +220,13 @@ router.post('/commit', (req, res) => {
       return res.status(413).json({ error: `Too many rows. Max ${MAX_IMPORT_ROWS} per import.` });
     }
     const userId = req.user.id;
-    const result = { inserted: 0, skipped: 0, errors: [] };
+    const result = { inserted: 0, updated: 0, skipped: 0, errors: [] };
 
     if (type === 'stocks') {
-      const stmt = db.prepare(`INSERT INTO stocks (user_id, symbol, company_name, quantity, avg_buy_price) VALUES (?,?,?,?,?)`);
+      const findExisting = db.prepare('SELECT id FROM stocks WHERE user_id = ? AND symbol = ? ORDER BY id ASC');
+      const updateStmt   = db.prepare('UPDATE stocks SET quantity = ?, avg_buy_price = ?, company_name = COALESCE(?, company_name) WHERE id = ?');
+      const insertStmt   = db.prepare('INSERT INTO stocks (user_id, symbol, company_name, quantity, avg_buy_price) VALUES (?,?,?,?,?)');
+      const deleteDup    = db.prepare('DELETE FROM stocks WHERE id = ?');
       const tx = db.transaction((rs) => {
         for (const r of rs) {
           const symbol = safeStr(r && r.symbol, 32);
@@ -224,13 +237,24 @@ router.post('/commit', (req, res) => {
             result.skipped++; result.errors.push((symbol || '<row>') + ': invalid symbol or quantity');
             continue;
           }
-          stmt.run(userId, symbol, name || symbol, qty, price || 0);
-          result.inserted++;
+          const existing = findExisting.all(userId, symbol);
+          if (existing.length === 0) {
+            insertStmt.run(userId, symbol, name || symbol, qty, price || 0);
+            result.inserted++;
+          } else {
+            // Update first; if there were legacy duplicates, drop the rest
+            updateStmt.run(qty, price || 0, name || symbol, existing[0].id);
+            for (let i = 1; i < existing.length; i++) deleteDup.run(existing[i].id);
+            result.updated++;
+          }
         }
       });
       tx(rows);
     } else if (type === 'mutual_funds') {
-      const stmt = db.prepare(`INSERT INTO mutual_funds (user_id, fund_name, units, avg_nav, fund_type) VALUES (?,?,?,?,?)`);
+      const findExisting = db.prepare('SELECT id FROM mutual_funds WHERE user_id = ? AND fund_name = ? ORDER BY id ASC');
+      const updateStmt   = db.prepare('UPDATE mutual_funds SET units = ?, avg_nav = ?, fund_type = ? WHERE id = ?');
+      const insertStmt   = db.prepare('INSERT INTO mutual_funds (user_id, fund_name, units, avg_nav, fund_type) VALUES (?,?,?,?,?)');
+      const deleteDup    = db.prepare('DELETE FROM mutual_funds WHERE id = ?');
       const tx = db.transaction((rs) => {
         for (const r of rs) {
           const name = safeStr(r && r.fund_name, 300);
@@ -241,13 +265,23 @@ router.post('/commit', (req, res) => {
             result.skipped++; result.errors.push((name || '<row>') + ': invalid fund_name or units');
             continue;
           }
-          stmt.run(userId, name, units, nav || 0, ftype);
-          result.inserted++;
+          const existing = findExisting.all(userId, name);
+          if (existing.length === 0) {
+            insertStmt.run(userId, name, units, nav || 0, ftype);
+            result.inserted++;
+          } else {
+            updateStmt.run(units, nav || 0, ftype, existing[0].id);
+            for (let i = 1; i < existing.length; i++) deleteDup.run(existing[i].id);
+            result.updated++;
+          }
         }
       });
       tx(rows);
     } else if (type === 'earnings') {
-      const stmt = db.prepare(`INSERT INTO earnings (user_id, source_name, source_type, amount, frequency) VALUES (?,?,?,?,?)`);
+      const findExisting = db.prepare('SELECT id FROM earnings WHERE user_id = ? AND source_name = ? ORDER BY id ASC');
+      const updateStmt   = db.prepare('UPDATE earnings SET amount = ?, frequency = ?, source_type = ? WHERE id = ?');
+      const insertStmt   = db.prepare('INSERT INTO earnings (user_id, source_name, source_type, amount, frequency) VALUES (?,?,?,?,?)');
+      const deleteDup    = db.prepare('DELETE FROM earnings WHERE id = ?');
       const tx = db.transaction((rs) => {
         for (const r of rs) {
           const name = safeStr(r && r.source_name, 200);
@@ -258,8 +292,15 @@ router.post('/commit', (req, res) => {
             result.skipped++; result.errors.push((name || '<row>') + ': invalid source_name or amount');
             continue;
           }
-          stmt.run(userId, name, stype, amount, freq);
-          result.inserted++;
+          const existing = findExisting.all(userId, name);
+          if (existing.length === 0) {
+            insertStmt.run(userId, name, stype, amount, freq);
+            result.inserted++;
+          } else {
+            updateStmt.run(amount, freq, stype, existing[0].id);
+            for (let i = 1; i < existing.length; i++) deleteDup.run(existing[i].id);
+            result.updated++;
+          }
         }
       });
       tx(rows);
@@ -267,7 +308,7 @@ router.post('/commit', (req, res) => {
       return res.status(400).json({ error: 'Unsupported import type: ' + type });
     }
 
-    res.json({ inserted: result.inserted, skipped: result.skipped, errors: result.errors.slice(0, 10) });
+    res.json({ inserted: result.inserted, updated: result.updated, skipped: result.skipped, errors: result.errors.slice(0, 10) });
   } catch (err) {
     console.error('[import/commit]', err);
     res.status(500).json({ error: 'Import failed' });
