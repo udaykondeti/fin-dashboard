@@ -755,7 +755,7 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
       </div>
       <div class="tab-content" id="inv-tab-us">
         <div class="section-header">
-          <div style="font-size:13px;color:var(--text-secondary)">USD/INR: 84.00</div>
+          <div style="font-size:13px;color:var(--text-secondary)" id="usdInrLabel">USD/INR: 84.00</div>
           <button class="add-btn" onclick="openModal('addUSStock')">+ Add US Stock</button>
         </div>
         <div class="table-wrap">
@@ -1682,7 +1682,10 @@ function esc(v) {
     .replace(/'/g, '&#39;');
 }
 
-const USD_INR = 84;
+// Live USD/INR rate. Refreshed on every loadAllData() via fetchUsdInr() —
+// the 84.0 starting value is just a sane default until the first fetch
+// resolves.
+let USD_INR = 84;
 let charts = {};
 let priceRefreshTimer = null;
 
@@ -1943,8 +1946,23 @@ function normCC(c){return{id:c.id,name:c.card_name,bank:c.bank,limit:c.card_limi
 function normLoan(l){return{id:l.id,type:l.loan_type,lender:l.lender,principal:l.principal_amount,outstanding:l.outstanding_amount,rate:l.interest_rate,emi:l.emi_amount,emiDate:l.emi_date,start:l.start_date,end:l.end_date,notes:l.notes};}
 function normHandLoan(h){return{id:h.id,person:h.person_name,phone:h.phone,direction:h.direction,amount:h.amount,date:h.date,due:h.due_date,rate:h.interest_rate||0,status:h.status,notes:h.notes};}
 
+async function fetchUsdInr(){
+  // Refresh USD_INR from Yahoo (server-cached 1h). Stays at the previous
+  // value on failure so the dashboard doesn't snap to a stale fallback.
+  var r = await apiFetch('/api/investments/usd-inr');
+  if (r && Number.isFinite(Number(r.rate)) && r.rate > 30 && r.rate < 200) {
+    USD_INR = Number(r.rate);
+    var lbl = document.getElementById('usdInrLabel');
+    if (lbl) {
+      var srcTag = r.source === 'live' ? '🟢 live' : (r.source === 'cache' ? 'cached' : 'fallback');
+      lbl.textContent = 'USD/INR: ' + USD_INR.toFixed(2) + '  (' + srcTag + ')';
+    }
+  }
+}
+
 async function loadAllData(){
   var r;
+  await fetchUsdInr();
   r=await apiFetch('/api/investments/stocks');
   stocksData=(r&&r.stocks?r.stocks.map(normStock):null)||MOCK.stocks;
   r=await apiFetch('/api/investments/mutual-funds');
