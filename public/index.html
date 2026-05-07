@@ -697,6 +697,24 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
         <div class="chart-title">Recent Activity</div>
         <div id="activityFeed"></div>
       </div>
+
+      <!-- Transactions log — populated from manual entries, the agent's
+           propose flow, and (Phase 2) the Gmail bill importer. -->
+      <div class="chart-card" style="margin-top:24px">
+        <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Transactions</span>
+          <button class="add-btn" onclick="openTxnModal()" style="font-size:12px">+ Add Transaction</button>
+        </div>
+        <div class="table-wrap" style="margin-top:10px">
+          <table class="data-table">
+            <thead><tr>
+              <th>Date</th><th>Description</th><th>Category</th><th>Source</th>
+              <th style="text-align:right">Amount</th><th>Direction</th><th></th>
+            </tr></thead>
+            <tbody id="txnTbody"><tr><td colspan="7" style="color:var(--text-secondary);text-align:center;padding:14px">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <!-- INVESTMENTS PAGE -->
@@ -4510,6 +4528,54 @@ async function deletePayment(id) {
   renderPayments(); showToast('Removed','info');
 }
 
+// ─── TRANSACTIONS ──────────────────────────────────────────────────
+async function loadTransactions(){
+  var r = await apiFetch('/api/transactions?limit=100');
+  var rows = (r && r.transactions) || [];
+  var tb = document.getElementById('txnTbody');
+  if (!tb) return;
+  if (!rows.length) {
+    tb.innerHTML = '<tr><td colspan="7" style="color:var(--text-secondary);text-align:center;padding:14px">No transactions yet. Click "+ Add Transaction" or wait for the next Gmail import.</td></tr>';
+    return;
+  }
+  tb.innerHTML = rows.map(function(t){
+    var amt = Number(t.amount) || 0;
+    var amtClass = t.direction === 'credit' ? 'pl-pos' : 'pl-neg';
+    var dirTag = t.direction === 'credit' ? '↑ in' : '↓ out';
+    return '<tr>'
+      +'<td style="white-space:nowrap">'+esc(t.date || '')+'</td>'
+      +'<td>'+esc(t.description || '')+'</td>'
+      +'<td>'+esc(t.category || '—')+'</td>'
+      +'<td><span style="font-size:11px;background:var(--latte);color:var(--mocha);padding:2px 7px;border-radius:4px">'+esc(t.source || 'manual')+'</span></td>'
+      +'<td class="'+amtClass+'" style="text-align:right;font-weight:700">'+fmt(Math.round(amt))+'</td>'
+      +'<td>'+dirTag+'</td>'
+      +'<td><button class="action-btn del" onclick="deleteTransaction('+t.id+')">×</button></td>'
+    +'</tr>';
+  }).join('');
+}
+async function deleteTransaction(id){
+  if (!window.confirm('Delete this transaction?')) return;
+  await apiDel('/api/transactions/'+id);
+  await loadTransactions();
+  showToast('Removed','info');
+}
+function openTxnModal(){
+  var today = new Date().toISOString().slice(0,10);
+  var date = window.prompt('Date (YYYY-MM-DD):', today);
+  if (!date) return;
+  var description = window.prompt('Description:');
+  if (!description) return;
+  var amountStr = window.prompt('Amount (₹):');
+  var amount = parseFloat(amountStr);
+  if (!Number.isFinite(amount) || amount <= 0) { showToast('Invalid amount','error'); return; }
+  var direction = window.prompt('Direction (debit/credit):', 'debit');
+  if (direction !== 'credit') direction = 'debit';
+  var category = window.prompt('Category (e.g. bill_payment, salary, transfer):', '');
+  apiPost('/api/transactions', { date:date, description:description, amount:amount, direction:direction, category:category || null }).then(function(r){
+    if (r && r.success) { loadTransactions(); showToast('Transaction added','success'); }
+  });
+}
+
 // ─── HOOK INTO EXISTING LOAD & NAVIGATE ──────────────────────────────
 var _origLoadAllData = loadAllData;
 loadAllData = async function() {
@@ -4524,7 +4590,8 @@ loadAllData = async function() {
     loadAdvTax(),
     loadEarnings(),
     loadPayments(),
-    (typeof loadProperties === 'function' ? loadProperties() : Promise.resolve())
+    (typeof loadProperties === 'function' ? loadProperties() : Promise.resolve()),
+    (typeof loadTransactions === 'function' ? loadTransactions() : Promise.resolve())
   ]);
   // Refresh summary cards now that the late-loaded data has arrived.
   renderSummaryCards();
