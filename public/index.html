@@ -1808,7 +1808,7 @@ async function apiFetch(url){
 }
 
 // Normalize API snake_case → frontend camelCase
-function normStock(s){return{id:s.id,symbol:s.symbol,exchange:s.exchange||'NSE',company:s.company_name,qty:s.quantity,avgPrice:s.avg_buy_price,currentPrice:s.current_price||s.avg_buy_price,livePrice:!!s.live_price,resolvedSymbol:s.resolved_symbol||null,notes:s.notes};}
+function normStock(s){return{id:s.id,symbol:s.symbol,exchange:s.exchange||'NSE',company:s.company_name,qty:s.quantity,avgPrice:s.avg_buy_price,currentPrice:s.current_price||s.avg_buy_price,livePrice:!!s.live_price,resolvedSymbol:s.resolved_symbol||null,priceError:s.price_error||null,priceTried:s.price_tried||null,notes:s.notes};}
 function normMF(m){return{id:m.id,name:m.fund_name,type:m.fund_type||'Equity',folio:m.folio_number,units:m.units,avgNav:m.avg_nav,currentNav:m.current_nav||m.avg_nav,sip:m.sip_amount||0,notes:m.notes};}
 function normFD(f){return{id:f.id,bank:f.bank_name,type:f.fd_type||'Cumulative',principal:f.principal,rate:f.interest_rate,start:f.start_date,end:f.maturity_date,notes:f.notes};}
 function normUSStock(s){return{id:s.id,symbol:s.symbol,company:s.company_name,qty:s.quantity,avgPrice:s.avg_buy_price_usd,currentPrice:s.current_price_usd||s.avg_buy_price_usd,livePrice:!!s.live_price,notes:s.notes};}
@@ -1886,7 +1886,17 @@ function renderStocksTable(){
   var rows=stocksData.map(function(s){
     var inv=s.qty*s.avgPrice,val=s.qty*s.currentPrice,pl=val-inv,plp=(pl/inv)*100;
     totalInv+=inv;totalVal+=val;
-    var liveTag = s.livePrice ? '<span class="badge-live">LIVE</span>' : '<span class="badge-live" style="background:rgba(148,163,184,.15);color:#94a3b8;border-color:rgba(148,163,184,.3)" title="Live price unavailable for this symbol — showing avg buy price">N/A</span>';
+    var liveTag;
+    if (s.livePrice) {
+      var liveTitle = s.resolvedSymbol && s.resolvedSymbol !== s.symbol+'.NS'
+        ? 'Live from ' + s.resolvedSymbol
+        : 'Live from Yahoo';
+      liveTag = '<span class="badge-live" title="'+esc(liveTitle)+'">LIVE</span>';
+    } else {
+      var triedStr = (s.priceTried && s.priceTried.length) ? s.priceTried.join(', ') : '(none)';
+      var naTitle = "Live price unavailable. Tried: " + triedStr + ". Showing avg buy price.";
+      liveTag = '<span class="badge-live" style="background:rgba(148,163,184,.15);color:#94a3b8;border-color:rgba(148,163,184,.3);cursor:help" title="'+esc(naTitle)+'">N/A</span>';
+    }
     return '<tr><td><strong>'+esc(s.symbol)+'</strong></td><td>'+esc(s.company)+'</td><td>'+s.qty+'</td><td>'+fmt(s.avgPrice)+'</td><td>'+fmt(s.currentPrice)+liveTag+'</td><td>'+fmt(Math.round(inv))+'</td><td>'+fmt(Math.round(val))+'</td><td class="'+plClass(pl)+'">'+fmt(Math.round(pl))+'</td><td class="'+plClass(plp)+'">'+fmtPct(plp)+'</td><td><button class="action-btn del" onclick="deleteStock('+s.id+')">Del</button></td></tr>';
   });
   var tp=totalVal-totalInv,tpp=totalInv>0?(tp/totalInv)*100:0;

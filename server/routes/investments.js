@@ -41,7 +41,11 @@ router.get('/stocks', async (req, res) => {
         ...s,
         current_price: r.price != null ? r.price : s.current_price,
         live_price: live,
-        resolved_symbol: r.resolved_symbol || null
+        resolved_symbol: r.resolved_symbol || null,
+        // Diagnostics — surfaced in the UI tooltip when live_price is false
+        // so the user knows which variants were tried before giving up.
+        price_error: live ? null : (r.error || 'no_data'),
+        price_tried: r.tried || null
       };
     });
     res.json({ stocks: enriched });
