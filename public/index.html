@@ -538,12 +538,12 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
         <div class="summary-card green">
           <div class="summary-card-label">Total Assets</div>
           <div class="summary-card-value green" id="totalAssets">Loading...</div>
-          <div class="summary-card-sub" id="assetsSub">Stocks + MF + FD + US</div>
+          <div class="summary-card-sub" id="assetsSub">All investments + savings + NPS + properties + receivables</div>
         </div>
         <div class="summary-card red">
           <div class="summary-card-label">Total Liabilities</div>
           <div class="summary-card-value red" id="totalLiabilities">Loading...</div>
-          <div class="summary-card-sub">Cards + Loans</div>
+          <div class="summary-card-sub">Cards + Loans + Hand-loans taken</div>
         </div>
         <div class="summary-card gold">
           <div class="summary-card-label">Net Worth</div>
@@ -556,6 +556,33 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
           <div class="summary-card-sub" id="pnlSub">On investments</div>
         </div>
       </div>
+
+      <!-- Cash flow row — gross income, post-TDS net, scheduled outflows,
+           surplus. Net uses each earning's tds_rate / actual_received /
+           source_type=Salary slab estimate. -->
+      <div class="summary-grid" style="margin-top:14px">
+        <div class="summary-card green">
+          <div class="summary-card-label">Monthly Income (Gross)</div>
+          <div class="summary-card-value green" id="cashFlowGross">--</div>
+          <div class="summary-card-sub">Pre-tax across all sources</div>
+        </div>
+        <div class="summary-card blue">
+          <div class="summary-card-label">Monthly Income (Net)</div>
+          <div class="summary-card-value blue" id="cashFlowNet">--</div>
+          <div class="summary-card-sub" id="cashFlowNetSub">After TDS / actual received</div>
+        </div>
+        <div class="summary-card red">
+          <div class="summary-card-label">Monthly Outflows</div>
+          <div class="summary-card-value red" id="cashFlowOut">--</div>
+          <div class="summary-card-sub">Active scheduled payments</div>
+        </div>
+        <div class="summary-card gold">
+          <div class="summary-card-label">Monthly Surplus</div>
+          <div class="summary-card-value gold" id="cashFlowSurplus">--</div>
+          <div class="summary-card-sub">Net income − outflows</div>
+        </div>
+      </div>
+
       <div class="charts-grid">
         <div class="chart-card">
           <div class="chart-title">Asset Allocation</div>
@@ -1889,6 +1916,35 @@ function renderSummaryCards(){
   pnlEl.textContent=fmt(Math.round(t.pnl));
   pnlEl.className='summary-card-value '+(t.pnl>=0?'green':'red');
   document.getElementById('pnlSub').textContent=t.pnl>=0?'Unrealised gain':'Unrealised loss';
+  renderCashFlowCards();
+}
+
+// Aggregate monthly cash flow across all earnings and scheduled payments.
+// Each earning row from /api/earnings already carries gross_monthly /
+// net_monthly / tds_monthly computed server-side, so we just sum.
+function renderCashFlowCards(){
+  var earnings = (typeof earningsData !== 'undefined') ? earningsData : [];
+  var grossMo = earnings.reduce(function(s,e){return s + (Number(e.gross_monthly)||0)*((Number(e.share_percentage)||100)/100)},0);
+  var netMo   = earnings.reduce(function(s,e){return s + (Number(e.net_monthly)||0)*((Number(e.share_percentage)||100)/100)},0);
+  var tdsMo   = grossMo - netMo;
+  var pays = (typeof paymentsData !== 'undefined') ? paymentsData : [];
+  var outMo = pays.filter(function(p){return p.is_active}).reduce(function(s,p){
+    if (p.frequency==='Monthly') return s + (Number(p.amount)||0);
+    if (p.frequency==='Annual')  return s + (Number(p.amount)||0)/12;
+    if (p.frequency==='Quarterly') return s + (Number(p.amount)||0)/3;
+    if (p.frequency==='Weekly')  return s + (Number(p.amount)||0)*52/12;
+    return 0; // One-time / EMI — leave out of monthly recurring view
+  },0);
+  var surplus = netMo - outMo;
+  var setText = function(id, n){ var el=document.getElementById(id); if (el) el.textContent = fmt(Math.round(n)); };
+  setText('cashFlowGross', grossMo);
+  setText('cashFlowNet', netMo);
+  setText('cashFlowOut', outMo);
+  setText('cashFlowSurplus', surplus);
+  var sub = document.getElementById('cashFlowNetSub');
+  if (sub) sub.textContent = tdsMo > 0 ? 'TDS ~ ' + fmt(Math.round(tdsMo)) + '/mo deducted' : 'No TDS configured';
+  var surEl = document.getElementById('cashFlowSurplus');
+  if (surEl) surEl.className = 'summary-card-value ' + (surplus >= 0 ? 'green' : 'red');
 }
 
 function renderStocksTable(){
@@ -3303,6 +3359,16 @@ checkAuth();
           <label>Your Share % <span style="font-size:11px;color:var(--text-secondary)">(e.g. 40 if you own 40% of rental income)</span></label>
           <input type="number" id="earn-share" value="100" min="1" max="100">
         </div>
+        <div class="form-2col">
+          <div class="form-row">
+            <label>TDS Rate (%) <span style="font-size:11px;color:var(--text-secondary)">— optional. Salary auto-uses slab estimate.</span></label>
+            <input type="number" id="earn-tds-rate" step="0.1" min="0" max="100" placeholder="e.g. 10">
+          </div>
+          <div class="form-row">
+            <label>Actual Received (per period) <span style="font-size:11px;color:var(--text-secondary)">— overrides TDS calculation</span></label>
+            <input type="number" id="earn-actual-received" step="0.01" placeholder="What hits your bank">
+          </div>
+        </div>
         <div class="form-row"><label>Notes</label><input type="text" id="earn-notes" placeholder="Optional"></div>
         <div class="modal-footer"><button class="btn-cancel" type="button" onclick="closeModal('addEarning')">Cancel</button><button class="btn-save" type="submit">Save</button></div>
       </form>
@@ -3853,6 +3919,7 @@ async function loadEarnings() {
   var r = await apiFetch('/api/earnings');
   earningsData = (r && r.earnings) || MOCK.earnings;
   renderEarnings();
+  if (typeof renderCashFlowCards === 'function') renderCashFlowCards();
 }
 function renderEarnings() {
   var tbody = document.getElementById('earningsTbody');
@@ -3979,9 +4046,20 @@ async function deleteEarningShare(ev, earningId, shareId) {
 }
 async function saveEarning(e) {
   e.preventDefault();
-  var data = {source_name:document.getElementById('earn-name').value, source_type:document.getElementById('earn-type').value, amount:parseFloat(document.getElementById('earn-amount').value), frequency:document.getElementById('earn-freq').value, share_percentage:parseFloat(document.getElementById('earn-share').value)||100, notes:document.getElementById('earn-notes').value||null};
+  var tdsRaw = document.getElementById('earn-tds-rate');
+  var actRaw = document.getElementById('earn-actual-received');
+  var data = {
+    source_name: document.getElementById('earn-name').value,
+    source_type: document.getElementById('earn-type').value,
+    amount: parseFloat(document.getElementById('earn-amount').value),
+    frequency: document.getElementById('earn-freq').value,
+    share_percentage: parseFloat(document.getElementById('earn-share').value) || 100,
+    notes: document.getElementById('earn-notes').value || null,
+    tds_rate: tdsRaw && tdsRaw.value ? parseFloat(tdsRaw.value) : null,
+    actual_received: actRaw && actRaw.value ? parseFloat(actRaw.value) : null
+  };
   var r = await apiPost('/api/earnings', data);
-  if (r && r.id) { await loadEarnings(); closeModal('addEarning'); e.target.reset(); showToast('Income source added','success'); }
+  if (r && r.id) { await loadEarnings(); renderSummaryCards(); closeModal('addEarning'); e.target.reset(); showToast('Income source added','success'); }
 }
 async function deleteEarning(id) {
   if (String(id).startsWith('sav_') || String(id).startsWith('hl_')) { showToast('Auto entries cannot be deleted','info'); return; }
@@ -3997,6 +4075,7 @@ async function loadPayments() {
   var r = await apiFetch('/api/payments');
   paymentsData = (r && r.scheduled_payments) || MOCK.payments;
   renderPayments();
+  if (typeof renderCashFlowCards === 'function') renderCashFlowCards();
 }
 function filterPayments(f, btn) {
   paymentsFilter = f;
