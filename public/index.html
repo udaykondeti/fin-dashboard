@@ -1855,7 +1855,18 @@ function calcTotals(){
   var mfVal=mfsData.reduce(function(s,x){return s+x.units*x.currentNav},0);
   var fdVal=fdsData.reduce(function(s,x){return s+calcFDMaturity(x.principal,x.rate,x.start,x.end)},0);
   var usVal=usStocksData.reduce(function(s,x){return s+x.qty*x.currentPrice*USD_INR},0);
-  var totalAssets=stocksVal+mfVal+fdVal+usVal;
+  // Previously missing — these tabs were tracked but not summed into the
+  // headline Total Assets, so net worth was understated. Each guarded for
+  // the case where the data hasn't been fetched yet (e.g. on first paint).
+  var savingsVal=(typeof savingsData!=='undefined'?savingsData:[]).reduce(function(s,x){return s+(Number(x.balance)||0)},0);
+  var npsVal=(typeof npsData!=='undefined'?npsData:[]).reduce(function(s,x){return s+(Number(x.current_value)||0)},0);
+  var propVal=(typeof propertiesData!=='undefined'?propertiesData:[]).reduce(function(s,x){
+    var v=Number(x.current_value)||Number(x.purchase_price)||0;
+    var ownPct=(Number(x.ownership_percentage)||100)/100;
+    return s+v*ownPct;
+  },0);
+  var receivables=(typeof handLoansGiven!=='undefined'?handLoansGiven:[]).filter(function(l){return l.status!=='settled'}).reduce(function(s,x){return s+(Number(x.amount)||0)},0);
+  var totalAssets=stocksVal+mfVal+fdVal+usVal+savingsVal+npsVal+propVal+receivables;
   var ccLiab=ccData.reduce(function(s,x){return s+x.outstanding},0);
   var loanLiab=loansData.reduce(function(s,x){return s+x.outstanding},0);
   var handLiab=handLoansTaken.filter(function(l){return l.status!=='settled'}).reduce(function(s,x){return s+x.amount},0);
@@ -1866,7 +1877,7 @@ function calcTotals(){
   var usInv=usStocksData.reduce(function(s,x){return s+x.qty*x.avgPrice*USD_INR},0);
   var totalInv=stocksInv+mfInv+usInv;
   var pnl=(stocksVal+mfVal+usVal)-(stocksInv+mfInv+usInv);
-  return{stocksVal:stocksVal,mfVal:mfVal,fdVal:fdVal,usVal:usVal,totalAssets:totalAssets,totalLiab:totalLiab,netWorth:netWorth,pnl:pnl,totalInv:totalInv};
+  return{stocksVal:stocksVal,mfVal:mfVal,fdVal:fdVal,usVal:usVal,savingsVal:savingsVal,npsVal:npsVal,propVal:propVal,receivables:receivables,totalAssets:totalAssets,totalLiab:totalLiab,netWorth:netWorth,pnl:pnl,totalInv:totalInv};
 }
 
 function renderSummaryCards(){
@@ -2198,7 +2209,7 @@ function renderDashboardCharts(){
   if(charts.alloc)charts.alloc.destroy();
   charts.alloc=new Chart(document.getElementById('allocChart').getContext('2d'),{
     type:'doughnut',
-    data:{labels:['Indian Stocks','Mutual Funds','FD/RD','US Stocks'],datasets:[{data:[Math.round(t.stocksVal),Math.round(t.mfVal),Math.round(t.fdVal),Math.round(t.usVal)],backgroundColor:['#2E7D32','#1565C0','#C68642','#6B3F1F'],borderColor:'#FDF6EC',borderWidth:3}]},
+    data:{labels:['Indian Stocks','Mutual Funds','FD/RD','US Stocks','Savings','NPS','Properties','Receivables'],datasets:[{data:[Math.round(t.stocksVal),Math.round(t.mfVal),Math.round(t.fdVal),Math.round(t.usVal),Math.round(t.savingsVal),Math.round(t.npsVal),Math.round(t.propVal),Math.round(t.receivables)],backgroundColor:['#2E7D32','#1565C0','#C68642','#6B3F1F','#5C7F4E','#A0522D','#8B4513','#94a3b8'],borderColor:'#FDF6EC',borderWidth:3}]},
     options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{...CDEF.plugins,legend:{position:'bottom',labels:{color:'#6B5B4E',font:{size:11,weight:'600'},padding:12}}}}
   });
   // Real trend from networth_snapshots. The previous version fabricated a
@@ -2266,7 +2277,7 @@ function renderAnalyticsCharts(){
   if(charts.invBreak)charts.invBreak.destroy();
   charts.invBreak=new Chart(document.getElementById('invBreakChart').getContext('2d'),{
     type:'pie',
-    data:{labels:['Indian Stocks','Mutual Funds','FD/RD','US Stocks'],datasets:[{data:[Math.round(t.stocksVal),Math.round(t.mfVal),Math.round(t.fdVal),Math.round(t.usVal)],backgroundColor:['#2E7D32','#1565C0','#C68642','#6B3F1F'],borderColor:'#FDF6EC',borderWidth:2}]},
+    data:{labels:['Indian Stocks','Mutual Funds','FD/RD','US Stocks','Savings','NPS','Properties','Receivables'],datasets:[{data:[Math.round(t.stocksVal),Math.round(t.mfVal),Math.round(t.fdVal),Math.round(t.usVal),Math.round(t.savingsVal),Math.round(t.npsVal),Math.round(t.propVal),Math.round(t.receivables)],backgroundColor:['#2E7D32','#1565C0','#C68642','#6B3F1F','#5C7F4E','#A0522D','#8B4513','#94a3b8'],borderColor:'#FDF6EC',borderWidth:2}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{...CDEF.plugins,legend:{position:'bottom',labels:{color:'#6B5B4E',font:{size:11,weight:'600'}}}}}
   });
   if(charts.assetsLiab)charts.assetsLiab.destroy();
@@ -4045,7 +4056,20 @@ async function deletePayment(id) {
 var _origLoadAllData = loadAllData;
 loadAllData = async function() {
   await _origLoadAllData();
-  await Promise.all([loadSavings(), loadInsurance(), loadNPS(), loadAdvTax(), loadEarnings(), loadPayments()]);
+  // Properties added to the dashboard mount so calcTotals can include
+  // their value in totalAssets even before the user visits the
+  // Properties page. Function may not exist on older builds.
+  await Promise.all([
+    loadSavings(),
+    loadInsurance(),
+    loadNPS(),
+    loadAdvTax(),
+    loadEarnings(),
+    loadPayments(),
+    (typeof loadProperties === 'function' ? loadProperties() : Promise.resolve())
+  ]);
+  // Refresh summary cards now that the late-loaded data has arrived.
+  renderSummaryCards();
 };
 
 // navigateTo handles every page directly — no wrapper needed.

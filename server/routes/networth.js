@@ -27,6 +27,11 @@ router.get('/', async (req, res) => {
     const creditCards = db.prepare('SELECT * FROM credit_cards WHERE user_id = ?').all(userId);
     const loans = db.prepare('SELECT * FROM loans WHERE user_id = ?').all(userId);
     const handLoans = db.prepare('SELECT * FROM hand_loans WHERE user_id = ? AND status = "active"').all(userId);
+    // Previously omitted from totalAssets — add to keep the dashboard's
+    // headline number truthful.
+    const savingsAccounts = db.prepare('SELECT * FROM savings_accounts WHERE user_id = ?').all(userId);
+    const npsAccounts     = db.prepare('SELECT * FROM nps_accounts WHERE user_id = ?').all(userId);
+    const properties      = db.prepare('SELECT * FROM properties WHERE user_id = ?').all(userId);
 
     // ── Fetch live prices for Indian stocks ──
     // When a price fetch fails we fall back to avg_buy_price for the running
@@ -83,8 +88,18 @@ router.get('/', async (req, res) => {
       .filter(l => l.direction === 'given')
       .reduce((sum, l) => sum + l.amount, 0);
 
+    // ── Savings, NPS, properties ──
+    const savingsValue = savingsAccounts.reduce((s, a) => s + (Number(a.balance) || 0), 0);
+    const npsValue     = npsAccounts.reduce((s, n) => s + (Number(n.current_value) || 0), 0);
+    const propertiesValue = properties.reduce((s, p) => {
+      const v = Number(p.current_value) || Number(p.purchase_price) || 0;
+      const ownPct = (Number(p.ownership_percentage) || 100) / 100;
+      return s + v * ownPct;
+    }, 0);
+
     // ── Total Assets ──
-    const totalAssets = stockValues + mfValue + fdAccruedValue + usStockValuesInr + handLoansGiven;
+    const totalAssets = stockValues + mfValue + fdAccruedValue + usStockValuesInr
+                      + handLoansGiven + savingsValue + npsValue + propertiesValue;
 
     // ── Liabilities ──
     const totalCreditCardDebt = creditCards.reduce((sum, c) => sum + (c.outstanding_balance || 0), 0);
@@ -151,6 +166,21 @@ router.get('/', async (req, res) => {
           receivables: {
             value: Math.round(handLoansGiven),
             percent: totalAssets > 0 ? parseFloat(((handLoansGiven / totalAssets) * 100).toFixed(1)) : 0
+          },
+          savings: {
+            value: Math.round(savingsValue),
+            percent: totalAssets > 0 ? parseFloat(((savingsValue / totalAssets) * 100).toFixed(1)) : 0,
+            count: savingsAccounts.length
+          },
+          nps: {
+            value: Math.round(npsValue),
+            percent: totalAssets > 0 ? parseFloat(((npsValue / totalAssets) * 100).toFixed(1)) : 0,
+            count: npsAccounts.length
+          },
+          properties: {
+            value: Math.round(propertiesValue),
+            percent: totalAssets > 0 ? parseFloat(((propertiesValue / totalAssets) * 100).toFixed(1)) : 0,
+            count: properties.length
           }
         },
         liability_breakdown: {
