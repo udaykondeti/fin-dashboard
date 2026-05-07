@@ -13,13 +13,33 @@ router.use(authMiddleware);
 /**
  * GET /api/investments/stocks
  */
-router.get('/stocks', (req, res) => {
+/**
+ * GET /api/investments/stocks
+ *
+ * Returns the user's Indian stock holdings with a freshly-fetched
+ * `current_price` merged in (Yahoo via priceService). If Yahoo is
+ * unreachable for a symbol, current_price stays null and the frontend
+ * falls back to avg_buy_price — better than showing P&L=0 because of a
+ * NULL DB column.
+ */
+router.get('/stocks', async (req, res) => {
   try {
     const stocks = db.prepare('SELECT * FROM stocks WHERE user_id = ? ORDER BY created_at DESC').all(req.user.id);
-    res.json({ stocks });
+    if (!stocks.length) return res.json({ stocks });
+
+    // Live prices in parallel. Failures are per-symbol; one bad symbol
+    // doesn't block the rest of the table.
+    const priceResults = await Promise.all(
+      stocks.map(s => fetchYahooPrice(`${s.symbol}.NS`).catch(() => ({ price: null })))
+    );
+    const enriched = stocks.map((s, i) => ({
+      ...s,
+      current_price: priceResults[i] && priceResults[i].price != null ? priceResults[i].price : s.current_price
+    }));
+    res.json({ stocks: enriched });
   } catch (err) {
     console.error('Get stocks error:', err);
-    res.status(500).json({ error: 'Failed to fetch stocks', message: err.message });
+    res.status(500).json({ error: 'Failed to fetch stocks' });
   }
 });
 
@@ -290,14 +310,26 @@ router.delete('/fds/:id', (req, res) => {
 
 /**
  * GET /api/investments/us-stocks
+ *
+ * Same live-price merge as the Indian stocks endpoint. US tickers go
+ * straight to Yahoo without a `.NS` suffix.
  */
-router.get('/us-stocks', (req, res) => {
+router.get('/us-stocks', async (req, res) => {
   try {
     const stocks = db.prepare('SELECT * FROM us_stocks WHERE user_id = ? ORDER BY created_at DESC').all(req.user.id);
-    res.json({ us_stocks: stocks });
+    if (!stocks.length) return res.json({ us_stocks: stocks });
+
+    const priceResults = await Promise.all(
+      stocks.map(s => fetchYahooPrice(s.symbol).catch(() => ({ price: null })))
+    );
+    const enriched = stocks.map((s, i) => ({
+      ...s,
+      current_price_usd: priceResults[i] && priceResults[i].price != null ? priceResults[i].price : s.current_price_usd
+    }));
+    res.json({ us_stocks: enriched });
   } catch (err) {
     console.error('Get US stocks error:', err);
-    res.status(500).json({ error: 'Failed to fetch US stocks', message: err.message });
+    res.status(500).json({ error: 'Failed to fetch US stocks' });
   }
 });
 
