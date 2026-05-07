@@ -1033,7 +1033,10 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
     <div class="page" id="page-agent">
       <div class="agent-shell">
         <aside class="agent-sidebar">
-          <button class="agent-new-btn" onclick="agentNewThread()">+ New Chat</button>
+          <div style="display:flex;gap:6px;padding:8px">
+            <button class="agent-new-btn" style="flex:1" onclick="agentNewThread()">+ New Chat</button>
+            <button class="agent-new-btn" style="flex:0 0 auto;background:transparent;color:var(--text-secondary);border:1px solid var(--border);padding:0 10px" title="Clear all chats" onclick="agentClearAllThreads()">🗑️</button>
+          </div>
           <div class="agent-thread-list" id="agentThreadList"></div>
         </aside>
         <section class="agent-main">
@@ -1065,7 +1068,7 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
           </div>
           <div class="agent-messages" id="agentMessages"></div>
           <form class="agent-input-row" id="agentInputForm" onsubmit="agentOnSend(event)">
-            <textarea id="agentInput" rows="2" placeholder="Type your message... (⌘/Ctrl+Enter to send)" onkeydown="agentOnKeyDown(event)"></textarea>
+            <textarea id="agentInput" rows="2" placeholder="Type your message… (Enter to send · Shift/Alt+Enter for newline)" onkeydown="agentOnKeyDown(event)"></textarea>
             <button type="submit" id="agentSendBtn">Send</button>
           </form>
           <div class="agent-pending-hint" id="agentPendingHint" style="display:none">
@@ -4909,6 +4912,32 @@ async function agentNewThread() {
   await agentOpenThread(r.id);
 }
 
+// Bulk-delete all threads for the current user. Useful when old chats
+// contain stale errors (e.g. hallucinated "no such column" replies from
+// before the SQL-scrub fix shipped).
+async function agentClearAllThreads() {
+  if (!window.confirm('Delete ALL chats? This cannot be undone.')) return;
+  var token = localStorage.getItem('fin_token');
+  var res = await fetch('/api/chat/threads', {
+    method: 'DELETE',
+    headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+  });
+  var r = await res.json().catch(function(){return null});
+  if (!res.ok || !r || !r.ok) {
+    showToast((r && r.error) || 'Clear failed', 'error');
+    return;
+  }
+  agentState.activeId = null;
+  agentState.messages = [];
+  agentState.artifacts = {};
+  agentState.artifactOrder = [];
+  agentState.activeArtifact = null;
+  if (typeof agentRenderMessages === 'function') agentRenderMessages();
+  if (typeof agentRenderArtifactPanel === 'function') agentRenderArtifactPanel();
+  await agentLoadThreads();
+  showToast('Deleted ' + r.deleted + ' chat' + (r.deleted === 1 ? '' : 's'), 'success');
+}
+
 async function agentOpenThread(id) {
   if (agentState.streaming) return;
   agentState.activeId = id;
@@ -5055,11 +5084,12 @@ function agentUpdateInputState() {
 }
 
 function agentOnKeyDown(e) {
-  // ⌘/Ctrl+Enter to send; plain Enter inserts newline.
-  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-    e.preventDefault();
-    agentOnSend(e);
-  }
+  // Enter sends; Shift+Enter or Alt+Enter inserts a newline.
+  // ⌘/Ctrl+Enter still sends as well (kept for muscle-memory parity).
+  if (e.key !== 'Enter') return;
+  if (e.shiftKey || e.altKey) return; // newline — let default happen
+  e.preventDefault();
+  agentOnSend(e);
 }
 
 async function agentOnSend(e) {

@@ -29,6 +29,28 @@ function parseArtifactAttrs(openTag) {
   return out;
 }
 
+// Defensive scrub against models (especially Llama on Groq) hallucinating
+// fake SQL/database errors in their reply text. The system prompt forbids
+// this, but models occasionally do it anyway. We replace the offending
+// substring with a short placeholder so users never see "no such column:
+// user" or fabricated SELECT statements coming from the assistant.
+const SQL_HALLUCINATION_PATTERNS = [
+  /no such column[^\n]{0,200}/gi,
+  /no such table[^\n]{0,200}/gi,
+  /SELECT\s+[*\w,\s]+FROM[^\n;]{0,400}/gi,
+  /SQLite(\s+error)?:[^\n]{0,200}/gi,
+  /SQLITE_ERROR[^\n]{0,200}/gi,
+  /Traceback \(most recent call last\):[\s\S]{0,400}/g
+];
+function scrubAssistantText(s) {
+  if (typeof s !== 'string' || !s) return s;
+  let out = s;
+  for (const re of SQL_HALLUCINATION_PATTERNS) {
+    out = out.replace(re, '[internal database detail suppressed]');
+  }
+  return out;
+}
+
 // Streaming parser: feed text deltas, get back text/artifact_* events.
 // Handles the split-tag case (a delta may end mid-tag like '<arti').
 class ArtifactStreamParser {
@@ -54,14 +76,15 @@ class ArtifactStreamParser {
             if ('<artifact'.startsWith(this.buf.slice(this.buf.length - n))) { hold = n; break; }
           }
           const flush = this.buf.slice(0, this.buf.length - hold);
-          if (flush) { this.cleanText += flush; this.emit('text', { delta: flush }); }
+          if (flush) { const safe = scrubAssistantText(flush); this.cleanText += safe; this.emit('text', { delta: safe }); }
           this.buf = this.buf.slice(this.buf.length - hold);
           return;
         }
         if (i > 0) {
           const flush = this.buf.slice(0, i);
-          this.cleanText += flush;
-          this.emit('text', { delta: flush });
+          const safe = scrubAssistantText(flush);
+          this.cleanText += safe;
+          this.emit('text', { delta: safe });
           this.buf = this.buf.slice(i);
         }
         // buf now starts with '<artifact'. Wait for the closing '>'.
@@ -115,8 +138,9 @@ class ArtifactStreamParser {
   flush() {
     if (this.buf.length) {
       if (this.mode === 'text') {
-        this.cleanText += this.buf;
-        this.emit('text', { delta: this.buf });
+        const safe = scrubAssistantText(this.buf);
+        this.cleanText += safe;
+        this.emit('text', { delta: safe });
       } else {
         this.current.content += this.buf;
         this.emit('artifact_delta', { identifier: this.current.identifier, delta: this.buf });
@@ -771,6 +795,7 @@ module.exports = {
     db.prepare(`UPDATE agent_threads SET ${cols.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?`).run(...vals, id, userId);
   },
   _deleteThread: (id, userId) => db.prepare('DELETE FROM agent_threads WHERE id = ? AND user_id = ?').run(id, userId),
+  _deleteAllThreads: (userId) => db.prepare('DELETE FROM agent_threads WHERE user_id = ?').run(userId).changes,
   _listThreads: (userId) => db.prepare(`
     SELECT t.id, t.title, t.agent_kind, t.model, t.updated_at,
       (SELECT COUNT(*) FROM agent_messages m
