@@ -342,8 +342,11 @@ router.get('/us-stocks', async (req, res) => {
     const stocks = db.prepare('SELECT * FROM us_stocks WHERE user_id = ? ORDER BY created_at DESC').all(req.user.id);
     if (!stocks.length) return res.json({ us_stocks: stocks });
 
+    // Honour manual yahoo_symbol override (e.g. "BRK-B" for Berkshire B
+     // shares which Yahoo lists as BRK-B not BRK.B). Otherwise just pass
+     // the symbol verbatim — US tickers don't carry exchange suffixes.
     const priceResults = await Promise.all(
-      stocks.map(s => fetchYahooPrice(s.symbol).catch(() => ({ price: null })))
+      stocks.map(s => fetchYahooPrice(s.yahoo_symbol || s.symbol).catch(() => ({ price: null })))
     );
     const enriched = stocks.map((s, i) => {
       const r = priceResults[i] || {};
@@ -351,7 +354,8 @@ router.get('/us-stocks', async (req, res) => {
       return {
         ...s,
         current_price_usd: r.price != null ? r.price : s.current_price_usd,
-        live_price: live
+        live_price: live,
+        resolved_symbol: live ? (s.yahoo_symbol || s.symbol) : null
       };
     });
     res.json({ us_stocks: enriched });
@@ -394,7 +398,7 @@ router.put('/us-stocks/:id', (req, res) => {
     const existing = db.prepare('SELECT * FROM us_stocks WHERE id = ? AND user_id = ?').get(id, req.user.id);
     if (!existing) return res.status(404).json({ error: 'US stock not found' });
 
-    const { symbol, company_name, quantity, avg_buy_price_usd, notes } = req.body;
+    const { symbol, company_name, quantity, avg_buy_price_usd, notes, yahoo_symbol } = req.body;
 
     db.prepare(`
       UPDATE us_stocks SET
@@ -402,12 +406,15 @@ router.put('/us-stocks/:id', (req, res) => {
         company_name = COALESCE(?, company_name),
         quantity = COALESCE(?, quantity),
         avg_buy_price_usd = COALESCE(?, avg_buy_price_usd),
-        notes = ?
+        notes = ?,
+        yahoo_symbol = ?
       WHERE id = ? AND user_id = ?
     `).run(
       symbol ? symbol.toUpperCase() : null,
       company_name || null, quantity || null, avg_buy_price_usd || null,
       notes !== undefined ? notes : existing.notes,
+      // empty string clears, undefined leaves untouched
+      yahoo_symbol === undefined ? existing.yahoo_symbol : (yahoo_symbol ? String(yahoo_symbol).trim().toUpperCase() : null),
       id, req.user.id
     );
 

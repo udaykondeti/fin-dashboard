@@ -1919,7 +1919,7 @@ async function apiFetch(url){
 function normStock(s){return{id:s.id,symbol:s.symbol,exchange:s.exchange||'NSE',company:s.company_name,qty:s.quantity,avgPrice:s.avg_buy_price,currentPrice:s.current_price||s.avg_buy_price,livePrice:!!s.live_price,resolvedSymbol:s.resolved_symbol||null,yahooSymbol:s.yahoo_symbol||null,priceError:s.price_error||null,priceTried:s.price_tried||null,notes:s.notes};}
 function normMF(m){return{id:m.id,name:m.fund_name,type:m.fund_type||'Equity',folio:m.folio_number,units:m.units,avgNav:m.avg_nav,currentNav:m.current_nav||m.avg_nav,sip:m.sip_amount||0,notes:m.notes};}
 function normFD(f){return{id:f.id,bank:f.bank_name,type:f.fd_type||'Cumulative',principal:f.principal,rate:f.interest_rate,start:f.start_date,end:f.maturity_date,notes:f.notes};}
-function normUSStock(s){return{id:s.id,symbol:s.symbol,company:s.company_name,qty:s.quantity,avgPrice:s.avg_buy_price_usd,currentPrice:s.current_price_usd||s.avg_buy_price_usd,livePrice:!!s.live_price,notes:s.notes};}
+function normUSStock(s){return{id:s.id,symbol:s.symbol,company:s.company_name,qty:s.quantity,avgPrice:s.avg_buy_price_usd,currentPrice:s.current_price_usd||s.avg_buy_price_usd,livePrice:!!s.live_price,yahooSymbol:s.yahoo_symbol||null,resolvedSymbol:s.resolved_symbol||null,notes:s.notes};}
 function normCC(c){return{id:c.id,name:c.card_name,bank:c.bank,limit:c.card_limit,outstanding:c.outstanding_balance||0,due:c.due_date,minPayment:c.min_payment||0,last4:c.last4||'0000',notes:c.notes};}
 function normLoan(l){return{id:l.id,type:l.loan_type,lender:l.lender,principal:l.principal_amount,outstanding:l.outstanding_amount,rate:l.interest_rate,emi:l.emi_amount,emiDate:l.emi_date,start:l.start_date,end:l.end_date,notes:l.notes};}
 function normHandLoan(h){return{id:h.id,person:h.person_name,phone:h.phone,direction:h.direction,amount:h.amount,date:h.date,due:h.due_date,rate:h.interest_rate||0,status:h.status,notes:h.notes};}
@@ -2147,9 +2147,10 @@ function renderUSTable(){
     var val = valUsd * USD_INR;
     var pl=val-inv, plp=invUsd>0?((valUsd-invUsd)/invUsd)*100:0;
     totalInvUsd+=invUsd; totalValUsd+=valUsd; totalInv+=inv; totalVal+=val;
+    var src = s.yahooSymbol || s.resolvedSymbol || s.symbol;
     var liveTag = s.livePrice
-      ? '<span class="badge-live" title="Live from Yahoo">LIVE</span>'
-      : '<span class="badge-live" style="background:rgba(148,163,184,.15);color:#94a3b8;border-color:rgba(148,163,184,.3)" title="Live price unavailable — showing avg buy price">N/A</span>';
+      ? '<span class="badge-live" style="cursor:pointer" title="Live from '+esc(src)+' — click to override Yahoo symbol" onclick="event.stopPropagation();setYahooSymbolUS('+s.id+')">LIVE</span>'
+      : '<span class="badge-live" style="background:rgba(148,163,184,.15);color:#94a3b8;border-color:rgba(148,163,184,.3);cursor:pointer" title="Live price unavailable for '+esc(src)+'. Click to set the correct Yahoo symbol (e.g. BRK-B)." onclick="event.stopPropagation();setYahooSymbolUS('+s.id+')">N/A ✎</span>';
     return '<tr>'
       +'<td><strong>'+esc(s.symbol)+'</strong></td>'
       +'<td>'+esc(s.company)+'</td>'
@@ -2196,11 +2197,14 @@ async function autoFetchUsPrice(){
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     var data = await res.json();
-    var first = data && data.prices && data.prices[0];
-    if (first && first.price != null) {
+    // Endpoint returns { prices: { AAPL: { price, ... }, ... } } — a DICT
+    // keyed by symbol, not an array. Earlier code read [0] which is
+    // always undefined, so the field never auto-filled.
+    var entry = data && data.prices && data.prices[sym];
+    if (entry && entry.price != null) {
       var cpEl = document.getElementById('us-currentprice');
-      if (cpEl && !cpEl.value) cpEl.value = first.price;
-      if (statusEl) statusEl.textContent = '— live: ' + first.price.toFixed(2);
+      if (cpEl && !cpEl.value) cpEl.value = Number(entry.price).toFixed(2);
+      if (statusEl) statusEl.textContent = '— live: $' + Number(entry.price).toFixed(2);
     } else {
       if (statusEl) statusEl.textContent = '— no live price for ' + sym;
     }
@@ -2209,6 +2213,35 @@ async function autoFetchUsPrice(){
   }
 }
 function deleteUSStock(id){usStocksData=usStocksData.filter(function(s){return s.id!==id});renderUSTable();renderSummaryCards();showToast('Removed','info')}
+
+// Set the Yahoo symbol override for a US stock row. Same UX as the
+// Indian-stocks setYahooSymbol; useful for tickers Yahoo lists with
+// hyphens or slashes that brokers report differently (BRK.B → BRK-B,
+// BF/B → BF-B, etc.).
+async function setYahooSymbolUS(stockId) {
+  var s = usStocksData.find(function(r){ return r.id === stockId; });
+  if (!s) return;
+  var current = s.yahooSymbol || '';
+  var prompt1 = 'Yahoo Finance symbol for ' + s.symbol + ' (' + (s.company || '') + ')\n\n'
+    + 'Examples:\n  AAPL\n  BRK-B   (Berkshire B shares; Yahoo uses dash)\n  GOOG\n\n'
+    + 'Leave empty to clear the override and use the symbol as-is.';
+  var input = window.prompt(prompt1, current);
+  if (input === null) return;
+  var trimmed = input.trim();
+  var token = localStorage.getItem('fin_token');
+  var res = await fetch('/api/investments/us-stocks/' + stockId, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ yahoo_symbol: trimmed || '' })
+  });
+  if (!res.ok) {
+    var err = await res.json().catch(function(){return {error:'Save failed'};});
+    showToast(err.error || 'Save failed', 'error');
+    return;
+  }
+  showToast(trimmed ? 'Symbol updated → reloading prices…' : 'Override cleared', 'success');
+  await loadAllData();
+}
 
 function renderCCGrid(){
   var g=document.getElementById('ccGrid');
