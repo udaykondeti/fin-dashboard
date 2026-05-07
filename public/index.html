@@ -2090,11 +2090,13 @@ async function saveStock(e){
     avg_buy_price: parseFloat(document.getElementById('s-avgprice').value)
   };
   var r = await apiPost('/api/investments/stocks', data);
-  if (r && r.id) {
+  // POST returns { success, stock } — check success not id (id is nested).
+  if (r && r.success) {
     await loadAllData();
     closeModal('addStock'); e.target.reset();
     showToast('Stock added','success');
-  } else { showToast((r && r.error) || 'Failed to save stock','error'); }
+  }
+  // No else branch: apiPost already toasted the server's error message.
 }
 async function deleteStock(id){
   if (!window.confirm('Delete this stock holding?')) return;
@@ -2165,11 +2167,11 @@ async function saveMF(e){
     sip_amount: parseFloat(document.getElementById('mf-sip').value) || 0
   };
   var r = await apiPost('/api/investments/mutual-funds', data);
-  if (r && r.id) {
+  if (r && r.success) {
     await loadAllData();
     closeModal('addMF'); e.target.reset();
     showToast('Fund added','success');
-  } else { showToast((r && r.error) || 'Failed to save fund','error'); }
+  }
 }
 async function deleteMF(id){
   if (!window.confirm('Delete this mutual fund holding?')) return;
@@ -2242,11 +2244,11 @@ async function saveFD(e){
     maturity_date: document.getElementById('fd-end').value
   };
   var r = await apiPost('/api/investments/fds', data);
-  if (r && r.id) {
+  if (r && r.success) {
     await loadAllData();
     closeModal('addFD'); e.target.reset();
     showToast('FD added','success');
-  } else { showToast((r && r.error) || 'Failed to save FD','error'); }
+  }
 }
 async function deleteFD(id){
   if (!window.confirm('Delete this FD/RD?')) return;
@@ -2301,11 +2303,11 @@ async function saveUSStock(e){
     avg_buy_price_usd: parseFloat(document.getElementById('us-avgprice').value)
   };
   var r = await apiPost('/api/investments/us-stocks', data);
-  if (r && r.id) {
+  if (r && r.success) {
     await loadAllData();
     closeModal('addUSStock'); e.target.reset();
     showToast('US Stock added','success');
-  } else { showToast((r && r.error) || 'Failed to save US stock','error'); }
+  }
 }
 
 // Yahoo lookup as the user tabs out of the symbol field. Populates Current
@@ -2395,11 +2397,11 @@ async function saveCC(e){
     last4: document.getElementById('cc-last4').value || '0000'
   };
   var r = await apiPost('/api/liabilities/credit-cards', data);
-  if (r && r.id) {
+  if (r && r.success) {
     await loadAllData();
     closeModal('addCC'); e.target.reset();
     showToast('Card added','success');
-  } else { showToast((r && r.error) || 'Failed to save card','error'); }
+  }
 }
 async function deleteCC(id){
   if (!window.confirm('Delete this credit card?')) return;
@@ -2428,11 +2430,11 @@ async function saveLoan(e){
     end_date: document.getElementById('loan-end').value || null
   };
   var r = await apiPost('/api/liabilities/loans', data);
-  if (r && r.id) {
+  if (r && r.success) {
     await loadAllData();
     closeModal('addLoan'); e.target.reset();
     showToast('Loan added','success');
-  } else { showToast((r && r.error) || 'Failed to save loan','error'); }
+  }
 }
 async function deleteLoan(id){
   if (!window.confirm('Delete this loan?')) return;
