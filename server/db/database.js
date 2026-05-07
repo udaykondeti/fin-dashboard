@@ -540,6 +540,34 @@ function runMigrations() {
     { id: 26, name: 'us_stocks.yahoo_symbol',        run: () => addColumnIfMissing('us_stocks', 'yahoo_symbol', 'ALTER TABLE us_stocks ADD COLUMN yahoo_symbol TEXT') },
     { id: 27, name: 'mutual_funds.scheme_code',      run: () => addColumnIfMissing('mutual_funds', 'scheme_code', 'ALTER TABLE mutual_funds ADD COLUMN scheme_code TEXT') },
     { id: 28, name: 'mutual_funds.yahoo_symbol',     run: () => addColumnIfMissing('mutual_funds', 'yahoo_symbol', 'ALTER TABLE mutual_funds ADD COLUMN yahoo_symbol TEXT') },
+    { id: 29, name: 'create_transactions',           run: () => {
+      // Persistent log of every paid bill, deposit, transfer, etc.
+      // Sources include manual entry, the agent's propose flow, and the
+      // Gmail-driven importer (next PR). source_ref is the Gmail message
+      // id (or other source id) so re-runs of the importer don't insert
+      // duplicates.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS transactions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          profile_id INTEGER,
+          date DATE NOT NULL,
+          description TEXT NOT NULL,
+          amount REAL NOT NULL,
+          direction TEXT NOT NULL DEFAULT 'debit',
+          category TEXT,
+          source TEXT NOT NULL DEFAULT 'manual',
+          source_ref TEXT,
+          linked_table TEXT,
+          linked_id INTEGER,
+          notes TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          UNIQUE(user_id, source, source_ref)
+        );
+        CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, date DESC);
+      `);
+    } },
     { id: 22, name: 'rename_financial_advisor_to_assistant', run: () => {
       // The 'financial_advisor' agent_kind had India/INR/tax-regime
       // opinions baked into its system prompt. Replaced with a generic

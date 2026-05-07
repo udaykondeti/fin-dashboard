@@ -21,6 +21,7 @@ const earningsRoutes = require('./routes/earnings');
 const propertiesRoutes = require('./routes/properties');
 const activityRoutes = require('./routes/activity');
 const importRoutes = require('./routes/import');
+const transactionsRoutes = require('./routes/transactions');
 const chatRoutes = require('./routes/chat');
 
 const app = express();
@@ -118,6 +119,7 @@ app.use('/api/earnings', earningsRoutes);
 app.use('/api/properties', propertiesRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/import', importRoutes);
+app.use('/api/transactions', transactionsRoutes);
 app.use('/api/chat', chatRoutes);
 
 const authMiddleware = require('./middleware/auth');
