@@ -15,22 +15,23 @@ function hasAnthropic() { return !!process.env.ANTHROPIC_API_KEY; }
 function hasGroq()      { return !!process.env.GROQ_API_KEY; }
 
 // Heuristic — lowercase regex over the user message. Cheap, deterministic,
-// no extra LLM call. Three-stage classification:
+// no extra LLM call. Two-stage classification with a Groq-first bias:
 //
 //   1. STRONG_APP_PATTERNS   → "this is definitely about the user's data"
-//      (possessives, mutation verbs, "show me my X")
-//      Match → Anthropic, regardless of anything else.
+//      (possessives, mutation verbs, "show me my X", time-scoped queries)
+//      Match → Anthropic. These need the read/propose tools to answer
+//      correctly; sending them to Groq risks Llama hallucinating fake SQL.
 //
-//   2. GENERAL_INTENT_PATTERNS → educational phrasing
-//      ("what is", "explain", "difference between", "how does")
-//      If we got here without a STRONG_APP hit, the user is asking for
-//      knowledge, not their records → Groq.
+//   2. Everything else        → Groq.
 //
-//   3. APP_ENTITY_PATTERNS   → app vocabulary (stocks, mutual funds,
-//      net worth, EMIs, etc.) without strong context. Treat as app-related
-//      and route to Anthropic.
+//   Including bare app-entity mentions ("net worth", "PPF", "ELSS") with
+//   no possessive context — those are usually educational. The system
+//   prompt + the model itself decide whether to call a tool; if tools
+//   aren't needed, Groq is much cheaper.
 //
-//   Otherwise → general → Groq.
+//   Users can override by picking a specific Claude or Llama model from
+//   the chat header dropdown — the pinned model wins regardless of
+//   message content.
 
 // Stage 1: clearly-personal data phrasing.
 const STRONG_APP_PATTERNS = [
@@ -70,9 +71,10 @@ const APP_ENTITY_PATTERNS = [
 function looksAppRelated(text) {
   if (typeof text !== 'string' || !text.trim()) return false;
   const t = text.toLowerCase();
+  // Only escalate to Anthropic on STRONG personal-data signals. Bare
+  // app-entity mentions ("net worth", "ELSS", "section 80C") fall through
+  // to Groq — the model can still call a tool if it actually needs to.
   for (const re of STRONG_APP_PATTERNS)     if (re.test(t)) return true;
-  for (const re of GENERAL_INTENT_PATTERNS) if (re.test(t)) return false;
-  for (const re of APP_ENTITY_PATTERNS)     if (re.test(t)) return true;
   return false;
 }
 
