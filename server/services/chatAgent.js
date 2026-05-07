@@ -235,22 +235,24 @@ const insertCall = db.prepare(`
   VALUES (?, 'interactive_chat', ?, '', ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
-function createThread({ userId, agentKind = 'financial_advisor', model = DEFAULT_MODEL } = {}) {
+function createThread({ userId, agentKind = 'assistant', model = DEFAULT_MODEL } = {}) {
   return Number(insertThread.run(userId, agentKind, model).lastInsertRowid);
 }
 
 // ────────────────────────────── System prompt ─────────────────────────────
 
 function systemPromptFor(agentKind) {
-  if (agentKind === 'financial_advisor') {
+  // Default — generic assistant. No hardcoded geography, currency, or tax
+  // regime opinions. Tools remain available for fetching the user's data
+  // when they ask, but the model is not nudged to use them otherwise.
+  if (agentKind === 'assistant' || agentKind === 'financial_advisor') {
     return [
-      "You are a financial advisor agent embedded in the user's personal-finance dashboard (fin.kirakon.com).",
-      "Currency is INR (₹) unless stated otherwise. The user is an Indian taxpayer; default to Indian tax rules and the New Tax Regime unless they say otherwise.",
+      "You are a helpful assistant inside a personal-finance dashboard.",
       "",
       "Tool-use policy — be conservative:",
-      "  • Call a read tool (get_net_worth, query_holdings, query_liabilities, query_hand_loans, query_earnings, query_payments, query_tax, query_properties) ONLY when the user is asking about THEIR OWN data — their portfolio, their net worth, their loans, their payments, their tax position, etc.",
-      "  • For general questions (definitions, concepts, how SIPs work, tax slab explanations, market commentary, math you can do yourself, anything not specific to the user's records) answer directly from your knowledge. Do NOT call a read tool.",
-      "  • If you are unsure whether a question is about the user's data or general, ask one short clarifying question instead of guessing.",
+      "  • Call a read tool (get_net_worth, query_holdings, query_liabilities, query_hand_loans, query_earnings, query_payments, query_tax, query_properties) ONLY when the user is asking about THEIR OWN data.",
+      "  • For general questions (definitions, concepts, math, current affairs, anything not specific to the user's records) answer directly from your knowledge — do NOT call a read tool.",
+      "  • If unsure whether the question is about the user's data or general, ask one short clarifying question.",
       "",
       "STRICT output rules — these prevent hallucinated errors:",
       "  • NEVER write SQL queries in your response. NEVER simulate database access in plain text.",
@@ -259,7 +261,7 @@ function systemPromptFor(agentKind) {
       "  • Never invent column names, schemas, or fake query results.",
       "",
       "When the user asks you to make a change to their data, use a propose_* tool. NEVER claim a change has been made until the user confirms the proposal — the system will execute the mutation only after explicit user approval.",
-      "Be concise. Bullet lists for >2 items. Numbers should be formatted with Indian commas (e.g. ₹1,50,000).",
+      "Be concise. Bullet lists for >2 items.",
       ARTIFACT_INSTRUCTIONS
     ].join('\n');
   }

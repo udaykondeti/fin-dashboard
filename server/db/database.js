@@ -534,6 +534,13 @@ function runMigrations() {
     } },
     { id: 19, name: 'vault_files.processed_at',     run: () => addColumnIfMissing('vault_files', 'processed_at',     'ALTER TABLE vault_files ADD COLUMN processed_at DATETIME') },
     { id: 20, name: 'vault_files.processing_error', run: () => addColumnIfMissing('vault_files', 'processing_error', 'ALTER TABLE vault_files ADD COLUMN processing_error TEXT') },
+    { id: 22, name: 'rename_financial_advisor_to_assistant', run: () => {
+      // The 'financial_advisor' agent_kind had India/INR/tax-regime
+      // opinions baked into its system prompt. Replaced with a generic
+      // 'assistant' kind. Existing threads are flipped over so they
+      // pick up the new prompt on next message.
+      db.exec(`UPDATE agent_threads SET agent_kind = 'assistant' WHERE agent_kind = 'financial_advisor'`);
+    } },
     { id: 21, name: 'create_agent_artifacts', run: () => {
       // Live artifacts emitted by the chat agent (Claude.ai-style side-panel
       // renders for substantial generated content — markdown reports, HTML

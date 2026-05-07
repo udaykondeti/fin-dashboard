@@ -934,11 +934,12 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
         <section class="agent-main">
           <div class="agent-header">
             <div class="agent-selectors">
-              <label>Agent
-                <select id="agentKindSelect" onchange="agentOnKindChange()">
-                  <option value="financial_advisor">&#x1F4B0; Financial Advisor</option>
-                </select>
-              </label>
+              <!-- Agent kind picker hidden — only one user-facing agent
+                   (assistant). Kept as a hidden input so existing JS that
+                   reads/writes its value still works. -->
+              <select id="agentKindSelect" onchange="agentOnKindChange()" style="display:none">
+                <option value="assistant" selected>Assistant</option>
+              </select>
               <label>Model
                 <select id="agentModelSelect" onchange="agentOnModelChange()">
                   <option value="auto">&#x2728; Auto (Anthropic for your data, Groq for general)</option>
