@@ -43,12 +43,19 @@ const SQL_HALLUCINATION_PATTERNS = [
   /Traceback \(most recent call last\):[\s\S]{0,400}/g
 ];
 function scrubAssistantText(s) {
-  if (typeof s !== 'string' || !s) return s;
-  let out = s;
-  for (const re of SQL_HALLUCINATION_PATTERNS) {
-    out = out.replace(re, '[internal database detail suppressed]');
+  if (typeof s !== 'string' || !s) return s == null ? '' : String(s);
+  // Defensive: a pathological regex match shouldn't crash the chat
+  // pipeline. If anything throws, return the original input unchanged.
+  try {
+    let out = s;
+    for (const re of SQL_HALLUCINATION_PATTERNS) {
+      out = out.replace(re, '[internal database detail suppressed]');
+    }
+    return out;
+  } catch (err) {
+    console.error('[scrubAssistantText] regex error:', err.message);
+    return s;
   }
-  return out;
 }
 
 // Streaming parser: feed text deltas, get back text/artifact_* events.
@@ -349,7 +356,10 @@ async function sendMessage({ threadId, userId, content }) {
   // Persist user message
   const userMsgId = Number(insertMessage.run(threadId, 'user', content, null, 'final').lastInsertRowid);
   // Auto-title on first user message
-  const msgCountRow = db.prepare('SELECT COUNT(*) AS n FROM agent_messages WHERE thread_id = ? AND role = "user"').get(threadId);
+  // SQLite parses "user" (double quotes) as a column identifier, not a
+  // string literal. Use single quotes for the literal to avoid the
+  // "no such column: user" error.
+  const msgCountRow = db.prepare("SELECT COUNT(*) AS n FROM agent_messages WHERE thread_id = ? AND role = 'user'").get(threadId);
   if (msgCountRow.n === 1) {
     updateThreadTitle.run(content.slice(0, 40).trim() || 'New chat', threadId, userId);
   } else {
@@ -472,7 +482,10 @@ async function streamMessage({ threadId, userId, content, forceProvider = null }
   const userMsgId = Number(insertMessage.run(threadId, 'user', content, null, 'final').lastInsertRowid);
   emit('thread_meta', { user_message_id: userMsgId });
 
-  const msgCountRow = db.prepare('SELECT COUNT(*) AS n FROM agent_messages WHERE thread_id = ? AND role = "user"').get(threadId);
+  // SQLite parses "user" (double quotes) as a column identifier, not a
+  // string literal. Use single quotes for the literal to avoid the
+  // "no such column: user" error.
+  const msgCountRow = db.prepare("SELECT COUNT(*) AS n FROM agent_messages WHERE thread_id = ? AND role = 'user'").get(threadId);
   if (msgCountRow.n === 1) updateThreadTitle.run(content.slice(0, 40).trim() || 'New chat', threadId, userId);
   else updateThreadTouch.run(threadId, userId);
 
