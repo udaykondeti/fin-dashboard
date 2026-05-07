@@ -534,6 +534,7 @@ function runMigrations() {
     } },
     { id: 19, name: 'vault_files.processed_at',     run: () => addColumnIfMissing('vault_files', 'processed_at',     'ALTER TABLE vault_files ADD COLUMN processed_at DATETIME') },
     { id: 20, name: 'vault_files.processing_error', run: () => addColumnIfMissing('vault_files', 'processing_error', 'ALTER TABLE vault_files ADD COLUMN processing_error TEXT') },
+    { id: 23, name: 'stocks.yahoo_symbol',           run: () => addColumnIfMissing('stocks', 'yahoo_symbol', 'ALTER TABLE stocks ADD COLUMN yahoo_symbol TEXT') },
     { id: 22, name: 'rename_financial_advisor_to_assistant', run: () => {
       // The 'financial_advisor' agent_kind had India/INR/tax-regime
       // opinions baked into its system prompt. Replaced with a generic
