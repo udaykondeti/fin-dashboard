@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db/database');
 const authMiddleware = require('../middleware/auth');
-const { getPrice: fetchYahooPrice } = require('../services/priceService');
+const { getPrice: fetchYahooPrice, getIndianStockPrice } = require('../services/priceService');
 
 const router = express.Router();
 
@@ -28,14 +28,22 @@ router.get('/stocks', async (req, res) => {
     if (!stocks.length) return res.json({ stocks });
 
     // Live prices in parallel. Failures are per-symbol; one bad symbol
-    // doesn't block the rest of the table.
+    // doesn't block the rest of the table. getIndianStockPrice tries
+    // <SYMBOL>.NS, <stripped>.NS, .BO variants — handles CSV exports that
+    // include the -EQ series suffix (e.g. AZADEQ → AZAD.NS).
     const priceResults = await Promise.all(
-      stocks.map(s => fetchYahooPrice(`${s.symbol}.NS`).catch(() => ({ price: null })))
+      stocks.map(s => getIndianStockPrice(s.symbol).catch(() => ({ price: null, live: false })))
     );
-    const enriched = stocks.map((s, i) => ({
-      ...s,
-      current_price: priceResults[i] && priceResults[i].price != null ? priceResults[i].price : s.current_price
-    }));
+    const enriched = stocks.map((s, i) => {
+      const r = priceResults[i] || {};
+      const live = !!r.live;
+      return {
+        ...s,
+        current_price: r.price != null ? r.price : s.current_price,
+        live_price: live,
+        resolved_symbol: r.resolved_symbol || null
+      };
+    });
     res.json({ stocks: enriched });
   } catch (err) {
     console.error('Get stocks error:', err);
@@ -322,10 +330,15 @@ router.get('/us-stocks', async (req, res) => {
     const priceResults = await Promise.all(
       stocks.map(s => fetchYahooPrice(s.symbol).catch(() => ({ price: null })))
     );
-    const enriched = stocks.map((s, i) => ({
-      ...s,
-      current_price_usd: priceResults[i] && priceResults[i].price != null ? priceResults[i].price : s.current_price_usd
-    }));
+    const enriched = stocks.map((s, i) => {
+      const r = priceResults[i] || {};
+      const live = r.price != null;
+      return {
+        ...s,
+        current_price_usd: r.price != null ? r.price : s.current_price_usd,
+        live_price: live
+      };
+    });
     res.json({ us_stocks: enriched });
   } catch (err) {
     console.error('Get US stocks error:', err);

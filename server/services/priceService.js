@@ -79,4 +79,34 @@ async function getUsdInrRate() {
   return { rate: FALLBACK_RATE, source: 'fallback', staleSec: null };
 }
 
-module.exports = { getPrice, getUsdInrRate, isAllowedSymbol };
+module.exports = { getPrice, getUsdInrRate, isAllowedSymbol, getIndianStockPrice };
+
+// Try a few common symbol variants for Indian equities and return the first
+// hit. Trading-account CSV exports often carry suffixes that Yahoo doesn't
+// recognise (Zerodha shows -EQ, some BSE feeds tack EQ on the end). For
+// "AZADEQ" we try AZADEQ.NS, AZAD.NS, AZADEQ.BO, AZAD.BO. Returns the same
+// shape as getPrice() with an extra `resolved_symbol` field naming the
+// variant that worked, plus `live: boolean`.
+async function getIndianStockPrice(rawSymbol) {
+  const base = String(rawSymbol || '').trim().toUpperCase();
+  if (!base) return { price: null, live: false, error: 'empty_symbol' };
+  // Strip trailing series suffixes that Yahoo doesn't carry.
+  const stripped = base
+    .replace(/-EQ$/, '').replace(/-BE$/, '').replace(/-BZ$/, '')
+    .replace(/EQ$/, '');
+  const variants = [];
+  const seen = new Set();
+  const push = (s) => { const k = s.toUpperCase(); if (!seen.has(k)) { seen.add(k); variants.push(k); } };
+  push(`${base}.NS`);
+  if (stripped !== base) push(`${stripped}.NS`);
+  push(`${base}.BO`);
+  if (stripped !== base) push(`${stripped}.BO`);
+
+  for (const sym of variants) {
+    const r = await getPrice(sym);
+    if (r && r.price != null) {
+      return { ...r, live: true, resolved_symbol: sym };
+    }
+  }
+  return { symbol: base, price: null, live: false, error: 'no_variant_found', tried: variants };
+}

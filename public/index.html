@@ -1808,10 +1808,10 @@ async function apiFetch(url){
 }
 
 // Normalize API snake_case → frontend camelCase
-function normStock(s){return{id:s.id,symbol:s.symbol,exchange:s.exchange||'NSE',company:s.company_name,qty:s.quantity,avgPrice:s.avg_buy_price,currentPrice:s.current_price||s.avg_buy_price,notes:s.notes};}
+function normStock(s){return{id:s.id,symbol:s.symbol,exchange:s.exchange||'NSE',company:s.company_name,qty:s.quantity,avgPrice:s.avg_buy_price,currentPrice:s.current_price||s.avg_buy_price,livePrice:!!s.live_price,resolvedSymbol:s.resolved_symbol||null,notes:s.notes};}
 function normMF(m){return{id:m.id,name:m.fund_name,type:m.fund_type||'Equity',folio:m.folio_number,units:m.units,avgNav:m.avg_nav,currentNav:m.current_nav||m.avg_nav,sip:m.sip_amount||0,notes:m.notes};}
 function normFD(f){return{id:f.id,bank:f.bank_name,type:f.fd_type||'Cumulative',principal:f.principal,rate:f.interest_rate,start:f.start_date,end:f.maturity_date,notes:f.notes};}
-function normUSStock(s){return{id:s.id,symbol:s.symbol,company:s.company_name,qty:s.quantity,avgPrice:s.avg_buy_price_usd,currentPrice:s.current_price_usd||s.avg_buy_price_usd,notes:s.notes};}
+function normUSStock(s){return{id:s.id,symbol:s.symbol,company:s.company_name,qty:s.quantity,avgPrice:s.avg_buy_price_usd,currentPrice:s.current_price_usd||s.avg_buy_price_usd,livePrice:!!s.live_price,notes:s.notes};}
 function normCC(c){return{id:c.id,name:c.card_name,bank:c.bank,limit:c.card_limit,outstanding:c.outstanding_balance||0,due:c.due_date,minPayment:c.min_payment||0,last4:c.last4||'0000',notes:c.notes};}
 function normLoan(l){return{id:l.id,type:l.loan_type,lender:l.lender,principal:l.principal_amount,outstanding:l.outstanding_amount,rate:l.interest_rate,emi:l.emi_amount,emiDate:l.emi_date,start:l.start_date,end:l.end_date,notes:l.notes};}
 function normHandLoan(h){return{id:h.id,person:h.person_name,phone:h.phone,direction:h.direction,amount:h.amount,date:h.date,due:h.due_date,rate:h.interest_rate||0,status:h.status,notes:h.notes};}
@@ -1886,7 +1886,8 @@ function renderStocksTable(){
   var rows=stocksData.map(function(s){
     var inv=s.qty*s.avgPrice,val=s.qty*s.currentPrice,pl=val-inv,plp=(pl/inv)*100;
     totalInv+=inv;totalVal+=val;
-    return '<tr><td><strong>'+esc(s.symbol)+'</strong></td><td>'+esc(s.company)+'</td><td>'+s.qty+'</td><td>'+fmt(s.avgPrice)+'</td><td>'+fmt(s.currentPrice)+'<span class="badge-live">LIVE</span></td><td>'+fmt(Math.round(inv))+'</td><td>'+fmt(Math.round(val))+'</td><td class="'+plClass(pl)+'">'+fmt(Math.round(pl))+'</td><td class="'+plClass(plp)+'">'+fmtPct(plp)+'</td><td><button class="action-btn del" onclick="deleteStock('+s.id+')">Del</button></td></tr>';
+    var liveTag = s.livePrice ? '<span class="badge-live">LIVE</span>' : '<span class="badge-live" style="background:rgba(148,163,184,.15);color:#94a3b8;border-color:rgba(148,163,184,.3)" title="Live price unavailable for this symbol — showing avg buy price">N/A</span>';
+    return '<tr><td><strong>'+esc(s.symbol)+'</strong></td><td>'+esc(s.company)+'</td><td>'+s.qty+'</td><td>'+fmt(s.avgPrice)+'</td><td>'+fmt(s.currentPrice)+liveTag+'</td><td>'+fmt(Math.round(inv))+'</td><td>'+fmt(Math.round(val))+'</td><td class="'+plClass(pl)+'">'+fmt(Math.round(pl))+'</td><td class="'+plClass(plp)+'">'+fmtPct(plp)+'</td><td><button class="action-btn del" onclick="deleteStock('+s.id+')">Del</button></td></tr>';
   });
   var tp=totalVal-totalInv,tpp=totalInv>0?(tp/totalInv)*100:0;
   tbody.innerHTML=rows.join('')+'<tr class="total-row"><td colspan="5">Total</td><td>'+fmt(Math.round(totalInv))+'</td><td>'+fmt(Math.round(totalVal))+'</td><td class="'+plClass(tp)+'">'+fmt(Math.round(tp))+'</td><td class="'+plClass(tpp)+'">'+fmtPct(tpp)+'</td><td></td></tr>';
