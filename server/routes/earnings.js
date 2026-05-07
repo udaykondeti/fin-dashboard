@@ -9,6 +9,70 @@ router.use(authMiddleware);
 // Round to 2 decimals so currency split math doesn't drift on the frontend
 function round2(n) { return Math.round(n * 100) / 100; }
 
+// ─────────────────────────── Tax computation ─────────────────────────────
+//
+// New Tax Regime FY2026-27 slabs (default for India). Same as the
+// frontend's calcIncomeTax — kept inline to avoid a shared module.
+function estimateAnnualSlabTax(annualIncome) {
+  if (annualIncome <= 700000) return 0; // Sec 87A rebate (New regime)
+  const slabs = [[300000,0],[300000,0.05],[300000,0.10],[300000,0.15],[300000,0.20],[Infinity,0.30]];
+  let tax = 0, rem = annualIncome;
+  for (const [size, rate] of slabs) {
+    const taxable = Math.min(rem, size);
+    tax += taxable * rate;
+    rem -= taxable;
+    if (rem <= 0) break;
+  }
+  return tax * 1.04; // 4% health & education cess
+}
+
+const FREQ_PER_YEAR = { 'Monthly': 12, 'Quarterly': 4, 'Annual': 1, 'Weekly': 52, 'One-time': 1 };
+
+// Returns { gross_per_period, net_per_period, tds_per_period, gross_monthly,
+//          net_monthly, tds_monthly, tax_source } for an earning.
+//
+// Resolution order for net amount:
+//   1. actual_received (manual override) — wins
+//   2. tds_rate (flat percent) — gross * (1 - tds_rate/100)
+//   3. source_type === 'Salary' → estimate annual slab TDS, prorate
+//   4. otherwise net = gross (no TDS assumed)
+function computeTaxFields(e) {
+  const periodsPerYear = FREQ_PER_YEAR[e.frequency] || 12;
+  const gross = Number(e.amount) || 0;
+  const annualGross = gross * periodsPerYear;
+  let net, tdsPer, taxSource;
+
+  if (e.actual_received != null && Number.isFinite(Number(e.actual_received))) {
+    net = Number(e.actual_received);
+    tdsPer = Math.max(0, gross - net);
+    taxSource = 'manual';
+  } else if (e.tds_rate != null && Number.isFinite(Number(e.tds_rate))) {
+    const rate = Math.max(0, Math.min(100, Number(e.tds_rate)));
+    tdsPer = gross * rate / 100;
+    net = gross - tdsPer;
+    taxSource = 'flat_rate';
+  } else if (String(e.source_type || '').toLowerCase() === 'salary') {
+    const annualTax = estimateAnnualSlabTax(annualGross);
+    tdsPer = annualTax / periodsPerYear;
+    net = gross - tdsPer;
+    taxSource = 'slab_estimate';
+  } else {
+    tdsPer = 0;
+    net = gross;
+    taxSource = 'none';
+  }
+
+  return {
+    gross_per_period: round2(gross),
+    net_per_period:   round2(net),
+    tds_per_period:   round2(tdsPer),
+    gross_monthly:    round2(annualGross / 12),
+    net_monthly:      round2((net * periodsPerYear) / 12),
+    tds_monthly:      round2((tdsPer * periodsPerYear) / 12),
+    tax_source:       taxSource
+  };
+}
+
 // Build the shares array (with profile name/color and computed_amount) for a given earning row
 function loadSharesForEarning(earning) {
   const rows = db.prepare(`
@@ -61,7 +125,10 @@ router.get('/', (req, res) => {
   const p = [userId];
   if (profile_id) { q += ' AND (profile_id = ? OR profile_id IS NULL)'; p.push(profile_id); }
   const manualRows = db.prepare(q + ' ORDER BY source_type, source_name').all(...p);
-  const manual = manualRows.map(e => Object.assign({}, e, { shares: loadSharesForEarning(e) }));
+  const manual = manualRows.map(e => {
+    const base = Object.assign({}, e, { shares: loadSharesForEarning(e) });
+    return Object.assign(base, computeTaxFields(base));
+  });
 
   // Auto: savings account interest
   const savings = db.prepare('SELECT * FROM savings_accounts WHERE user_id = ?').all(userId);
@@ -93,19 +160,30 @@ router.get('/', (req, res) => {
     notes: l.interest_rate + '% p.a. on ₹' + l.amount.toLocaleString('en-IN') + ' lent to ' + l.person_name
   }));
 
-  res.json({ earnings: [...manual, ...savingsInt, ...loanInt] });
+  // Auto rows get the same tax-fields shape as manual ones, computed from
+  // their amount + frequency + source_type so the dashboard can sum
+  // gross_monthly / net_monthly uniformly.
+  const enrichAuto = e => Object.assign({}, e, computeTaxFields(e));
+  res.json({ earnings: [...manual, ...savingsInt.map(enrichAuto), ...loanInt.map(enrichAuto)] });
 });
 
 router.post('/', (req, res) => {
-  const { source_name, source_type, amount, frequency, share_percentage, profile_id, financial_year, notes } = req.body;
+  const { source_name, source_type, amount, frequency, share_percentage, profile_id, financial_year, notes, tds_rate, actual_received } = req.body;
   if (!source_name || !amount) return res.status(400).json({ error: 'source_name and amount required' });
   if (!assertProfileOwnership(req, res, profile_id)) return;
-  const r = db.prepare('INSERT INTO earnings (user_id, profile_id, source_name, source_type, amount, frequency, share_percentage, financial_year, notes) VALUES (?,?,?,?,?,?,?,?,?)').run(req.user.id, profile_id || null, source_name, source_type || 'Other', amount, frequency || 'Monthly', share_percentage || 100, financial_year || null, notes || null);
+  const r = db.prepare(
+    'INSERT INTO earnings (user_id, profile_id, source_name, source_type, amount, frequency, share_percentage, financial_year, notes, tds_rate, actual_received) VALUES (?,?,?,?,?,?,?,?,?,?,?)'
+  ).run(
+    req.user.id, profile_id || null, source_name, source_type || 'Other', amount,
+    frequency || 'Monthly', share_percentage || 100, financial_year || null, notes || null,
+    tds_rate == null || tds_rate === '' ? null : Number(tds_rate),
+    actual_received == null || actual_received === '' ? null : Number(actual_received)
+  );
   res.json({ id: r.lastInsertRowid });
 });
 
 router.put('/:id', (req, res) => {
-  const { source_name, source_type, amount, frequency, share_percentage, financial_year, notes } = req.body;
+  const { source_name, source_type, amount, frequency, share_percentage, financial_year, notes, tds_rate, actual_received } = req.body;
   const earningId = Number(req.params.id);
   const earning = getOwnedManualEarning(earningId, req.user.id);
   if (!earning) return res.status(404).json({ error: 'Earning not found' });
@@ -118,7 +196,15 @@ router.put('/:id', (req, res) => {
     return res.status(400).json({ error: 'Share total would be ' + Math.round(projectedTotal) + '% (max 100)' });
   }
 
-  db.prepare('UPDATE earnings SET source_name=?,source_type=?,amount=?,frequency=?,share_percentage=?,financial_year=?,notes=? WHERE id=? AND user_id=? AND is_auto=0').run(source_name, source_type, amount, frequency, share_percentage || 100, financial_year || null, notes || null, earningId, req.user.id);
+  db.prepare(
+    'UPDATE earnings SET source_name=?,source_type=?,amount=?,frequency=?,share_percentage=?,financial_year=?,notes=?,tds_rate=?,actual_received=? WHERE id=? AND user_id=? AND is_auto=0'
+  ).run(
+    source_name, source_type, amount, frequency, share_percentage || 100,
+    financial_year || null, notes || null,
+    tds_rate == null || tds_rate === '' ? null : Number(tds_rate),
+    actual_received == null || actual_received === '' ? null : Number(actual_received),
+    earningId, req.user.id
+  );
   res.json({ success: true });
 });
 
