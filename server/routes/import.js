@@ -250,6 +250,39 @@ router.post('/commit', (req, res) => {
         }
       });
       tx(rows);
+    } else if (type === 'us_stocks') {
+      // Same upsert pattern but for the us_stocks table. The "symbol" field
+      // here is the broker's ticker (e.g. AAPL); avg_buy_price is in USD.
+      // The detection step parses these as if they were Indian stocks
+      // (same column names), so we map symbol/qty/avg_buy_price → us_stocks.
+      const findExisting = db.prepare('SELECT id FROM us_stocks WHERE user_id = ? AND symbol = ? ORDER BY id ASC');
+      const updateStmt   = db.prepare('UPDATE us_stocks SET quantity = ?, avg_buy_price_usd = ?, company_name = COALESCE(?, company_name) WHERE id = ?');
+      const insertStmt   = db.prepare('INSERT INTO us_stocks (user_id, symbol, company_name, quantity, avg_buy_price_usd) VALUES (?,?,?,?,?)');
+      const deleteDup    = db.prepare('DELETE FROM us_stocks WHERE id = ?');
+      const tx = db.transaction((rs) => {
+        for (const r of rs) {
+          const symbol = safeStr(r && r.symbol, 32);
+          const name   = safeStr((r && (r.company_name || r.symbol)) || '', 200);
+          const qty    = safeNum(r && r.quantity, { min: 0, max: 1e9 });
+          // US stocks support fractional shares (Robinhood etc.) so allow
+          // 6-decimal precision; existing safeNum bound is loose.
+          const price  = safeNum(r && r.avg_buy_price, { min: 0, max: 1e9 });
+          if (!symbol || qty == null || qty <= 0) {
+            result.skipped++; result.errors.push((symbol || '<row>') + ': invalid symbol or quantity');
+            continue;
+          }
+          const existing = findExisting.all(userId, symbol);
+          if (existing.length === 0) {
+            insertStmt.run(userId, symbol, name || symbol, qty, price || 0);
+            result.inserted++;
+          } else {
+            updateStmt.run(qty, price || 0, name || symbol, existing[0].id);
+            for (let i = 1; i < existing.length; i++) deleteDup.run(existing[i].id);
+            result.updated++;
+          }
+        }
+      });
+      tx(rows);
     } else if (type === 'mutual_funds') {
       const findExisting = db.prepare('SELECT id FROM mutual_funds WHERE user_id = ? AND fund_name = ? ORDER BY id ASC');
       const updateStmt   = db.prepare('UPDATE mutual_funds SET units = ?, avg_nav = ?, fund_type = ? WHERE id = ?');
