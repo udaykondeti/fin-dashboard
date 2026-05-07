@@ -633,6 +633,24 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
         </div>
       </div>
 
+      <!-- Hand-loan visibility: amounts already roll into Total Assets
+           (receivables) and Total Liabilities, but surface them on their
+           own cards so the user sees the magnitude at a glance. -->
+      <div class="summary-grid" style="margin-top:14px">
+        <div class="summary-card green">
+          <div class="summary-card-label">Money Lent (Receivable)</div>
+          <div class="summary-card-value green" id="moneyLent">--</div>
+          <div class="summary-card-sub">Active hand loans you gave</div>
+        </div>
+        <div class="summary-card red">
+          <div class="summary-card-label">Money Borrowed</div>
+          <div class="summary-card-value red" id="moneyBorrowed">--</div>
+          <div class="summary-card-sub">Active hand loans you took</div>
+        </div>
+        <div class="summary-card" style="background:transparent;border:1px dashed var(--border)"></div>
+        <div class="summary-card" style="background:transparent;border:1px dashed var(--border)"></div>
+      </div>
+
       <!-- Cash flow row — gross income, post-TDS net, scheduled outflows,
            surplus. Net uses each earning's tds_rate / actual_received /
            source_type=Salary slab estimate. -->
@@ -1998,6 +2016,12 @@ function renderSummaryCards(){
   pnlEl.textContent=fmt(Math.round(t.pnl));
   pnlEl.className='summary-card-value '+(t.pnl>=0?'green':'red');
   document.getElementById('pnlSub').textContent=t.pnl>=0?'Unrealised gain':'Unrealised loss';
+  // Money lent / borrowed (hand loans) — already in totalAssets/totalLiab,
+  // surfaced separately for visibility.
+  var lent = (typeof handLoansGiven !== 'undefined' ? handLoansGiven : []).filter(function(l){return l.status!=='settled'}).reduce(function(s,x){return s+(Number(x.amount)||0)},0);
+  var borrowed = (typeof handLoansTaken !== 'undefined' ? handLoansTaken : []).filter(function(l){return l.status!=='settled'}).reduce(function(s,x){return s+(Number(x.amount)||0)},0);
+  var lentEl = document.getElementById('moneyLent'); if (lentEl) lentEl.textContent = fmt(Math.round(lent));
+  var borrEl = document.getElementById('moneyBorrowed'); if (borrEl) borrEl.textContent = fmt(Math.round(borrowed));
   renderCashFlowCards();
 }
 
@@ -2057,13 +2081,27 @@ function renderStocksTable(){
   tbody.innerHTML=rows.join('')+'<tr class="total-row"><td colspan="6">Total</td><td>'+fmt(Math.round(totalInv))+'</td><td>'+fmt(Math.round(totalVal))+'</td><td class="'+plClass(tp)+'">'+fmt(Math.round(tp))+'</td><td class="'+plClass(tpp)+'">'+fmtPct(tpp)+'</td><td></td></tr>';
 }
 
-function saveStock(e){
+async function saveStock(e){
   e.preventDefault();
-  var cp=parseFloat(document.getElementById('s-currentprice').value)||parseFloat(document.getElementById('s-avgprice').value);
-  stocksData.push({id:Date.now(),symbol:document.getElementById('s-symbol').value.toUpperCase(),company:document.getElementById('s-company').value,qty:parseFloat(document.getElementById('s-qty').value),avgPrice:parseFloat(document.getElementById('s-avgprice').value),currentPrice:cp});
-  renderStocksTable();renderSummaryCards();closeModal('addStock');e.target.reset();showToast('Stock added','success');
+  var data = {
+    symbol: document.getElementById('s-symbol').value.toUpperCase(),
+    company_name: document.getElementById('s-company').value,
+    quantity: parseFloat(document.getElementById('s-qty').value),
+    avg_buy_price: parseFloat(document.getElementById('s-avgprice').value)
+  };
+  var r = await apiPost('/api/investments/stocks', data);
+  if (r && r.id) {
+    await loadAllData();
+    closeModal('addStock'); e.target.reset();
+    showToast('Stock added','success');
+  } else { showToast((r && r.error) || 'Failed to save stock','error'); }
 }
-function deleteStock(id){stocksData=stocksData.filter(function(s){return s.id!==id});renderStocksTable();renderSummaryCards();showToast('Stock removed','info')}
+async function deleteStock(id){
+  if (!window.confirm('Delete this stock holding?')) return;
+  await apiDel('/api/investments/stocks/'+id);
+  await loadAllData();
+  showToast('Stock removed','info');
+}
 
 // Set the Yahoo symbol override for a stock row. Bypasses the heuristic
 // fallback when the broker's internal ticker doesn't match what Yahoo
@@ -2109,13 +2147,28 @@ function renderMFTable(){
   var tp=totalVal-totalInv,tpp=totalInv>0?(tp/totalInv)*100:0;
   tbody.innerHTML=rows.join('')+'<tr class="total-row"><td colspan="5">Total</td><td>'+fmt(Math.round(totalInv))+'</td><td>'+fmt(Math.round(totalVal))+'</td><td class="'+plClass(tp)+'">'+fmt(Math.round(tp))+'</td><td class="'+plClass(tpp)+'">'+fmtPct(tpp)+'</td><td></td><td></td></tr>';
 }
-function saveMF(e){
+async function saveMF(e){
   e.preventDefault();
-  var cn=parseFloat(document.getElementById('mf-current').value)||parseFloat(document.getElementById('mf-avg').value);
-  mfsData.push({id:Date.now(),name:document.getElementById('mf-name').value,type:document.getElementById('mf-type').value,units:parseFloat(document.getElementById('mf-units').value),avgNav:parseFloat(document.getElementById('mf-avg').value),currentNav:cn,sip:parseFloat(document.getElementById('mf-sip').value)||0});
-  renderMFTable();renderSummaryCards();closeModal('addMF');e.target.reset();showToast('Fund added','success');
+  var data = {
+    fund_name: document.getElementById('mf-name').value,
+    fund_type: document.getElementById('mf-type').value,
+    units: parseFloat(document.getElementById('mf-units').value),
+    avg_nav: parseFloat(document.getElementById('mf-avg').value),
+    sip_amount: parseFloat(document.getElementById('mf-sip').value) || 0
+  };
+  var r = await apiPost('/api/investments/mutual-funds', data);
+  if (r && r.id) {
+    await loadAllData();
+    closeModal('addMF'); e.target.reset();
+    showToast('Fund added','success');
+  } else { showToast((r && r.error) || 'Failed to save fund','error'); }
 }
-function deleteMF(id){mfsData=mfsData.filter(function(m){return m.id!==id});renderMFTable();renderSummaryCards();showToast('Fund removed','info')}
+async function deleteMF(id){
+  if (!window.confirm('Delete this mutual fund holding?')) return;
+  await apiDel('/api/investments/mutual-funds/'+id);
+  await loadAllData();
+  showToast('Fund removed','info');
+}
 
 function renderFDGrid(){
   var g=document.getElementById('fdGrid');
@@ -2131,12 +2184,29 @@ function renderFDGrid(){
     return '<div class="fd-card"><div class="fd-card-top"><div><div style="font-size:20px;margin-bottom:4px">&#x1F3E6;</div><div class="fd-bank">'+esc(f.bank)+'</div></div><div><span class="fd-type">'+esc(f.type)+'</span><button class="action-btn del" style="display:block;margin-top:6px" onclick="deleteFD('+f.id+')">Del</button></div></div><div class="fd-row"><span class="lbl">Principal</span><span class="val">'+fmt(f.principal)+'</span></div><div class="fd-row"><span class="lbl">Rate</span><span class="val" style="color:var(--accent-gold)">'+f.rate+'% p.a.</span></div><div class="fd-row"><span class="lbl">Maturity Value</span><span class="val" style="color:var(--accent-green)">'+fmt(Math.round(maturity))+'</span></div><div class="fd-row"><span class="lbl">Gain</span><span class="val pl-pos">+'+fmt(Math.round(maturity-f.principal))+'</span></div><div class="progress-bar"><div class="progress-fill '+fillClass+'" style="width:'+pct.toFixed(1)+'%"></div></div><div style="font-size:12px;color:var(--text-secondary);text-align:right">'+(dl>0?dl+' days left':'Matured')+' &middot; '+dateFmt(f.end)+'</div></div>';
   }).join('');
 }
-function saveFD(e){
+async function saveFD(e){
   e.preventDefault();
-  fdsData.push({id:Date.now(),bank:document.getElementById('fd-bank').value,type:document.getElementById('fd-type').value,principal:parseFloat(document.getElementById('fd-principal').value),rate:parseFloat(document.getElementById('fd-rate').value),start:document.getElementById('fd-start').value,end:document.getElementById('fd-end').value});
-  renderFDGrid();renderSummaryCards();closeModal('addFD');e.target.reset();showToast('FD added','success');
+  var data = {
+    bank_name: document.getElementById('fd-bank').value,
+    fd_type: document.getElementById('fd-type').value,
+    principal: parseFloat(document.getElementById('fd-principal').value),
+    interest_rate: parseFloat(document.getElementById('fd-rate').value),
+    start_date: document.getElementById('fd-start').value,
+    maturity_date: document.getElementById('fd-end').value
+  };
+  var r = await apiPost('/api/investments/fds', data);
+  if (r && r.id) {
+    await loadAllData();
+    closeModal('addFD'); e.target.reset();
+    showToast('FD added','success');
+  } else { showToast((r && r.error) || 'Failed to save FD','error'); }
 }
-function deleteFD(id){fdsData=fdsData.filter(function(f){return f.id!==id});renderFDGrid();renderSummaryCards();showToast('FD removed','info')}
+async function deleteFD(id){
+  if (!window.confirm('Delete this FD/RD?')) return;
+  await apiDel('/api/investments/fds/'+id);
+  await loadAllData();
+  showToast('FD removed','info');
+}
 
 function renderUSTable(){
   var tbody=document.getElementById('usStocksTbody');
@@ -2175,11 +2245,20 @@ function renderUSTable(){
     +'<td class="'+plClass(tpp)+'">'+fmtPct(tpp)+'</td>'
     +'<td></td></tr>';
 }
-function saveUSStock(e){
+async function saveUSStock(e){
   e.preventDefault();
-  var cp=parseFloat(document.getElementById('us-currentprice').value)||parseFloat(document.getElementById('us-avgprice').value);
-  usStocksData.push({id:Date.now(),symbol:document.getElementById('us-symbol').value.toUpperCase(),company:document.getElementById('us-company').value,qty:parseFloat(document.getElementById('us-qty').value),avgPrice:parseFloat(document.getElementById('us-avgprice').value),currentPrice:cp});
-  renderUSTable();renderSummaryCards();closeModal('addUSStock');e.target.reset();showToast('US Stock added','success');
+  var data = {
+    symbol: document.getElementById('us-symbol').value.toUpperCase(),
+    company_name: document.getElementById('us-company').value,
+    quantity: parseFloat(document.getElementById('us-qty').value),
+    avg_buy_price_usd: parseFloat(document.getElementById('us-avgprice').value)
+  };
+  var r = await apiPost('/api/investments/us-stocks', data);
+  if (r && r.id) {
+    await loadAllData();
+    closeModal('addUSStock'); e.target.reset();
+    showToast('US Stock added','success');
+  } else { showToast((r && r.error) || 'Failed to save US stock','error'); }
 }
 
 // Yahoo lookup as the user tabs out of the symbol field. Populates Current
@@ -2213,7 +2292,12 @@ async function autoFetchUsPrice(){
     if (statusEl) statusEl.textContent = '— lookup failed: ' + err.message;
   }
 }
-function deleteUSStock(id){usStocksData=usStocksData.filter(function(s){return s.id!==id});renderUSTable();renderSummaryCards();showToast('Removed','info')}
+async function deleteUSStock(id){
+  if (!window.confirm('Delete this US stock holding?')) return;
+  await apiDel('/api/investments/us-stocks/'+id);
+  await loadAllData();
+  showToast('US Stock removed','info');
+}
 
 // Set the Yahoo symbol override for a US stock row. Same UX as the
 // Indian-stocks setYahooSymbol; useful for tickers Yahoo lists with
@@ -2253,12 +2337,29 @@ function renderCCGrid(){
     return '<div class="cc-card'+(isDanger?' danger-card':'')+'"><div class="cc-chip"></div><div class="cc-bank">'+esc(c.bank)+'</div><div class="cc-name">'+esc(c.name)+' ···'+esc(c.last4||'0000')+'</div><div class="cc-row"><div><div class="cc-label">Outstanding</div><div class="cc-value'+(isDanger?' danger':'')+'">'+fmt(c.outstanding)+'</div></div><div style="text-align:right"><div class="cc-label">Credit Limit</div><div class="cc-value">'+fmt(c.limit)+'</div></div></div><div class="cc-bar"><div class="cc-bar-fill '+fillClass+'" style="width:'+util.toFixed(1)+'%"></div></div><div style="display:flex;justify-content:space-between"><div style="font-size:11px;color:rgba(255,255,255,.45)">Due: '+dateFmt(c.due)+'</div><div style="font-size:11px;color:rgba(255,255,255,.45)">'+util.toFixed(1)+'% used</div></div><button class="action-btn" style="margin-top:10px;color:rgba(255,255,255,.4);border-color:rgba(255,255,255,.15)" onclick="deleteCC('+c.id+')">Remove</button></div>';
   }).join('');
 }
-function saveCC(e){
+async function saveCC(e){
   e.preventDefault();
-  ccData.push({id:Date.now(),name:document.getElementById('cc-name').value,bank:document.getElementById('cc-bank').value,limit:parseFloat(document.getElementById('cc-limit').value),outstanding:parseFloat(document.getElementById('cc-outstanding').value)||0,due:document.getElementById('cc-due').value,last4:document.getElementById('cc-last4').value||'0000'});
-  renderCCGrid();renderSummaryCards();closeModal('addCC');e.target.reset();showToast('Card added','success');
+  var data = {
+    card_name: document.getElementById('cc-name').value,
+    bank: document.getElementById('cc-bank').value,
+    card_limit: parseFloat(document.getElementById('cc-limit').value),
+    outstanding_balance: parseFloat(document.getElementById('cc-outstanding').value) || 0,
+    due_date: document.getElementById('cc-due').value || null,
+    last4: document.getElementById('cc-last4').value || '0000'
+  };
+  var r = await apiPost('/api/liabilities/credit-cards', data);
+  if (r && r.id) {
+    await loadAllData();
+    closeModal('addCC'); e.target.reset();
+    showToast('Card added','success');
+  } else { showToast((r && r.error) || 'Failed to save card','error'); }
 }
-function deleteCC(id){ccData=ccData.filter(function(c){return c.id!==id});renderCCGrid();renderSummaryCards();showToast('Card removed','info')}
+async function deleteCC(id){
+  if (!window.confirm('Delete this credit card?')) return;
+  await apiDel('/api/liabilities/credit-cards/'+id);
+  await loadAllData();
+  showToast('Card removed','info');
+}
 
 function renderLoansTable(){
   var tbody=document.getElementById('loansTbody');
@@ -2268,12 +2369,30 @@ function renderLoansTable(){
     return '<tr><td>'+esc(l.type)+'</td><td>'+esc(l.lender)+'</td><td style="color:var(--accent-red);font-weight:600">'+fmt(l.outstanding)+'</td><td>'+fmt(l.emi)+'/mo</td><td>'+l.rate+'%</td><td>'+dateFmt(nm.toISOString().split("T")[0])+'</td><td>'+dateFmt(l.end)+'</td><td><button class="action-btn del" onclick="deleteLoan('+l.id+')">Del</button></td></tr>';
   }).join('');
 }
-function saveLoan(e){
+async function saveLoan(e){
   e.preventDefault();
-  loansData.push({id:Date.now(),type:document.getElementById('loan-type').value,lender:document.getElementById('loan-lender').value,outstanding:parseFloat(document.getElementById('loan-outstanding').value),emi:parseFloat(document.getElementById('loan-emi').value),rate:parseFloat(document.getElementById('loan-rate').value),end:document.getElementById('loan-end').value});
-  renderLoansTable();renderSummaryCards();closeModal('addLoan');e.target.reset();showToast('Loan added','success');
+  var data = {
+    loan_type: document.getElementById('loan-type').value,
+    lender: document.getElementById('loan-lender').value,
+    principal_amount: parseFloat(document.getElementById('loan-outstanding').value),
+    outstanding_amount: parseFloat(document.getElementById('loan-outstanding').value),
+    emi_amount: parseFloat(document.getElementById('loan-emi').value) || 0,
+    interest_rate: parseFloat(document.getElementById('loan-rate').value) || 0,
+    end_date: document.getElementById('loan-end').value || null
+  };
+  var r = await apiPost('/api/liabilities/loans', data);
+  if (r && r.id) {
+    await loadAllData();
+    closeModal('addLoan'); e.target.reset();
+    showToast('Loan added','success');
+  } else { showToast((r && r.error) || 'Failed to save loan','error'); }
 }
-function deleteLoan(id){loansData=loansData.filter(function(l){return l.id!==id});renderLoansTable();renderSummaryCards();showToast('Removed','info')}
+async function deleteLoan(id){
+  if (!window.confirm('Delete this loan?')) return;
+  await apiDel('/api/liabilities/loans/'+id);
+  await loadAllData();
+  showToast('Loan removed','info');
+}
 
 function renderHandLoans(){
   renderLoanGrid('givenGrid',handLoansGiven);
