@@ -941,18 +941,20 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
               </label>
               <label>Model
                 <select id="agentModelSelect" onchange="agentOnModelChange()">
+                  <option value="auto">&#x2728; Auto (Anthropic for your data, Groq for general)</option>
                   <optgroup label="Anthropic">
                     <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
                     <option value="claude-sonnet-4-5">Claude Sonnet 4.5</option>
                     <option value="claude-opus-4-5">Claude Opus 4.5</option>
                   </optgroup>
-                  <optgroup label="Groq (fallback)">
+                  <optgroup label="Groq">
                     <option value="llama-3.3-70b-versatile">Llama 3.3 70B</option>
                     <option value="llama-3.1-8b-instant">Llama 3.1 8B (fast)</option>
                   </optgroup>
                 </select>
               </label>
             </div>
+            <span id="agentRoutingBadge" style="display:none;font-size:10px;padding:3px 8px;border-radius:6px;background:rgba(198,134,66,.12);color:#6B3F1F;border:1px solid rgba(198,134,66,.25);align-self:center"></span>
             <div class="agent-thread-title" id="agentThreadTitle"></div>
           </div>
           <div class="agent-messages" id="agentMessages"></div>
@@ -4837,6 +4839,18 @@ async function agentRunStream(content) {
           // Replace the tmp_user_* id with the real one
           var lastUser = [...agentState.messages].reverse().find(function(m){return m.role==='user'});
           if (lastUser) lastUser.id = data.user_message_id;
+        } else if (name === 'routing') {
+          // Show which provider+model was picked. Surfaces auto-routing
+          // decisions so the user knows why their general question went
+          // to Groq vs their portfolio question to Anthropic.
+          agentState.lastRouting = data;
+          var rb = document.getElementById('agentRoutingBadge');
+          if (rb) {
+            var label = (data.provider === 'anthropic' ? '🤖 Anthropic · ' : '⚡ Groq · ') + (data.model || '');
+            var hint  = data.reason && data.reason.indexOf('auto:') === 0 ? ' (' + data.reason.slice(5) + ')' : '';
+            rb.textContent = label + hint;
+            rb.style.display = '';
+          }
         } else if (name === 'assistant_start') {
           assistantMsg = { id: data.message_id, role: 'assistant', content: '', tool_uses: null, status: 'streaming' };
           agentState.messages.push(assistantMsg);

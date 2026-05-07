@@ -1,6 +1,7 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const db = require('../db/database');
 const tools = require('./chatTools');
+const routeProvider = require('./routeProvider');
 
 // ─────────────────────────── Live artifacts ───────────────────────────────
 //
@@ -168,7 +169,10 @@ const PRICE_TABLE = {
   'llama-3.3-70b-versatile': { input: 0.59, output: 0.79 },
   'llama-3.1-8b-instant':    { input: 0.05, output: 0.08 }
 };
-const DEFAULT_MODEL = 'claude-haiku-4-5';
+// 'auto' triggers per-message provider routing via routeProvider.js — Anthropic
+// for app/data questions, Groq for general queries. Users can override by
+// picking a specific Claude or Llama model from the chat header dropdown.
+const DEFAULT_MODEL = 'auto';
 const GROQ_DEFAULT  = 'llama-3.3-70b-versatile';
 
 // Provider routing. Anthropic preferred when its key is set; Groq is the
@@ -242,7 +246,12 @@ function systemPromptFor(agentKind) {
     return [
       "You are a financial advisor agent embedded in the user's personal-finance dashboard (fin.kirakon.com).",
       "Currency is INR (₹) unless stated otherwise. The user is an Indian taxpayer; default to Indian tax rules and the New Tax Regime unless they say otherwise.",
-      "Use the read tools (get_net_worth, query_holdings, query_liabilities, query_hand_loans, query_earnings, query_payments, query_tax, query_properties) whenever the answer depends on the user's actual data — do not guess.",
+      "",
+      "Tool-use policy — be conservative:",
+      "  • Call a read tool (get_net_worth, query_holdings, query_liabilities, query_hand_loans, query_earnings, query_payments, query_tax, query_properties) ONLY when the user is asking about THEIR OWN data — their portfolio, their net worth, their loans, their payments, their tax position, etc.",
+      "  • For general questions (definitions, concepts, how SIPs work, tax slab explanations, market commentary, math you can do yourself, anything not specific to the user's records) answer directly from your knowledge. Do NOT call a read tool.",
+      "  • If you are unsure whether a question is about the user's data or general, ask one short clarifying question instead of guessing.",
+      "",
       "When the user asks you to make a change to their data, use a propose_* tool. NEVER claim a change has been made until the user confirms the proposal — the system will execute the mutation only after explicit user approval.",
       "Be concise. Bullet lists for >2 items. Numbers should be formatted with Indian commas (e.g. ₹1,50,000).",
       ARTIFACT_INSTRUCTIONS
@@ -415,7 +424,15 @@ function recordToolResult({ threadId, userId, message_id, tool_use_id, result, i
 // Dispatches by provider: Anthropic uses the SDK's native streaming and
 // tool-use protocol; Groq goes through the OpenAI-compatible chat
 // completions endpoint with translated message + tool formats.
-async function streamMessage({ threadId, userId, content }, emit) {
+//
+// Provider selection:
+//   - thread.model === 'auto' (default for new threads) → routeForMessage()
+//     classifies the user's content and picks Anthropic for app/data
+//     questions, Groq for general questions
+//   - explicit thread.model (e.g. 'claude-sonnet-4-5', 'llama-3.3-70b-versatile')
+//     wins; user-pinned model is respected verbatim
+//   - forceProvider in opts overrides everything ('anthropic'|'groq')
+async function streamMessage({ threadId, userId, content, forceProvider = null }, emit) {
   const t = getThread.get(threadId, userId);
   if (!t) throw new Error(`Thread ${threadId} not found for user ${userId}`);
   if (!isAgentConfigured()) throw new Error('No agent provider configured. Set ANTHROPIC_API_KEY or GROQ_API_KEY.');
@@ -427,11 +444,18 @@ async function streamMessage({ threadId, userId, content }, emit) {
   if (msgCountRow.n === 1) updateThreadTitle.run(content.slice(0, 40).trim() || 'New chat', threadId, userId);
   else updateThreadTouch.run(threadId, userId);
 
-  const { provider, model } = resolveModel(t);
-  if (provider === 'groq') {
-    return streamMessageGroq({ thread: t, userId, content, model }, emit);
+  const routed = routeProvider.routeForMessage({
+    content,
+    forceProvider,
+    pinnedModel: t.model
+  });
+  // Surface routing decision so the UI can show "answered with Groq (auto, general)"
+  emit('routing', { provider: routed.provider, model: routed.model, reason: routed.reason });
+
+  if (routed.provider === 'groq') {
+    return streamMessageGroq({ thread: t, userId, content, model: routed.model }, emit);
   }
-  return streamMessageAnthropic({ thread: t, userId, content, model }, emit);
+  return streamMessageAnthropic({ thread: t, userId, content, model: routed.model }, emit);
 }
 
 // ────────────────────────────── Anthropic streaming path ──────────────────

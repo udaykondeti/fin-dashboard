@@ -52,8 +52,11 @@ router.post('/threads/:id/stream', async (req, res) => {
   const id = Number(req.params.id);
   const thread = chatAgent._getThread(id, req.user.id);
   if (!thread) return res.status(404).json({ error: 'Thread not found' });
-  const { content } = req.body || {};
+  const { content, force_provider } = req.body || {};
   if (!content || typeof content !== 'string') return res.status(400).json({ error: 'content required' });
+  // Optional per-message override: 'anthropic' | 'groq' | null. When set,
+  // wins over both auto-routing and the thread's pinned model.
+  const forceProvider = force_provider === 'anthropic' || force_provider === 'groq' ? force_provider : null;
   if (!chatAgent.isAgentConfigured()) {
     return res.status(503).json({
       error: 'Agent is not configured: set ANTHROPIC_API_KEY or GROQ_API_KEY',
@@ -72,7 +75,7 @@ router.post('/threads/:id/stream', async (req, res) => {
   };
 
   try {
-    await chatAgent.streamMessage({ threadId: id, userId: req.user.id, content }, emit);
+    await chatAgent.streamMessage({ threadId: id, userId: req.user.id, content, forceProvider }, emit);
   } catch (e) {
     emit('error', { message: e.message });
   } finally {
