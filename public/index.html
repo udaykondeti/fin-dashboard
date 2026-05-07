@@ -1808,7 +1808,7 @@ async function apiFetch(url){
 }
 
 // Normalize API snake_case → frontend camelCase
-function normStock(s){return{id:s.id,symbol:s.symbol,exchange:s.exchange||'NSE',company:s.company_name,qty:s.quantity,avgPrice:s.avg_buy_price,currentPrice:s.current_price||s.avg_buy_price,livePrice:!!s.live_price,resolvedSymbol:s.resolved_symbol||null,priceError:s.price_error||null,priceTried:s.price_tried||null,notes:s.notes};}
+function normStock(s){return{id:s.id,symbol:s.symbol,exchange:s.exchange||'NSE',company:s.company_name,qty:s.quantity,avgPrice:s.avg_buy_price,currentPrice:s.current_price||s.avg_buy_price,livePrice:!!s.live_price,resolvedSymbol:s.resolved_symbol||null,yahooSymbol:s.yahoo_symbol||null,priceError:s.price_error||null,priceTried:s.price_tried||null,notes:s.notes};}
 function normMF(m){return{id:m.id,name:m.fund_name,type:m.fund_type||'Equity',folio:m.folio_number,units:m.units,avgNav:m.avg_nav,currentNav:m.current_nav||m.avg_nav,sip:m.sip_amount||0,notes:m.notes};}
 function normFD(f){return{id:f.id,bank:f.bank_name,type:f.fd_type||'Cumulative',principal:f.principal,rate:f.interest_rate,start:f.start_date,end:f.maturity_date,notes:f.notes};}
 function normUSStock(s){return{id:s.id,symbol:s.symbol,company:s.company_name,qty:s.quantity,avgPrice:s.avg_buy_price_usd,currentPrice:s.current_price_usd||s.avg_buy_price_usd,livePrice:!!s.live_price,notes:s.notes};}
@@ -1888,14 +1888,13 @@ function renderStocksTable(){
     totalInv+=inv;totalVal+=val;
     var liveTag;
     if (s.livePrice) {
-      var liveTitle = s.resolvedSymbol && s.resolvedSymbol !== s.symbol+'.NS'
-        ? 'Live from ' + s.resolvedSymbol
-        : 'Live from Yahoo';
-      liveTag = '<span class="badge-live" title="'+esc(liveTitle)+'">LIVE</span>';
+      var src = s.yahooSymbol || s.resolvedSymbol;
+      var liveTitle = src && src !== s.symbol+'.NS' ? 'Live from ' + src : 'Live from Yahoo';
+      liveTag = '<span class="badge-live" style="cursor:pointer" title="'+esc(liveTitle)+' — click to change Yahoo symbol" onclick="event.stopPropagation();setYahooSymbol('+s.id+')">LIVE</span>';
     } else {
       var triedStr = (s.priceTried && s.priceTried.length) ? s.priceTried.join(', ') : '(none)';
-      var naTitle = "Live price unavailable. Tried: " + triedStr + ". Showing avg buy price.";
-      liveTag = '<span class="badge-live" style="background:rgba(148,163,184,.15);color:#94a3b8;border-color:rgba(148,163,184,.3);cursor:help" title="'+esc(naTitle)+'">N/A</span>';
+      var naTitle = 'Live price unavailable. Tried: ' + triedStr + '. Click to set the correct Yahoo symbol (e.g. TATAMOTORS.NS).';
+      liveTag = '<span class="badge-live" style="background:rgba(148,163,184,.15);color:#94a3b8;border-color:rgba(148,163,184,.3);cursor:pointer" title="'+esc(naTitle)+'" onclick="event.stopPropagation();setYahooSymbol('+s.id+')">N/A ✎</span>';
     }
     return '<tr><td><strong>'+esc(s.symbol)+'</strong></td><td>'+esc(s.company)+'</td><td>'+s.qty+'</td><td>'+fmt(s.avgPrice)+'</td><td>'+fmt(s.currentPrice)+liveTag+'</td><td>'+fmt(Math.round(inv))+'</td><td>'+fmt(Math.round(val))+'</td><td class="'+plClass(pl)+'">'+fmt(Math.round(pl))+'</td><td class="'+plClass(plp)+'">'+fmtPct(plp)+'</td><td><button class="action-btn del" onclick="deleteStock('+s.id+')">Del</button></td></tr>';
   });
@@ -1910,6 +1909,39 @@ function saveStock(e){
   renderStocksTable();renderSummaryCards();closeModal('addStock');e.target.reset();showToast('Stock added','success');
 }
 function deleteStock(id){stocksData=stocksData.filter(function(s){return s.id!==id});renderStocksTable();renderSummaryCards();showToast('Stock removed','info')}
+
+// Set the Yahoo symbol override for a stock row. Bypasses the heuristic
+// fallback when the broker's internal ticker doesn't match what Yahoo
+// uses (e.g. TMPV → TATAMOTORS.NS, VISTAPH → maybe no Yahoo coverage).
+// Empty input clears the override.
+async function setYahooSymbol(stockId) {
+  var s = stocksData.find(function(r){ return r.id === stockId; });
+  if (!s) return;
+  var current = s.yahooSymbol || '';
+  var prompt1 = 'Yahoo Finance symbol for ' + s.symbol + ' (' + (s.company || '') + ')\n\n'
+    + 'Examples:\n'
+    + '  TATAMOTORS.NS  (NSE — most common)\n'
+    + '  RELIANCE.BO    (BSE)\n'
+    + '  AAPL           (US, no suffix)\n\n'
+    + 'Leave empty to clear and use auto-detection.';
+  var input = window.prompt(prompt1, current);
+  if (input === null) return; // cancelled
+  var trimmed = input.trim();
+  var token = localStorage.getItem('fin_token');
+  var res = await fetch('/api/investments/stocks/' + stockId, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ yahoo_symbol: trimmed || '' })
+  });
+  if (!res.ok) {
+    var err = await res.json().catch(function(){return {error:'Save failed'};});
+    showToast(err.error || 'Save failed', 'error');
+    return;
+  }
+  showToast(trimmed ? 'Symbol updated → reloading prices…' : 'Override cleared', 'success');
+  // Refetch stocks so live prices come back with the new symbol
+  await loadAllData();
+}
 
 function renderMFTable(){
   var tbody=document.getElementById('mfTbody');

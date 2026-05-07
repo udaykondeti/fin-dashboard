@@ -28,12 +28,20 @@ router.get('/stocks', async (req, res) => {
     if (!stocks.length) return res.json({ stocks });
 
     // Live prices in parallel. Failures are per-symbol; one bad symbol
-    // doesn't block the rest of the table. getIndianStockPrice tries
-    // <SYMBOL>.NS, <stripped>.NS, .BO variants — handles CSV exports that
-    // include the -EQ series suffix (e.g. AZADEQ → AZAD.NS).
-    const priceResults = await Promise.all(
-      stocks.map(s => getIndianStockPrice(s.symbol).catch(() => ({ price: null, live: false })))
-    );
+    // doesn't block the rest of the table.
+    //   - If the row has a manual yahoo_symbol override (e.g. "TATAMOTORS.NS"
+    //     for a broker-internal "TMPV" code), use it verbatim — the user
+    //     explicitly chose this mapping; bypass the heuristic.
+    //   - Otherwise getIndianStockPrice tries .NS, stripped suffix variants,
+    //     .BO, and ampersand-removed variants.
+    const priceResults = await Promise.all(stocks.map(s => {
+      if (s.yahoo_symbol) {
+        return fetchYahooPrice(s.yahoo_symbol)
+          .then(r => ({ ...r, live: r && r.price != null, resolved_symbol: s.yahoo_symbol, tried: [s.yahoo_symbol] }))
+          .catch(() => ({ price: null, live: false, error: 'override_failed', tried: [s.yahoo_symbol] }));
+      }
+      return getIndianStockPrice(s.symbol).catch(() => ({ price: null, live: false }));
+    }));
     const enriched = stocks.map((s, i) => {
       const r = priceResults[i] || {};
       const live = !!r.live;
@@ -88,7 +96,7 @@ router.put('/stocks/:id', (req, res) => {
     const existing = db.prepare('SELECT * FROM stocks WHERE id = ? AND user_id = ?').get(id, req.user.id);
     if (!existing) return res.status(404).json({ error: 'Stock not found' });
 
-    const { symbol, exchange, company_name, quantity, avg_buy_price, notes } = req.body;
+    const { symbol, exchange, company_name, quantity, avg_buy_price, notes, yahoo_symbol } = req.body;
 
     db.prepare(`
       UPDATE stocks SET
@@ -97,13 +105,16 @@ router.put('/stocks/:id', (req, res) => {
         company_name = COALESCE(?, company_name),
         quantity = COALESCE(?, quantity),
         avg_buy_price = COALESCE(?, avg_buy_price),
-        notes = COALESCE(?, notes)
+        notes = COALESCE(?, notes),
+        yahoo_symbol = ?
       WHERE id = ? AND user_id = ?
     `).run(
       symbol ? symbol.toUpperCase() : null,
       exchange || null, company_name || null,
       quantity || null, avg_buy_price || null,
       notes !== undefined ? notes : existing.notes,
+      // yahoo_symbol: empty string clears the override; undefined leaves it
+      yahoo_symbol === undefined ? existing.yahoo_symbol : (yahoo_symbol ? String(yahoo_symbol).trim().toUpperCase() : null),
       id, req.user.id
     );
 
