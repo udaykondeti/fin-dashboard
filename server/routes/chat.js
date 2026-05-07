@@ -40,6 +40,14 @@ router.patch('/threads/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// DELETE /api/chat/threads — bulk-clear all threads for the current user.
+// Returns the count deleted. agent_messages / agent_artifacts cascade
+// via FOREIGN KEY ON DELETE CASCADE.
+router.delete('/threads', (req, res) => {
+  const n = chatAgent._deleteAllThreads(req.user.id);
+  res.json({ ok: true, deleted: n });
+});
+
 // DELETE /api/chat/threads/:id
 router.delete('/threads/:id', (req, res) => {
   const id = Number(req.params.id);
