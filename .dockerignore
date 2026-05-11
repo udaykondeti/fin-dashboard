@@ -1,0 +1,26 @@
+# Build context — only ship what the runtime image needs.
+.git
+.github
+.claude
+
+# Tests, docs, ad-hoc scripts (one-shot importers/migrations) shouldn't bloat the image
+docs
+*.md
+LICENSE
+scripts
+
+# Local dev artefacts
+node_modules
+client/node_modules
+client/dist
+data
+*.log
+
+# Secrets — never bake into the image. Mounted from EC2 .env at runtime.
+.env
+.env.example
+.env.local
+
+# CI / infra not needed inside the container
+ecosystem.config.js
+nginx
