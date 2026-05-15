@@ -498,7 +498,14 @@ async function streamMessage({ threadId, userId, content, forceProvider = null }
   emit('routing', { provider: routed.provider, model: routed.model, reason: routed.reason });
 
   if (routed.provider === 'groq') {
-    return streamMessageGroq({ thread: t, userId, content, model: routed.model }, emit);
+    return streamMessageOpenAI({ thread: t, userId, content, model: routed.model,
+      baseUrl: GROQ_BASE, apiKey: process.env.GROQ_API_KEY, providerLabel: 'groq' }, emit);
+  }
+  if (routed.provider === 'local') {
+    // Ollama (or any OpenAI-compatible local server). No API key needed.
+    // OLLAMA_BASE_URL must include the /v1 suffix.
+    return streamMessageOpenAI({ thread: t, userId, content, model: routed.model,
+      baseUrl: process.env.OLLAMA_BASE_URL, apiKey: null, providerLabel: 'local' }, emit);
   }
   return streamMessageAnthropic({ thread: t, userId, content, model: routed.model }, emit);
 }
@@ -647,21 +654,28 @@ function rowsToMessagesGroq(rows) {
   return out;
 }
 
-async function streamMessageGroq({ thread: t, userId, content, model }, emit) {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw new Error('GROQ_API_KEY not set');
+// Streams from any OpenAI-compatible chat-completions endpoint: Groq
+// (cloud) and Ollama (local) both speak this protocol. baseUrl must point
+// at the API root that exposes /chat/completions; apiKey may be null for
+// servers that don't authenticate (Ollama). providerLabel only feeds the
+// audit/error strings.
+async function streamMessageOpenAI({ thread: t, userId, content, model, baseUrl, apiKey, providerLabel }, emit) {
+  if (!baseUrl) throw new Error(`${providerLabel}: base URL not set`);
   const threadId = t.id;
   let totalIn = 0, totalOut = 0;
   const t0 = Date.now();
 
   for (let iter = 0; iter < 8; iter++) {
     const messages = rowsToMessagesGroq(listMessages.all(threadId));
-    // Groq requires a system message inline (not a separate field).
+    // OpenAI-compatible servers want the system message inline.
     const fullMessages = [{ role: 'system', content: systemPromptFor(t.agent_kind) }, ...messages];
 
-    const resp = await fetch(`${GROQ_BASE}/chat/completions`, {
+    const headers = { 'Content-Type': 'application/json' };
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+
+    const resp = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         model, max_tokens: 1024, temperature: 0.2,
         messages: fullMessages,
@@ -671,8 +685,8 @@ async function streamMessageGroq({ thread: t, userId, content, model }, emit) {
     });
     if (!resp.ok) {
       const body = await resp.text().catch(() => '');
-      emit('error', { message: `Groq HTTP ${resp.status}: ${body.slice(0, 300)}` });
-      auditAndCost({ userId, threadId, model, content, text: '', totalIn, totalOut, t0, error: `groq_${resp.status}` });
+      emit('error', { message: `${providerLabel} HTTP ${resp.status}: ${body.slice(0, 300)}` });
+      auditAndCost({ userId, threadId, model, content, text: '', totalIn, totalOut, t0, error: `${providerLabel}_${resp.status}` });
       return;
     }
 
@@ -785,7 +799,9 @@ async function streamMessageGroq({ thread: t, userId, content, model }, emit) {
 }
 
 function auditAndCost({ userId, threadId, model, content, text, totalIn, totalOut, t0, error }) {
-  const prices = PRICE_TABLE[model] || PRICE_TABLE[DEFAULT_MODEL];
+  // Local (Ollama) models and unknown ids cost nothing — fall back to a
+  // zero-price entry rather than crashing on `prices.input` of undefined.
+  const prices = PRICE_TABLE[model] || { input: 0, output: 0 };
   const cost = (totalIn / 1_000_000) * prices.input + (totalOut / 1_000_000) * prices.output;
   insertCall.run(userId, model, content.slice(0, 200), (text || '').slice(0, 200),
     totalIn, totalOut, cost, Date.now() - t0, error, threadId);

@@ -145,6 +145,8 @@ app.get('/api/health/config', (req, res) => {
   res.json({
     anthropic: !!process.env.ANTHROPIC_API_KEY,
     groq: !!process.env.GROQ_API_KEY,
+    local: !!process.env.OLLAMA_BASE_URL,
+    local_model: process.env.OLLAMA_MODEL || null,
     s3: {
       bucket: !!process.env.S3_BUCKET,
       access_key: !!process.env.AWS_ACCESS_KEY_ID,
