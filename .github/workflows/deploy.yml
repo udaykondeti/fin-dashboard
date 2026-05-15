@@ -52,7 +52,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64
+          # amd64 for the EC2 box, arm64 for the Apple-Silicon Mac Mini.
+          platforms: linux/amd64,linux/arm64
 
   deploy:
     runs-on: ubuntu-latest

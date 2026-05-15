@@ -2,17 +2,22 @@
 // bidirectional handler will import the same routeForMessage() so behaviour
 // is identical between web and Slack surfaces.
 //
-// Routing rules:
-//   - explicit user choice (forceProvider) always wins
-//   - app/data-related questions → Anthropic (better tool use, primary)
-//   - general / educational / off-topic questions → Groq (cheap + fast)
+// Routing rules (local-first):
+//   - explicit user choice (forceProvider / pinnedModel) always wins
+//   - if a local model (Ollama) is configured → use it for everything;
+//     it's free and private, so it's the default primary
+//   - cloud fallback when no local: app/data questions → Anthropic,
+//     general questions → Groq
 //   - if only one provider is configured, use it regardless
 
 const ANTHROPIC_DEFAULT = 'claude-haiku-4-5';
 const GROQ_DEFAULT      = 'llama-3.3-70b-versatile';
+// Ollama: OpenAI-compatible API. OLLAMA_BASE_URL e.g. http://host.docker.internal:11434/v1
+const LOCAL_DEFAULT     = process.env.OLLAMA_MODEL || 'llama3.1:8b';
 
 function hasAnthropic() { return !!process.env.ANTHROPIC_API_KEY; }
 function hasGroq()      { return !!process.env.GROQ_API_KEY; }
+function hasLocal()     { return !!process.env.OLLAMA_BASE_URL; }
 
 // Heuristic — lowercase regex over the user message. Cheap, deterministic,
 // no extra LLM call. Two-stage classification with a Groq-first bias:
@@ -80,33 +85,44 @@ function looksAppRelated(text) {
 
 // Pick provider + model for a single user message.
 //
-// forceProvider: 'anthropic' | 'groq' | null  — explicit override (wins over heuristic)
-// pinnedModel:  string | null                  — explicit model override (wins over both)
-// returns:      { provider, model, reason }
+// forceProvider: 'local' | 'anthropic' | 'groq' | null — explicit override
+// pinnedModel:   string | null                          — explicit model override
+// returns:       { provider, model, reason }
 function routeForMessage({ content, forceProvider = null, pinnedModel = null } = {}) {
   // Pinned model wins outright — it implies the user picked the provider
   // through the dropdown.
   if (pinnedModel && typeof pinnedModel === 'string' && pinnedModel !== 'auto') {
     if (pinnedModel.startsWith('claude-')) {
-      if (!hasAnthropic()) return fallbackToGroq('user pinned Anthropic but no key set');
+      if (!hasAnthropic()) return fallbackChain('user pinned Anthropic but no key set');
       return { provider: 'anthropic', model: pinnedModel, reason: 'pinned' };
     }
     if (pinnedModel.startsWith('llama-') || pinnedModel.includes('mixtral')) {
-      if (!hasGroq()) return fallbackToAnthropic('user pinned Groq but no key set');
+      if (!hasGroq()) return fallbackChain('user pinned Groq but no key set');
       return { provider: 'groq', model: pinnedModel, reason: 'pinned' };
     }
+    // Anything else (e.g. "llama3.1:8b", "qwen2.5:14b") → treat as a local
+    // Ollama model tag.
+    if (hasLocal()) return { provider: 'local', model: pinnedModel, reason: 'pinned' };
   }
 
+  if (forceProvider === 'local') {
+    if (!hasLocal()) return fallbackChain('forced local but OLLAMA_BASE_URL not set');
+    return { provider: 'local', model: LOCAL_DEFAULT, reason: 'forced' };
+  }
   if (forceProvider === 'anthropic') {
-    if (!hasAnthropic()) return fallbackToGroq('forced Anthropic but no key set');
+    if (!hasAnthropic()) return fallbackChain('forced Anthropic but no key set');
     return { provider: 'anthropic', model: ANTHROPIC_DEFAULT, reason: 'forced' };
   }
   if (forceProvider === 'groq') {
-    if (!hasGroq()) return fallbackToAnthropic('forced Groq but no key set');
+    if (!hasGroq()) return fallbackChain('forced Groq but no key set');
     return { provider: 'groq', model: GROQ_DEFAULT, reason: 'forced' };
   }
 
-  // Auto routing
+  // Auto routing — local model is primary when configured (free + private).
+  if (hasLocal()) {
+    return { provider: 'local', model: LOCAL_DEFAULT, reason: 'auto:local-primary' };
+  }
+  // Cloud fallback: app/data questions → Anthropic, general → Groq.
   const appRelated = looksAppRelated(content);
   if (appRelated) {
     if (hasAnthropic()) return { provider: 'anthropic', model: ANTHROPIC_DEFAULT, reason: 'auto:app-related' };
@@ -115,16 +131,16 @@ function routeForMessage({ content, forceProvider = null, pinnedModel = null } =
     if (hasGroq())      return { provider: 'groq',      model: GROQ_DEFAULT,      reason: 'auto:general' };
     if (hasAnthropic()) return { provider: 'anthropic', model: ANTHROPIC_DEFAULT, reason: 'auto:general-fallback' };
   }
-  throw new Error('No agent provider configured. Set ANTHROPIC_API_KEY or GROQ_API_KEY.');
+  throw new Error('No agent provider configured. Set OLLAMA_BASE_URL, ANTHROPIC_API_KEY, or GROQ_API_KEY.');
 }
 
-function fallbackToGroq(reason) {
-  if (!hasGroq()) throw new Error('No agent provider configured. Set ANTHROPIC_API_KEY or GROQ_API_KEY.');
-  return { provider: 'groq', model: GROQ_DEFAULT, reason };
-}
-function fallbackToAnthropic(reason) {
-  if (!hasAnthropic()) throw new Error('No agent provider configured. Set ANTHROPIC_API_KEY or GROQ_API_KEY.');
-  return { provider: 'anthropic', model: ANTHROPIC_DEFAULT, reason };
+// Fallback when the requested provider isn't available: local → groq →
+// anthropic, whichever is configured first.
+function fallbackChain(reason) {
+  if (hasLocal())     return { provider: 'local',     model: LOCAL_DEFAULT,     reason };
+  if (hasGroq())      return { provider: 'groq',      model: GROQ_DEFAULT,      reason };
+  if (hasAnthropic()) return { provider: 'anthropic', model: ANTHROPIC_DEFAULT, reason };
+  throw new Error('No agent provider configured. Set OLLAMA_BASE_URL, ANTHROPIC_API_KEY, or GROQ_API_KEY.');
 }
 
 module.exports = {
@@ -132,6 +148,8 @@ module.exports = {
   looksAppRelated,
   hasAnthropic,
   hasGroq,
+  hasLocal,
   ANTHROPIC_DEFAULT,
-  GROQ_DEFAULT
+  GROQ_DEFAULT,
+  LOCAL_DEFAULT
 };
