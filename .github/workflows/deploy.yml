@@ -61,11 +61,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Only need the compose file + nginx config for the EC2 sync
+          # Only ship the compose file the Mac Mini needs — image carries app code.
           sparse-checkout: |
-            docker-compose.yml
-            nginx
+            docker-compose.mac.yml
             scripts
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
 
       - name: Configure SSH
         env:
@@ -75,57 +81,39 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+          # Mac Mini is reachable via Tailscale — no ssh-keyscan needed for
+          # known_hosts since we trust the tailnet. Accept on first connect.
+          echo "StrictHostKeyChecking accept-new" >> ~/.ssh/config
 
-      - name: Sync compose + nginx to EC2
+      - name: Sync compose file to Mac Mini
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
-          # Only ship the files EC2 needs — image carries the app code now.
           rsync -avz \
-            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes" \
-            docker-compose.yml nginx scripts \
-            "$EC2_USER@$EC2_HOST:/var/www/fin-dashboard/"
+            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=accept-new" \
+            docker-compose.mac.yml scripts \
+            "$EC2_USER@$EC2_HOST:~/fin-dashboard/"
 
-      - name: Pull image, restart container, retire PM2 process
+      - name: Pull image & restart container
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes \
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=accept-new \
             "$EC2_USER@$EC2_HOST" << EOF
             set -e
-            cd /var/www/fin-dashboard
+            cd ~/fin-dashboard
 
             # Authenticate to GHCR (idempotent; refreshes token each deploy)
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
 
-            # Pull latest image + restart container
-            docker compose pull
-            docker compose up -d --remove-orphans
-
-            # Retire the legacy PM2 process if still around — Docker is the
-            # supervisor now. \`|| true\` so first-time runs don't fail.
-            pm2 stop fin-dashboard 2>/dev/null || true
-            pm2 delete fin-dashboard 2>/dev/null || true
-            pm2 save 2>/dev/null || true
-          EOF
-
-      - name: Sync nginx config + reload
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ secrets.EC2_USER }}
-        run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes \
-            "$EC2_USER@$EC2_HOST" << 'EOF'
-            set -e
-            sudo cp /var/www/fin-dashboard/nginx/fin.kirakon.com.conf /etc/nginx/sites-available/fin.kirakon.com.conf
-            sudo ln -sf /etc/nginx/sites-available/fin.kirakon.com.conf /etc/nginx/sites-enabled/fin.kirakon.com.conf
-            sudo nginx -t
-            sudo systemctl reload nginx
+            # Pull latest image + restart — Mac Mini uses docker-compose.mac.yml
+            # which includes the cloudflared sidecar (no nginx on this host).
+            docker compose -f docker-compose.mac.yml pull
+            docker compose -f docker-compose.mac.yml up -d --remove-orphans
           EOF
 
       - name: Health check
@@ -134,6 +122,6 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
           # Give the container a moment to come up + healthcheck pass
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes \
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=accept-new \
             "$EC2_USER@$EC2_HOST" \
             "sleep 8 && curl -fsS http://localhost:3001/api/health"
