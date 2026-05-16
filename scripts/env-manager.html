@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>kirakon .env Manager</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --border: #2a2d3a;
+    --accent: #6366f1;
+    --accent-hover: #818cf8;
+    --text: #e2e4f0;
+    --muted: #6b7280;
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 32px 24px;
+  }
+
+  .container { max-width: 860px; margin: 0 auto; }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32px;
+  }
+
+  h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.3px; }
+  h1 span { color: var(--accent); }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 24px;
+  }
+
+  .tab {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 7px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.18s var(--ease-out), color 0.18s var(--ease-out);
+  }
+
+  .tab.active {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .tab:not(.active):hover { background: var(--border); color: var(--text); }
+  }
+
+  .tab:active { transform: scale(0.97); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--muted);
+  }
+
+  .field-grid {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 8px 12px;
+    align-items: center;
+  }
+
+  .field-label {
+    font-size: 13px;
+    font-weight: 500;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .field-label .req { color: var(--danger); font-size: 11px; }
+  .field-label .opt { color: var(--muted); font-size: 11px; }
+
+  .field-row {
+    display: contents;
+  }
+
+  .field-row input {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    transition: border-color 0.18s var(--ease-out);
+    outline: none;
+  }
+
+  .field-row input:focus {
+    border-color: var(--accent);
+  }
+
+  .field-row input.has-value {
+    border-color: #2a4a2a;
+    background: #0f1f0f;
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    grid-column: 1 / -1;
+    margin: 8px 0;
+  }
+
+  .custom-field-row {
+    display: grid;
+    grid-template-columns: 200px 1fr 36px;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .custom-field-row input {
+    padding: 8px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    transition: border-color 0.18s var(--ease-out);
+    outline: none;
+  }
+
+  .custom-field-row input:focus { border-color: var(--accent); }
+
+  .btn-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--danger);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+    transition: background 0.18s var(--ease-out), border-color 0.18s var(--ease-out);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn-icon:hover { background: #2a1515; border-color: var(--danger); }
+  }
+
+  .btn-icon:active { transform: scale(0.97); }
+
+  .btn {
+    padding: 9px 18px;
+    border-radius: 8px;
+    border: none;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.18s var(--ease-out), opacity 0.18s var(--ease-out);
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn-primary:hover { background: var(--accent-hover); }
+  }
+
+  .btn-primary:active { transform: scale(0.97); }
+
+  .btn-secondary {
+    background: var(--border);
+    color: var(--text);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn-secondary:hover { background: #353848; }
+  }
+
+  .btn-secondary:active { transform: scale(0.97); }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 0.18s var(--ease-out), color 0.18s var(--ease-out);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  }
+
+  .btn-ghost:active { transform: scale(0.97); }
+
+  .output-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 20px;
+    display: none;
+  }
+
+  .output-card.visible { display: block; }
+
+  .output-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .output-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+  }
+
+  pre {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--success);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.22s var(--ease-out), transform 0.22s var(--ease-out);
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  .actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+
+  .load-area {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .load-area input[type="file"] { display: none; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #1e1b4b;
+    color: var(--accent-hover);
+  }
+
+  .app-panel { display: none; }
+  .app-panel.active { display: block; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>kirakon <span>.env</span> Manager</h1>
+    <div style="display:flex;gap:8px;align-items:center">
+      <label class="btn-ghost" style="cursor:pointer" onclick="document.getElementById('fileInput').click()">↑ Load .env</label>
+      <input type="file" id="fileInput" onchange="loadEnvFile(event)">
+    </div>
+  </header>
+
+  <div class="tabs" id="tabs">
+    <button class="tab active" onclick="switchApp('fin')">fin-dashboard</button>
+    <button class="tab" onclick="switchApp('timesheet')">timesheet</button>
+    <button class="tab" onclick="switchApp('pippy')">pippy</button>
+    <button class="tab" onclick="switchApp('custom')">+ Custom</button>
+  </div>
+
+  <!-- FIN DASHBOARD -->
+  <div class="app-panel active" id="panel-fin">
+    <div class="card">
+      <div class="section-header">
+        <span class="section-title">Core</span>
+      </div>
+      <div class="field-grid">
+        <div class="field-row">
+          <label class="field-label">NODE_ENV <span class="req">req</span></label>
+          <input type="text" id="fin-NODE_ENV" value="production" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">PORT <span class="req">req</span></label>
+          <input type="text" id="fin-PORT" value="3001" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">DB_PATH <span class="req">req</span></label>
+          <input type="text" id="fin-DB_PATH" value="/app/data/finance.db" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">JWT_SECRET <span class="req">req</span></label>
+          <input type="password" id="fin-JWT_SECRET" placeholder="your-jwt-secret" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">CORS_ORIGIN <span class="req">req</span></label>
+          <input type="text" id="fin-CORS_ORIGIN" value="https://fin.kirakon.com" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">BASE_URL <span class="req">req</span></label>
+          <input type="text" id="fin-BASE_URL" value="https://fin.kirakon.com" oninput="updateStyle(this)">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-header">
+        <span class="section-title">AWS / S3 Vault <span class="badge">optional</span></span>
+      </div>
+      <div class="field-grid">
+        <div class="field-row">
+          <label class="field-label">AWS_REGION <span class="opt">opt</span></label>
+          <input type="text" id="fin-AWS_REGION" placeholder="ap-south-1" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">AWS_ACCESS_KEY_ID <span class="opt">opt</span></label>
+          <input type="password" id="fin-AWS_ACCESS_KEY_ID" placeholder="" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">AWS_SECRET_ACCESS_KEY <span class="opt">opt</span></label>
+          <input type="password" id="fin-AWS_SECRET_ACCESS_KEY" placeholder="" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">S3_BUCKET_NAME <span class="opt">opt</span></label>
+          <input type="text" id="fin-S3_BUCKET_NAME" value="fin-kirakon-vault" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">AWS_ACCOUNT_ID <span class="opt">opt</span></label>
+          <input type="text" id="fin-AWS_ACCOUNT_ID" placeholder="" oninput="updateStyle(this)">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-header">
+        <span class="section-title">AI / Integrations <span class="badge">optional</span></span>
+      </div>
+      <div class="field-grid">
+        <div class="field-row">
+          <label class="field-label">ANTHROPIC_API_KEY <span class="opt">opt</span></label>
+          <input type="password" id="fin-ANTHROPIC_API_KEY" placeholder="sk-ant-..." oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">OLLAMA_BASE_URL <span class="opt">opt</span></label>
+          <input type="text" id="fin-OLLAMA_BASE_URL" value="http://host.docker.internal:11434/v1" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">OLLAMA_MODEL <span class="opt">opt</span></label>
+          <input type="text" id="fin-OLLAMA_MODEL" value="llama3.1:8b" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">SLACK_WEBHOOK_URL <span class="opt">opt</span></label>
+          <input type="text" id="fin-SLACK_WEBHOOK_URL" placeholder="https://hooks.slack.com/..." oninput="updateStyle(this)">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIMESHEET -->
+  <div class="app-panel" id="panel-timesheet">
+    <div class="card">
+      <div class="section-header"><span class="section-title">Core</span></div>
+      <div class="field-grid">
+        <div class="field-row">
+          <label class="field-label">NODE_ENV <span class="req">req</span></label>
+          <input type="text" id="ts-NODE_ENV" value="production" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">PORT <span class="req">req</span></label>
+          <input type="text" id="ts-PORT" value="3000" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">DB_PATH <span class="req">req</span></label>
+          <input type="text" id="ts-DB_PATH" value="/app/data/timesheet.db" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">JWT_SECRET <span class="req">req</span></label>
+          <input type="password" id="ts-JWT_SECRET" placeholder="" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">SERVER_URL <span class="req">req</span></label>
+          <input type="text" id="ts-SERVER_URL" value="https://timesheet.kirakon.com" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">ADMIN_PASS <span class="req">req</span></label>
+          <input type="password" id="ts-ADMIN_PASS" placeholder="" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">UDAY_PASS <span class="opt">opt</span></label>
+          <input type="password" id="ts-UDAY_PASS" placeholder="" oninput="updateStyle(this)">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-header"><span class="section-title">Slack</span></div>
+      <div class="field-grid">
+        <div class="field-row">
+          <label class="field-label">SLACK_SIGNING_SECRET <span class="opt">opt</span></label>
+          <input type="password" id="ts-SLACK_SIGNING_SECRET" placeholder="" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">SLACK_CLIENT_ID <span class="opt">opt</span></label>
+          <input type="text" id="ts-SLACK_CLIENT_ID" placeholder="" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">SLACK_CLIENT_SECRET <span class="opt">opt</span></label>
+          <input type="password" id="ts-SLACK_CLIENT_SECRET" placeholder="" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">SLACK_APP_TOKEN <span class="opt">opt</span></label>
+          <input type="password" id="ts-SLACK_APP_TOKEN" placeholder="xapp-..." oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">SLACK_BOT_TOKEN <span class="opt">opt</span></label>
+          <input type="password" id="ts-SLACK_BOT_TOKEN" placeholder="xoxb-..." oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">SUPER_ADMIN_SLACK_ID <span class="opt">opt</span></label>
+          <input type="text" id="ts-SUPER_ADMIN_SLACK_ID" placeholder="" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">SLACK_WEBHOOK_URL <span class="opt">opt</span></label>
+          <input type="text" id="ts-SLACK_WEBHOOK_URL" placeholder="https://hooks.slack.com/..." oninput="updateStyle(this)">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-header"><span class="section-title">AI / Integrations</span></div>
+      <div class="field-grid">
+        <div class="field-row">
+          <label class="field-label">ANTHROPIC_API_KEY <span class="opt">opt</span></label>
+          <input type="password" id="ts-ANTHROPIC_API_KEY" placeholder="sk-ant-..." oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">GROQ_API_KEY <span class="opt">opt</span></label>
+          <input type="password" id="ts-GROQ_API_KEY" placeholder="" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">GITHUB_TOKEN <span class="opt">opt</span></label>
+          <input type="password" id="ts-GITHUB_TOKEN" placeholder="" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">CONFLUENCE_EMAIL <span class="opt">opt</span></label>
+          <input type="text" id="ts-CONFLUENCE_EMAIL" placeholder="" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">CONFLUENCE_API_TOKEN <span class="opt">opt</span></label>
+          <input type="password" id="ts-CONFLUENCE_API_TOKEN" placeholder="" oninput="updateStyle(this)">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PIPPY -->
+  <div class="app-panel" id="panel-pippy">
+    <div class="card">
+      <div class="section-header"><span class="section-title">Core</span></div>
+      <div class="field-grid">
+        <div class="field-row">
+          <label class="field-label">NODE_ENV <span class="req">req</span></label>
+          <input type="text" id="py-NODE_ENV" value="production" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">PORT <span class="req">req</span></label>
+          <input type="text" id="py-PORT" value="3005" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">JWT_SECRET <span class="req">req</span></label>
+          <input type="password" id="py-JWT_SECRET" placeholder="" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">APP_URL <span class="req">req</span></label>
+          <input type="text" id="py-APP_URL" value="https://git.kirakon.com" oninput="updateStyle(this)">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-header"><span class="section-title">SMTP (Email)</span></div>
+      <div class="field-grid">
+        <div class="field-row">
+          <label class="field-label">SMTP_HOST <span class="opt">opt</span></label>
+          <input type="text" id="py-SMTP_HOST" placeholder="smtp.zoho.in" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">SMTP_PORT <span class="opt">opt</span></label>
+          <input type="text" id="py-SMTP_PORT" placeholder="465" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">SMTP_SECURE <span class="opt">opt</span></label>
+          <input type="text" id="py-SMTP_SECURE" placeholder="true" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">SMTP_USER <span class="opt">opt</span></label>
+          <input type="text" id="py-SMTP_USER" placeholder="" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">SMTP_PASS <span class="opt">opt</span></label>
+          <input type="password" id="py-SMTP_PASS" placeholder="" oninput="updateStyle(this)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">SMTP_FROM <span class="opt">opt</span></label>
+          <input type="text" id="py-SMTP_FROM" placeholder="noreply@kirakon.com" oninput="updateStyle(this)">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CUSTOM -->
+  <div class="app-panel" id="panel-custom">
+    <div class="card">
+      <div class="section-header">
+        <span class="section-title">Custom .env</span>
+        <button class="btn-ghost" onclick="addCustomField()">+ Add field</button>
+      </div>
+      <div id="custom-fields"></div>
+    </div>
+  </div>
+
+  <!-- Custom fields for each app -->
+  <div class="card" id="extra-fields-card" style="display:none">
+    <div class="section-header">
+      <span class="section-title">Extra fields</span>
+      <button class="btn-ghost" onclick="addExtraField()">+ Add field</button>
+    </div>
+    <div id="extra-fields"></div>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" onclick="generate()">Generate .env</button>
+    <button class="btn btn-secondary" onclick="clearAll()">Clear</button>
+    <button class="btn-ghost" onclick="togglePasswords()">👁 Show secrets</button>
+  </div>
+
+  <div class="output-card" id="output">
+    <div class="output-header">
+      <span class="output-title" id="output-filename">.env</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn-ghost" onclick="copyOutput()">Copy</button>
+        <button class="btn-ghost" onclick="downloadOutput()">↓ Download</button>
+      </div>
+    </div>
+    <pre id="output-content"></pre>
+  </div>
+</div>
+
+<div class="toast" id="toast">Copied to clipboard ✓</div>
+
+<script>
+  let currentApp = 'fin';
+  let showPasswords = false;
+  let outputContent = '';
+
+  const appConfig = {
+    fin: {
+      prefix: 'fin',
+      filename: '.env',
+      fields: ['NODE_ENV','PORT','DB_PATH','JWT_SECRET','CORS_ORIGIN','BASE_URL',
+               'AWS_REGION','AWS_ACCESS_KEY_ID','AWS_SECRET_ACCESS_KEY','S3_BUCKET_NAME','AWS_ACCOUNT_ID',
+               'ANTHROPIC_API_KEY','OLLAMA_BASE_URL','OLLAMA_MODEL','SLACK_WEBHOOK_URL']
+    },
+    timesheet: {
+      prefix: 'ts',
+      filename: '.env',
+      fields: ['NODE_ENV','PORT','DB_PATH','JWT_SECRET','SERVER_URL','ADMIN_PASS','UDAY_PASS',
+               'SLACK_SIGNING_SECRET','SLACK_CLIENT_ID','SLACK_CLIENT_SECRET','SLACK_APP_TOKEN',
+               'SLACK_BOT_TOKEN','SUPER_ADMIN_SLACK_ID','SLACK_WEBHOOK_URL',
+               'ANTHROPIC_API_KEY','GROQ_API_KEY','GITHUB_TOKEN','CONFLUENCE_EMAIL','CONFLUENCE_API_TOKEN']
+    },
+    pippy: {
+      prefix: 'py',
+      filename: '.env',
+      fields: ['NODE_ENV','PORT','JWT_SECRET','APP_URL',
+               'SMTP_HOST','SMTP_PORT','SMTP_SECURE','SMTP_USER','SMTP_PASS','SMTP_FROM']
+    }
+  };
+
+  function switchApp(app) {
+    currentApp = app;
+    document.querySelectorAll('.tab').forEach((t,i) => {
+      t.classList.toggle('active', ['fin','timesheet','pippy','custom'][i] === app);
+    });
+    document.querySelectorAll('.app-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-' + app).classList.add('active');
+
+    const extraCard = document.getElementById('extra-fields-card');
+    extraCard.style.display = app !== 'custom' ? 'block' : 'none';
+
+    document.getElementById('output').classList.remove('visible');
+  }
+
+  function updateStyle(input) {
+    input.classList.toggle('has-value', input.value.trim() !== '');
+  }
+
+  function addCustomField() {
+    addFieldTo('custom-fields');
+  }
+
+  function addExtraField() {
+    addFieldTo('extra-fields');
+  }
+
+  function addFieldTo(containerId) {
+    const container = document.getElementById(containerId);
+    const row = document.createElement('div');
+    row.className = 'custom-field-row';
+    row.innerHTML = `
+      <input type="text" placeholder="KEY_NAME" oninput="updateStyle(this)" style="text-transform:uppercase">
+      <input type="text" placeholder="value" oninput="updateStyle(this)">
+      <button class="btn-icon" onclick="this.parentElement.remove()">×</button>
+    `;
+    container.appendChild(row);
+    row.querySelector('input').focus();
+  }
+
+  function getCustomFields(containerId) {
+    const fields = {};
+    document.querySelectorAll(`#${containerId} .custom-field-row`).forEach(row => {
+      const inputs = row.querySelectorAll('input');
+      const key = inputs[0].value.trim().toUpperCase();
+      const val = inputs[1].value.trim();
+      if (key) fields[key] = val;
+    });
+    return fields;
+  }
+
+  function generate() {
+    let lines = [];
+    const now = new Date().toISOString().split('T')[0];
+
+    if (currentApp === 'custom') {
+      lines.push(`# Custom .env — generated ${now}`);
+      const fields = getCustomFields('custom-fields');
+      Object.entries(fields).forEach(([k,v]) => lines.push(`${k}=${v}`));
+    } else {
+      const cfg = appConfig[currentApp];
+      lines.push(`# ${currentApp} .env — generated ${now}`);
+      lines.push('');
+      cfg.fields.forEach(key => {
+        const el = document.getElementById(`${cfg.prefix}-${key}`);
+        if (el && el.value.trim()) lines.push(`${key}=${el.value.trim()}`);
+        else if (el) lines.push(`# ${key}=`);
+      });
+
+      const extras = getCustomFields('extra-fields');
+      if (Object.keys(extras).length > 0) {
+        lines.push('');
+        lines.push('# Extra');
+        Object.entries(extras).forEach(([k,v]) => lines.push(`${k}=${v}`));
+      }
+    }
+
+    outputContent = lines.join('\n');
+    document.getElementById('output-content').textContent = outputContent;
+    document.getElementById('output-filename').textContent =
+      currentApp === 'custom' ? '.env' : `~/kirakon/${currentApp === 'fin' ? 'fin-dashboard' : currentApp}/.env`;
+    document.getElementById('output').classList.add('visible');
+  }
+
+  function copyOutput() {
+    navigator.clipboard.writeText(outputContent).then(() => showToast('Copied to clipboard ✓'));
+  }
+
+  function downloadOutput() {
+    const blob = new Blob([outputContent], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '.env';
+    a.click();
+  }
+
+  function clearAll() {
+    const cfg = appConfig[currentApp];
+    if (cfg) {
+      cfg.fields.forEach(key => {
+        const el = document.getElementById(`${cfg.prefix}-${key}`);
+        if (el && !el.defaultValue) { el.value = ''; el.classList.remove('has-value'); }
+        else if (el) { el.value = el.defaultValue; el.classList.remove('has-value'); }
+      });
+    }
+    document.getElementById('extra-fields').innerHTML = '';
+    document.getElementById('custom-fields').innerHTML = '';
+    document.getElementById('output').classList.remove('visible');
+  }
+
+  function togglePasswords() {
+    showPasswords = !showPasswords;
+    document.querySelectorAll('input[type="password"]').forEach(el => {
+      el.type = showPasswords ? 'text' : 'password';
+    });
+  }
+
+  function loadEnvFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const lines = e.target.result.split('\n');
+      const pairs = {};
+      lines.forEach(line => {
+        line = line.trim();
+        if (!line || line.startsWith('#')) return;
+        const idx = line.indexOf('=');
+        if (idx > 0) {
+          pairs[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
+        }
+      });
+
+      // Try to fill current app's fields
+      const cfg = appConfig[currentApp];
+      let filled = 0;
+      if (cfg) {
+        cfg.fields.forEach(key => {
+          if (pairs[key] !== undefined) {
+            const el = document.getElementById(`${cfg.prefix}-${key}`);
+            if (el) { el.value = pairs[key]; updateStyle(el); filled++; }
+            delete pairs[key];
+          }
+        });
+      }
+
+      // Remaining keys → extra fields
+      Object.entries(pairs).forEach(([k, v]) => {
+        const container = document.getElementById(currentApp === 'custom' ? 'custom-fields' : 'extra-fields');
+        const row = document.createElement('div');
+        row.className = 'custom-field-row';
+        row.innerHTML = `
+          <input type="text" value="${k}" oninput="updateStyle(this)" style="text-transform:uppercase">
+          <input type="text" value="${v}" oninput="updateStyle(this)">
+          <button class="btn-icon" onclick="this.parentElement.remove()">×</button>
+        `;
+        container.appendChild(row);
+        filled++;
+      });
+
+      document.getElementById('extra-fields-card').style.display =
+        currentApp !== 'custom' ? 'block' : 'none';
+
+      showToast(`Loaded ${filled} variables ✓`);
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  // Init extra fields card visibility
+  document.getElementById('extra-fields-card').style.display = 'block';
+</script>
+</body>
+</html>
