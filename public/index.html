@@ -1116,15 +1116,15 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
               </select>
               <label>Model
                 <select id="agentModelSelect" onchange="agentOnModelChange()">
-                  <option value="auto">&#x2728; Auto (Anthropic for your data, Groq for general)</option>
-                  <optgroup label="Anthropic">
+                  <option value="auto">&#x2728; Auto (Ollama local · Anthropic fallback)</option>
+                  <optgroup label="Local (Ollama)">
+                    <option value="mistral">Mistral (default)</option>
+                    <option value="qwen2.5">Qwen 2.5</option>
+                  </optgroup>
+                  <optgroup label="Anthropic (cloud)">
                     <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
                     <option value="claude-sonnet-4-5">Claude Sonnet 4.5</option>
                     <option value="claude-opus-4-5">Claude Opus 4.5</option>
-                  </optgroup>
-                  <optgroup label="Groq">
-                    <option value="llama-3.3-70b-versatile">Llama 3.3 70B</option>
-                    <option value="llama-3.1-8b-instant">Llama 3.1 8B (fast)</option>
                   </optgroup>
                 </select>
               </label>
@@ -3132,27 +3132,21 @@ async function srConfirm() {
   confirmBtn.textContent = 'Uploading...';
   document.getElementById('srUploadProgress').style.display = 'block';
 
-  // Step 1: get presigned URL
-  var meta = await apiPost('/api/vault/upload-url', {
-    filename: file.name,
-    contentType: file.type || 'application/octet-stream',
-    category: cat,
-    subcategory: sub,
-    financialYear: fy,
-    description: desc || null
-  });
-  if (!meta || !meta.uploadUrl) {
-    showToast((meta && meta.error) || 'Upload setup failed', 'error');
-    confirmBtn.disabled = false; confirmBtn.textContent = 'Confirm';
-    return;
-  }
+  // Single-step upload via FormData (direct to server, no S3 presigned URL)
+  var formData = new FormData();
+  formData.append('file', file);
+  if (cat)  formData.append('category', cat);
+  if (sub)  formData.append('subcategory', sub);
+  if (fy)   formData.append('financialYear', fy);
+  if (desc) formData.append('description', desc);
 
-  // Step 2: PUT to S3 with progress (XHR for native progress events)
+  var confirmRes;
   try {
-    await new Promise(function(resolve, reject) {
+    confirmRes = await new Promise(function(resolve, reject) {
       var xhr = new XMLHttpRequest();
-      xhr.open('PUT', meta.uploadUrl);
-      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+      var token = localStorage.getItem('authToken') || (window.authState && window.authState.token) || '';
+      xhr.open('POST', '/api/vault/upload');
+      xhr.setRequestHeader('Authorization', 'Bearer ' + token);
       xhr.upload.onprogress = function(ev) {
         if (!ev.lengthComputable) return;
         var pct = Math.round((ev.loaded / ev.total) * 100);
@@ -3162,11 +3156,11 @@ async function srConfirm() {
         if (pctEl) pctEl.textContent = pct;
       };
       xhr.onload = function() {
-        if (xhr.status >= 200 && xhr.status < 300) resolve();
-        else reject(new Error('S3 PUT failed: HTTP ' + xhr.status));
+        try { resolve(JSON.parse(xhr.responseText)); }
+        catch(_) { reject(new Error('Upload failed: ' + xhr.status)); }
       };
-      xhr.onerror = function() { reject(new Error('S3 PUT network error')); };
-      xhr.send(file);
+      xhr.onerror = function() { reject(new Error('Network error during upload')); };
+      xhr.send(formData);
     });
   } catch (err) {
     showToast(err.message || 'Upload failed', 'error');
@@ -3174,20 +3168,8 @@ async function srConfirm() {
     return;
   }
 
-  // Step 3: confirm-upload to register in DB
-  var confirmRes = await apiPost('/api/vault/confirm-upload', {
-    s3Key: meta.s3Key,
-    originalFilename: file.name,
-    displayName: file.name,
-    fileSize: file.size,
-    mimeType: file.type || 'application/octet-stream',
-    financialYear: meta.financialYear,
-    category: meta.category,
-    subcategory: meta.subcategory,
-    description: desc || null
-  });
   if (!confirmRes || !confirmRes.file) {
-    showToast((confirmRes && confirmRes.error) || 'Registering upload failed', 'error');
+    showToast((confirmRes && confirmRes.error) || 'Upload failed', 'error');
     confirmBtn.disabled = false; confirmBtn.textContent = 'Confirm';
     return;
   }

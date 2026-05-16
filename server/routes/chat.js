@@ -62,13 +62,13 @@ router.post('/threads/:id/stream', async (req, res) => {
   if (!thread) return res.status(404).json({ error: 'Thread not found' });
   const { content, force_provider } = req.body || {};
   if (!content || typeof content !== 'string') return res.status(400).json({ error: 'content required' });
-  // Optional per-message override: 'anthropic' | 'groq' | null. When set,
+  // Optional per-message override: 'anthropic' | 'local' | null. When set,
   // wins over both auto-routing and the thread's pinned model.
-  const forceProvider = force_provider === 'anthropic' || force_provider === 'groq' ? force_provider : null;
+  const forceProvider = force_provider === 'anthropic' || force_provider === 'local' ? force_provider : null;
   if (!chatAgent.isAgentConfigured()) {
     return res.status(503).json({
-      error: 'Agent is not configured: set ANTHROPIC_API_KEY or GROQ_API_KEY',
-      message: 'Add the key to PM2/environment config and restart with --update-env.'
+      error: 'Agent is not configured: set OLLAMA_BASE_URL or ANTHROPIC_API_KEY',
+      message: 'Add OLLAMA_BASE_URL to the environment config and restart.'
     });
   }
 
