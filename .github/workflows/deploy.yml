@@ -84,7 +84,10 @@ jobs:
           # Mac Mini SSH on default port 22, reachable via Tailscale tailnet.
           # (EC2_HOST should be the Mac's MagicDNS short name, e.g. "udays-mac-mini",
           # so the connection goes over the tailnet rather than Cloudflare.)
-          printf 'Host %s\n  Port 22\n  StrictHostKeyChecking accept-new\n  IdentityFile ~/.ssh/id_rsa\n' "$EC2_HOST" >> ~/.ssh/config
+          # IdentitiesOnly=yes prevents ssh from offering every key the runner's
+          # ssh-agent knows about — without it macOS sshd hits MaxAuthTries and
+          # bails with "Too many authentication failures" before our key is tried.
+          printf 'Host %s\n  Port 22\n  StrictHostKeyChecking accept-new\n  IdentityFile ~/.ssh/id_rsa\n  IdentitiesOnly yes\n  PreferredAuthentications publickey\n' "$EC2_HOST" >> ~/.ssh/config
 
       - name: Sync compose file to Mac Mini
         env:
@@ -92,7 +95,7 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
           rsync -avz \
-            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=accept-new" \
+            -e "ssh -i ~/.ssh/id_rsa -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new" \
             docker-compose.mac.yml scripts \
             "$EC2_USER@$EC2_HOST:~/fin-dashboard/"
 
@@ -103,7 +106,7 @@ jobs:
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=accept-new \
+          ssh -i ~/.ssh/id_rsa -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
             "$EC2_USER@$EC2_HOST" << EOF
             set -e
             cd ~/fin-dashboard
@@ -122,6 +125,6 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
           # Give the container a moment to come up + healthcheck pass
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=accept-new \
+          ssh -i ~/.ssh/id_rsa -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
             "$EC2_USER@$EC2_HOST" \
             "sleep 8 && curl -fsS http://localhost:3001/api/health"
