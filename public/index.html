@@ -3144,7 +3144,7 @@ async function srConfirm() {
   try {
     confirmRes = await new Promise(function(resolve, reject) {
       var xhr = new XMLHttpRequest();
-      var token = localStorage.getItem('authToken') || (window.authState && window.authState.token) || '';
+      var token = localStorage.getItem('fin_token') || '';
       xhr.open('POST', '/api/vault/upload');
       xhr.setRequestHeader('Authorization', 'Bearer ' + token);
       xhr.upload.onprogress = function(ev) {
