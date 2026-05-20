@@ -78,7 +78,7 @@ async function processUpload(fileId, userId) {
   // Short / unsupported — write a status note and stop
   if (extracted.kind === 'unknown' || extracted.text.length < 50) {
     const reason = extracted.kind === 'unknown'
-      ? `Unsupported file type for "${file.original_filename}". Supported: PDF, CSV, XML, PNG, JPEG, HEIC.`
+      ? `Unsupported file type for "${file.original_filename}". Supported: PDF, DOCX, XLSX/XLS, CSV, TXT, XML, PNG/JPEG/HEIC and other common image formats.`
       : `Couldn't extract meaningful text from "${file.original_filename}".`;
     db.prepare(`INSERT INTO agent_messages (thread_id, role, content, status) VALUES (?, 'assistant', ?, 'final')`)
       .run(threadId, reason);

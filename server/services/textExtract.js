@@ -1,12 +1,14 @@
 // Text extraction for vault files. Returns { text, kind, warnings } where:
 //   - text:     extracted plain text (truncated to MAX_CHARS)
-//   - kind:     'pdf' | 'csv' | 'text' | 'xml' | 'image' | 'unknown'
+//   - kind:     'pdf' | 'csv' | 'text' | 'xml' | 'image' | 'docx' | 'xlsx' | 'unknown'
 //   - warnings: array of strings (e.g., truncation, parse errors)
 //
 // Supported formats:
 //   PDF  — pdf-parse
 //   CSV / plain text — utf8 decode
 //   XML  — xml2js (converted to JSON-ish text for LLM)
+//   DOCX — mammoth (extracts raw text from Word documents)
+//   XLSX / XLS — xlsx (SheetJS, each sheet rendered as CSV)
 //   PNG / JPEG / GIF / BMP / TIFF / WEBP — Tesseract OCR
 //   HEIC / HEIF — heic-convert → JPEG → Tesseract OCR
 
@@ -19,6 +21,11 @@ function _detectKind(mimeType, filename) {
   if (m.includes('csv')   || n.endsWith('.csv') || n.endsWith('.tsv'))  return 'csv';
   if (m.includes('xml')   || n.endsWith('.xml'))                        return 'xml';
   if (n.endsWith('.heic') || n.endsWith('.heif'))                        return 'heic';
+  // Word: only .docx is reliably text-extractable; legacy .doc returns unknown.
+  if (m.includes('officedocument.wordprocessingml') || n.endsWith('.docx')) return 'docx';
+  // Excel: handles both modern .xlsx and legacy .xls via SheetJS.
+  if (m.includes('officedocument.spreadsheetml') || m.includes('ms-excel')
+      || n.endsWith('.xlsx') || n.endsWith('.xls')) return 'xlsx';
   if (m.startsWith('image/') || /\.(png|jpe?g|gif|bmp|tiff?|webp)$/i.test(n)) return 'image';
   if (m.startsWith('text/') || n.endsWith('.txt'))                      return 'text';
   return 'unknown';
@@ -79,6 +86,33 @@ async function extractText(buffer, mimeType, filename) {
 
   } else if (kind === 'image') {
     text = await _ocrBuffer(buffer, warnings);
+
+  } else if (kind === 'docx') {
+    try {
+      const mammoth = require('mammoth');
+      const result = await mammoth.extractRawText({ buffer });
+      text = String(result.value || '');
+      if (result.messages && result.messages.length) {
+        warnings.push(`DOCX parse notes: ${result.messages.slice(0, 3).map(m => m.message).join('; ')}`);
+      }
+    } catch (e) {
+      warnings.push(`DOCX parse failed: ${e.message}`);
+    }
+
+  } else if (kind === 'xlsx') {
+    try {
+      const XLSX = require('xlsx');
+      const wb = XLSX.read(buffer, { type: 'buffer' });
+      const parts = [];
+      for (const sheetName of wb.SheetNames) {
+        const sheet = wb.Sheets[sheetName];
+        const csv = XLSX.utils.sheet_to_csv(sheet, { blankrows: false });
+        if (csv.trim()) parts.push(`=== Sheet: ${sheetName} ===\n${csv}`);
+      }
+      text = parts.join('\n\n');
+    } catch (e) {
+      warnings.push(`Excel parse failed: ${e.message}`);
+    }
 
   } else {
     return { text: '', kind: 'unknown', warnings: [`Unsupported type: ${mimeType || filename || '?'}`] };

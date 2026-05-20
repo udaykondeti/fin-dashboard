@@ -1151,7 +1151,7 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
           <div class="agent-messages" id="agentMessages"></div>
           <form class="agent-input-row" id="agentInputForm" onsubmit="agentOnSend(event)">
             <button type="button" id="agentAttachBtn" class="agent-attach-btn" title="Attach a file — the agent will read it and propose updates" onclick="document.getElementById('agentAttachInput').click()">📎</button>
-            <input type="file" id="agentAttachInput" style="display:none" onchange="agentOnAttach(event)" accept=".pdf,.png,.jpg,.jpeg,.heic,.csv,.xml,.txt">
+            <input type="file" id="agentAttachInput" style="display:none" onchange="agentOnAttach(event)" accept=".pdf,.png,.jpg,.jpeg,.gif,.bmp,.tif,.tiff,.webp,.heic,.heif,.csv,.tsv,.xml,.txt,.docx,.xls,.xlsx">
             <textarea id="agentInput" rows="2" placeholder="Type your message… (Enter to send · Shift/Alt+Enter for newline)" onkeydown="agentOnKeyDown(event)"></textarea>
             <button type="submit" id="agentSendBtn">Send</button>
           </form>
