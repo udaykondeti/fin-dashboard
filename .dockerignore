@@ -3,11 +3,12 @@
 .github
 .claude
 
-# Tests, docs, ad-hoc scripts (one-shot importers/migrations) shouldn't bloat the image
+# Tests, docs shouldn't bloat the image.
+# (scripts/ is intentionally NOT ignored — the Dockerfile COPYs it so seed /
+# maintenance scripts can be invoked via `docker exec ... node /app/scripts/...`)
 docs
 *.md
 LICENSE
-scripts
 
 # Local dev artefacts
 node_modules
