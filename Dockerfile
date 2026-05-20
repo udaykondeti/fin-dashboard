@@ -44,6 +44,9 @@ COPY --from=client-build /app/client/dist ./client/dist
 COPY package.json ./
 COPY server/ ./server/
 COPY public/ ./public/
+# Ship maintenance / seed scripts in the image so they can be invoked
+# from the running container via `docker exec ... node /app/scripts/<name>.js`.
+COPY scripts/ ./scripts/
 
 # Make sure the data dir exists; mount over it on the host
 RUN mkdir -p /app/data
