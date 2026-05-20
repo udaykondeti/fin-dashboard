@@ -104,3 +104,5 @@ async function oauthCallback(req, res) {
 }
 
 router.oauthCallback = oauthCallback;
+
+module.exports = router;
