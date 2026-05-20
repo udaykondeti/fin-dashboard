@@ -108,12 +108,16 @@ const PROPOSE = {
     };
   },
 
-  propose_add_earning(input, _ctx) {
+  propose_add_earning(input, { userId }) {
     const { source_name, source_type, amount, frequency, share_percentage, notes } = input || {};
     if (!source_name || !amount || !frequency) throw new Error('source_name, amount, frequency required');
+    const existing = db.prepare(
+      `SELECT id, amount, frequency FROM earnings WHERE user_id = ? AND LOWER(source_name) = LOWER(?) LIMIT 1`
+    ).get(userId, source_name);
     return {
       summary: `Add earning: ${source_name} — ₹${Number(amount).toLocaleString('en-IN')} ${frequency.toLowerCase()}` +
                (share_percentage && share_percentage !== 100 ? ` (${share_percentage}% share)` : ''),
+      duplicate: existing ? { id: existing.id, hint: `Existing earning "${source_name}" already on file: ₹${Number(existing.amount).toLocaleString('en-IN')} ${String(existing.frequency).toLowerCase()}.` } : null,
       mutation: { method: 'POST', path: '/api/earnings', body: {
         source_name, source_type: source_type || 'Other', amount: Number(amount),
         frequency, share_percentage: Number(share_percentage) || 100, notes: notes || null
@@ -121,12 +125,16 @@ const PROPOSE = {
     };
   },
 
-  propose_add_payment(input, _ctx) {
+  propose_add_payment(input, { userId }) {
     const { name, category, amount, frequency, next_due_date, auto_debit, notes } = input || {};
     if (!name || !amount || !frequency) throw new Error('name, amount, frequency required');
+    const existing = db.prepare(
+      `SELECT id, amount, frequency FROM scheduled_payments WHERE user_id = ? AND LOWER(name) = LOWER(?) LIMIT 1`
+    ).get(userId, name);
     return {
       summary: `Add scheduled payment: ${name} — ₹${Number(amount).toLocaleString('en-IN')} ${frequency.toLowerCase()}` +
                (next_due_date ? ` (next due ${next_due_date})` : ''),
+      duplicate: existing ? { id: existing.id, hint: `Scheduled payment "${name}" already on file: ₹${Number(existing.amount).toLocaleString('en-IN')} ${String(existing.frequency).toLowerCase()}.` } : null,
       mutation: { method: 'POST', path: '/api/payments', body: {
         name, category: category || 'Other', amount: Number(amount),
         frequency, next_due_date: next_due_date || null,
@@ -135,11 +143,15 @@ const PROPOSE = {
     };
   },
 
-  propose_record_advance_tax(input, _ctx) {
+  propose_record_advance_tax(input, { userId }) {
     const { assessment_year, installment, amount, date_paid, notes } = input || {};
     if (!assessment_year || !installment || !amount || !date_paid) throw new Error('assessment_year, installment, amount, date_paid required');
+    const existing = db.prepare(
+      `SELECT id, amount, date_paid FROM advance_tax_payments WHERE user_id = ? AND assessment_year = ? AND installment = ? LIMIT 1`
+    ).get(userId, assessment_year, installment);
     return {
       summary: `Record advance tax: ${installment} for FY ${assessment_year} — ₹${Number(amount).toLocaleString('en-IN')} on ${date_paid}`,
+      duplicate: existing ? { id: existing.id, hint: `${installment} for FY ${assessment_year} already recorded: ₹${Number(existing.amount).toLocaleString('en-IN')} on ${existing.date_paid}.` } : null,
       mutation: { method: 'POST', path: '/api/tax/advance', body: {
         assessment_year, installment, amount: Number(amount),
         date_paid, notes: notes || null
@@ -147,16 +159,21 @@ const PROPOSE = {
     };
   },
 
-  propose_add_stock(input, _ctx) {
+  propose_add_stock(input, { userId }) {
     const { symbol, company_name, quantity, avg_buy_price, notes } = input || {};
     if (!symbol || !quantity) throw new Error('symbol and quantity required');
+    const sym = String(symbol).toUpperCase();
+    const existing = db.prepare(
+      `SELECT id, quantity, avg_buy_price FROM stocks WHERE user_id = ? AND UPPER(symbol) = ? LIMIT 1`
+    ).get(userId, sym);
     return {
-      summary: `Add stock: ${String(symbol).toUpperCase()}` +
+      summary: `Add stock: ${sym}` +
                (company_name ? ` (${company_name})` : '') +
                ` — ${quantity} shares` +
                (avg_buy_price ? ` @ ₹${Number(avg_buy_price).toLocaleString('en-IN')}` : ''),
+      duplicate: existing ? { id: existing.id, hint: `${sym} already in portfolio: ${existing.quantity} shares @ ₹${Number(existing.avg_buy_price).toLocaleString('en-IN')}.` } : null,
       mutation: { method: 'POST', path: '/api/investments/stocks', body: {
-        symbol: String(symbol).toUpperCase(),
+        symbol: sym,
         company_name: company_name || symbol,
         quantity: Number(quantity),
         avg_buy_price: Number(avg_buy_price) || 0,
@@ -165,13 +182,17 @@ const PROPOSE = {
     };
   },
 
-  propose_add_mutual_fund(input, _ctx) {
+  propose_add_mutual_fund(input, { userId }) {
     const { fund_name, units, avg_nav, fund_type, notes } = input || {};
     if (!fund_name || !units) throw new Error('fund_name and units required');
+    const existing = db.prepare(
+      `SELECT id, units, avg_nav FROM mutual_funds WHERE user_id = ? AND LOWER(fund_name) = LOWER(?) LIMIT 1`
+    ).get(userId, fund_name);
     return {
       summary: `Add MF: ${fund_name} — ${units} units` +
                (avg_nav ? ` @ ₹${Number(avg_nav).toLocaleString('en-IN')}` : '') +
                (fund_type ? ` (${fund_type})` : ''),
+      duplicate: existing ? { id: existing.id, hint: `${fund_name} already in portfolio: ${existing.units} units @ ₹${Number(existing.avg_nav).toLocaleString('en-IN')}.` } : null,
       mutation: { method: 'POST', path: '/api/investments/mutual-funds', body: {
         fund_name,
         units: Number(units),

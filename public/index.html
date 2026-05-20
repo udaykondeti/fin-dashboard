@@ -140,6 +140,10 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
 .agent-proposal .reject{background:transparent;color:var(--text-secondary);border-color:var(--border)}
 .agent-proposal.applied{border-style:dashed;background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.5);color:#15803d}
 .agent-proposal.rejected{border-style:dashed;background:rgba(0,0,0,.03);color:var(--text-secondary)}
+.agent-proposal.has-duplicate{border-color:#d97706;background:rgba(217,119,6,.06)}
+.agent-proposal .dup-warn{margin:6px 0 10px;padding:8px 10px;font-size:12px;color:#92400e;background:rgba(217,119,6,.10);border:1px solid rgba(217,119,6,.30);border-radius:8px;line-height:1.45}
+.agent-proposal .dup-ack{display:inline-flex;align-items:center;gap:6px;margin-left:6px;font-weight:600;color:#92400e;cursor:pointer}
+.agent-proposal .confirm:disabled{opacity:.5;cursor:not-allowed}
 .agent-input-row{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--border);background:var(--bg-primary);flex-shrink:0;align-items:flex-end}
 .agent-input-row textarea{flex:1;resize:none;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-family:inherit;font-size:13px;line-height:1.5;max-height:160px;transition:border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out)}
 .agent-input-row textarea:focus{outline:none;border-color:rgba(198,134,66,.55);box-shadow:0 0 0 3px rgba(198,134,66,.15)}
@@ -147,6 +151,10 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
 .agent-input-row button:hover:not(:disabled){filter:brightness(1.06);box-shadow:0 6px 18px -6px rgba(198,134,66,.55);transform:translateY(-1px)}
 .agent-input-row button:active:not(:disabled){transform:scale(0.97) translateY(0)}
 .agent-input-row button:disabled{opacity:.55;cursor:not-allowed}
+.agent-attach-btn{flex:0 0 auto;width:40px;height:40px;padding:0;font-size:18px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:10px;cursor:pointer;line-height:1;transition:background 160ms var(--ease-out), border-color 160ms var(--ease-out), transform 140ms var(--ease-out)}
+.agent-attach-btn:hover:not(:disabled){background:rgba(198,134,66,.10);border-color:rgba(198,134,66,.35);transform:translateY(-1px)}
+.agent-attach-btn:active:not(:disabled){transform:scale(.95) translateY(0)}
+.agent-attach-btn:disabled{opacity:.5;cursor:not-allowed}
 .agent-pending-hint{padding:8px 16px;background:rgba(198,134,66,.10);color:var(--caramel);font-size:12px;text-align:center;border-top:1px solid var(--border)}
 .agent-empty-state{display:flex;align-items:center;justify-content:center;flex:1;color:var(--text-secondary);font-size:13px;text-align:center;padding:30px}
 .agent-artifact-chip{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:6px 10px;border-radius:8px;border:1px solid var(--bdr-coffee);background:var(--cream);color:var(--mocha);font-size:12px;font-weight:600;cursor:pointer;max-width:100%;overflow:hidden}
@@ -1142,6 +1150,8 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
           </div>
           <div class="agent-messages" id="agentMessages"></div>
           <form class="agent-input-row" id="agentInputForm" onsubmit="agentOnSend(event)">
+            <button type="button" id="agentAttachBtn" class="agent-attach-btn" title="Attach a file — the agent will read it and propose updates" onclick="document.getElementById('agentAttachInput').click()">📎</button>
+            <input type="file" id="agentAttachInput" style="display:none" onchange="agentOnAttach(event)" accept=".pdf,.png,.jpg,.jpeg,.heic,.csv,.xml,.txt">
             <textarea id="agentInput" rows="2" placeholder="Type your message… (Enter to send · Shift/Alt+Enter for newline)" onkeydown="agentOnKeyDown(event)"></textarea>
             <button type="submit" id="agentSendBtn">Send</button>
           </form>
@@ -5394,12 +5404,29 @@ function agentRenderOneMessage(m) {
 
 function agentRenderProposalCard(p, state) {
   var cls = state === 'applied' ? ' applied' : state === 'rejected' ? ' rejected' : '';
-  var actions = state === 'pending'
-    ? '<div class="actions"><button class="confirm" onclick="agentConfirmProposal()">Confirm</button>'
-      + '<button class="reject" onclick="agentRejectProposal()">Reject</button></div>'
-    : '<div class="actions"><span>'+(state === 'applied' ? '✓ Done' : '✗ Rejected')+'</span></div>';
-  return '<div class="agent-proposal'+cls+'" data-tool-use-id="'+esc(p.tool_use_id)+'">'
-    + '<div class="summary">🛠 '+esc(p.summary)+'</div>' + actions + '</div>';
+  var dupCls = (state === 'pending' && p.duplicate) ? ' has-duplicate' : '';
+  var dupBlock = (state === 'pending' && p.duplicate)
+    ? '<div class="dup-warn">⚠️ Possible duplicate — '+esc(p.duplicate.hint)
+      + ' <label class="dup-ack"><input type="checkbox" onchange="agentToggleDupAck(this)"> Add anyway</label></div>'
+    : '';
+  var actions;
+  if (state === 'pending') {
+    var confirmAttrs = p.duplicate ? ' disabled data-needs-ack="1"' : '';
+    actions = '<div class="actions">'
+      + '<button class="confirm"'+confirmAttrs+' onclick="agentConfirmProposal()">Confirm</button>'
+      + '<button class="reject" onclick="agentRejectProposal()">Reject</button></div>';
+  } else {
+    actions = '<div class="actions"><span>'+(state === 'applied' ? '✓ Done' : '✗ Rejected')+'</span></div>';
+  }
+  return '<div class="agent-proposal'+cls+dupCls+'" data-tool-use-id="'+esc(p.tool_use_id)+'">'
+    + '<div class="summary">🛠 '+esc(p.summary)+'</div>' + dupBlock + actions + '</div>';
+}
+
+function agentToggleDupAck(cb) {
+  var card = cb.closest('.agent-proposal');
+  if (!card) return;
+  var btn = card.querySelector('button.confirm[data-needs-ack]');
+  if (btn) btn.disabled = !cb.checked;
 }
 
 function agentUpdateInputState() {
@@ -5421,6 +5448,36 @@ function agentOnKeyDown(e) {
   if (e.shiftKey || e.altKey) return; // newline — let default happen
   e.preventDefault();
   agentOnSend(e);
+}
+
+async function agentOnAttach(e) {
+  var input = e.target;
+  var file = input.files && input.files[0];
+  if (!file) return;
+  // Reset right away so picking the same filename again still fires onchange
+  input.value = '';
+  var btn = document.getElementById('agentAttachBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+  try {
+    var token = localStorage.getItem('fin_token') || '';
+    var fd = new FormData();
+    fd.append('file', file);
+    var resp = await fetch('/api/vault/upload', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token },
+      body: fd
+    });
+    var data = await resp.json().catch(function(){ return null; });
+    if (!resp.ok) {
+      showToast((data && data.error) || ('Upload failed: HTTP ' + resp.status), 'error');
+      return;
+    }
+    showToast('Uploaded "' + file.name + '" — the agent will read it and propose updates.', 'success');
+  } catch (err) {
+    showToast('Upload error: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📎'; }
+  }
 }
 
 async function agentOnSend(e) {
