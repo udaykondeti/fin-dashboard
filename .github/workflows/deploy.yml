@@ -121,9 +121,12 @@ jobs:
             printf '{"auths":{"ghcr.io":{"auth":"%s"}}}\n' "\$AUTH" > ~/.docker/config.json
             chmod 600 ~/.docker/config.json
 
-            # Pull latest image + restart — Mac Mini uses docker-compose.mac.yml
-            docker compose -f docker-compose.mac.yml pull
-            docker compose -f docker-compose.mac.yml up -d --remove-orphans
+            # Pull latest image + restart — Mac Mini uses docker-compose.mac.yml.
+            # Scope to fin-dashboard only: the compose file also defines sibling
+            # services (timesheet, pippy, etc.) that aren't this repo's concern,
+            # and pulling them all fails when any one is missing from GHCR.
+            docker compose -f docker-compose.mac.yml pull fin-dashboard
+            docker compose -f docker-compose.mac.yml up -d --no-deps fin-dashboard
           EOF
 
       - name: Health check
