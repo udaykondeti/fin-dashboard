@@ -111,8 +111,15 @@ jobs:
             set -e
             cd ~/fin-dashboard
 
-            # Authenticate to GHCR (idempotent; refreshes token each deploy)
-            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            # Authenticate to GHCR by writing the auth directly into
+            # ~/.docker/config.json. We can't use \`docker login\` here: the
+            # macOS CLI defaults to the osxkeychain credential helper, which
+            # fails over SSH with "User interaction is not allowed. (-25308)"
+            # because there's no GUI session to unlock the keychain.
+            mkdir -p ~/.docker
+            AUTH=\$(printf '%s:%s' "$GHCR_USER" "$GHCR_TOKEN" | base64)
+            printf '{"auths":{"ghcr.io":{"auth":"%s"}}}\n' "\$AUTH" > ~/.docker/config.json
+            chmod 600 ~/.docker/config.json
 
             # Pull latest image + restart — Mac Mini uses docker-compose.mac.yml
             docker compose -f docker-compose.mac.yml pull
