@@ -1,0 +1,8 @@
+# fin.kirakon.com — private personal finance dashboard
+# This is a login-gated application; no content is publicly accessible.
+# Search engines are asked to not index or crawl this site.
+
+User-agent: *
+Disallow: /
+
+Sitemap: https://fin.kirakon.com/sitemap.xml

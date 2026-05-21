@@ -4,7 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FinDash — Personal Finance Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js"></script>
+<meta name="description" content="FinDash — secure personal finance dashboard for tracking investments, net worth, liabilities, earnings, and vault documents.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://fin.kirakon.com/">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/favicon.svg">
+<meta property="og:title" content="FinDash — Personal Finance Dashboard">
+<meta property="og:description" content="Track net worth, investments, and liabilities in one place.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://fin.kirakon.com">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="FinDash — Personal Finance Dashboard">
+<meta name="twitter:description" content="Track net worth, investments, and liabilities in one place.">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" defer></script>
 <style>
 /* ──────────────────────────────────────────────────────────────────────
    Coffee-theme palette ported from coffee.kirakon.com.
@@ -546,6 +558,63 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
   .file-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
 }
 
+/* ── Design polish (Emil Kowalski principles) ──────────────────────────── */
+
+/* Login page: fade+lift entrance on every load */
+#login-page{animation:loginBgIn 280ms var(--ease-out) both}
+.login-card{animation:loginCardIn 380ms var(--ease-out) both;animation-delay:40ms}
+@keyframes loginBgIn{from{opacity:0}to{opacity:1}}
+@keyframes loginCardIn{from{opacity:0;transform:translateY(18px) scale(0.97)}to{opacity:1;transform:none}}
+
+/* Login button — box-shadow lift on hover, scale on press */
+.login-btn{transition:opacity 150ms var(--ease-out),transform 120ms var(--ease-out),box-shadow 200ms var(--ease-out)}
+.login-btn:hover{opacity:.9;box-shadow:0 10px 28px rgba(28,25,23,.38)}
+.login-btn:active{transform:scale(0.97);opacity:1}
+
+/* Page sections — smooth fade+slide when navigating between tabs */
+.page.active{animation:pageIn 230ms var(--ease-out) both}
+@keyframes pageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* Summary cards — hover lift + staggered entrance on dashboard load */
+.summary-card{transition:transform 200ms var(--ease-out),box-shadow 200ms var(--ease-out)}
+@media (hover: hover) and (pointer: fine){
+  .summary-card:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(44,26,14,.22)}
+}
+.summary-grid .summary-card:nth-child(1){animation:cardIn 340ms var(--ease-out) both;animation-delay:0ms}
+.summary-grid .summary-card:nth-child(2){animation:cardIn 340ms var(--ease-out) both;animation-delay:55ms}
+.summary-grid .summary-card:nth-child(3){animation:cardIn 340ms var(--ease-out) both;animation-delay:110ms}
+.summary-grid .summary-card:nth-child(4){animation:cardIn 340ms var(--ease-out) both;animation-delay:165ms}
+@keyframes cardIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+/* Modal close — missing active scale + proper easing */
+.modal-close{transition:background 150ms var(--ease-out),color 150ms var(--ease-out),transform 100ms var(--ease-out)}
+.modal-close:active{transform:scale(0.88)}
+
+/* Input focus transitions — was using raw .15s with no easing, now matched */
+.modal-body input,.modal-body select,.modal-body textarea,
+.modal-form input,.modal-form select,.modal-form textarea{
+  transition:border-color 150ms var(--ease-out),box-shadow 150ms var(--ease-out)
+}
+
+/* Mobile tab — active colour change should transition, not snap */
+.mobile-tab{transition:color 150ms var(--ease-out),opacity 150ms var(--ease-out)}
+.mobile-tab:active{opacity:.65}
+
+/* Action/cancel/save buttons — ensure :active scale on all shared variants */
+.action-btn:active{transform:scale(0.94)}
+.btn-cancel:active{transform:scale(0.97)}
+.btn-save:active{transform:scale(0.97)}
+
+/* Add-btn — was using opacity-only on hover; add lift to match caramel button pattern */
+.add-btn{transition:opacity 150ms var(--ease-out),transform 120ms var(--ease-out),box-shadow 180ms var(--ease-out)}
+.add-btn:hover{opacity:.9;box-shadow:0 6px 18px -6px rgba(198,134,66,.55);transform:translateY(-1px)}
+.add-btn:active{transform:scale(0.97) translateY(0)}
+
+/* Reduced motion — fewer animations for users who prefer it */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+
 </style>
 </head>
 <body>
@@ -556,7 +625,7 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
 <div id="login-page">
   <div class="login-card">
     <div class="login-logo">&#x1F4B0;</div>
-    <div class="login-title">FinDash</div>
+    <h1 class="login-title">FinDash</h1>
     <div class="login-subtitle">Personal Finance Dashboard</div>
     <form id="loginForm">
       <div class="form-group">
@@ -1853,7 +1922,7 @@ function showToast(msg,type){
   var icon=type==='success'?'✓ ':type==='error'?'✗ ':'ℹ ';
   t.textContent=icon+msg;
   c.appendChild(t);
-  setTimeout(function(){t.style.opacity='0';t.style.transform='translateX(calc(100% + 24px))';t.style.transition='opacity .25s ease-in, transform .25s ease-in';setTimeout(function(){t.remove()},260)},3200);
+  setTimeout(function(){t.style.opacity='0';t.style.transform='translateX(calc(100% + 24px))';t.style.transition='opacity .2s cubic-bezier(0.23,1,0.32,1), transform .2s cubic-bezier(0.23,1,0.32,1)';setTimeout(function(){t.remove()},210)},3200);
 }
 
 async function tryLogin(email,password){

@@ -77,15 +77,23 @@ app.use(cors((req, callback) => {
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
-// No browser caching anywhere in the app. Every refresh must hit the server
-// and re-query — both for HTML/static assets AND for API JSON responses.
-// This is intentional: the dashboard surfaces live financial data and we
-// never want a stale page or stale net-worth figures behind a cached
-// response.
+// Caching policy — split by resource type:
+//   - API routes + HTML: never cache (live financial data must always be fresh)
+//   - Static assets (JS, CSS, images, fonts): cache for 1 day so repeat visits
+//     don't re-download Chart.js (~220 KB) on every page load.
+// The SPA catch-all at the bottom of this file also forces no-cache on
+// index.html itself, so the app shell always stays current.
 app.use((req, res, next) => {
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
+  const isApi = req.path.startsWith('/api/');
+  const isHtml = req.path === '/' || req.path.endsWith('.html') || !req.path.includes('.');
+  if (isApi || isHtml) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  } else {
+    // Static assets — safe to cache for 1 day (JS/CSS/images/fonts)
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+  }
   next();
 });
 
