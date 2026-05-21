@@ -206,6 +206,15 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`fin.kirakon.com server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+
+  // Start watching <VAULT_PATH>/_inbox for files dropped outside the UI.
+  // Wrapped in try/catch so a bad watcher init can't keep the server from
+  // serving regular traffic.
+  try {
+    require('./services/vaultWatcher').start();
+  } catch (e) {
+    console.error('[startup] vaultWatcher failed to start:', e.message);
+  }
 });
 
 module.exports = app;
