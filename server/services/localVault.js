@@ -64,6 +64,20 @@ function deleteFile(localKey) {
   try { fs.unlinkSync(fullPath); } catch (_) {}
 }
 
+/**
+ * Moves a vault file from one relative key to another. Creates the parent
+ * directory of the destination as needed. Returns the new key. If the source
+ * doesn't exist this is a no-op — callers may have already moved/deleted it.
+ */
+function moveFile(fromKey, toKey) {
+  const src = path.join(VAULT_ROOT, fromKey);
+  const dst = path.join(VAULT_ROOT, toKey);
+  if (!fs.existsSync(src)) return toKey;
+  _ensureDir(path.dirname(dst));
+  fs.renameSync(src, dst);
+  return toKey;
+}
+
 module.exports = {
   isVaultConfigured,
   getVaultRoot,
@@ -72,5 +86,6 @@ module.exports = {
   saveFile,
   getFilePath,
   getFileBuffer,
-  deleteFile
+  deleteFile,
+  moveFile
 };

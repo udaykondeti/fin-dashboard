@@ -103,6 +103,22 @@ async function processUpload(fileId, userId) {
       () => {}  // no-op emit — no SSE needed here
     );
     db.prepare('UPDATE vault_files SET processed_at = CURRENT_TIMESTAMP WHERE id = ?').run(fileId);
+
+    // Move the file under <userId>/processed/<rest> so the inbox stays tidy.
+    // Key structure is "<userId>/<rest...>" so we splice "processed/" after the
+    // userId segment. The download route reads s3_key, so update it in lockstep.
+    try {
+      const parts = localKey.split('/');
+      const rest = parts.slice(1).join('/');
+      const newKey = `${parts[0]}/processed/${rest}`;
+      if (newKey !== localKey) {
+        localVault.moveFile(localKey, newKey);
+        db.prepare('UPDATE vault_files SET s3_key = ? WHERE id = ?').run(newKey, fileId);
+      }
+    } catch (mvErr) {
+      console.error('[vaultProcessor] move-to-processed failed:', mvErr.message);
+      // Non-fatal: the row is already marked processed; file stays in place.
+    }
   } catch (e) {
     db.prepare('UPDATE vault_files SET processed_at = CURRENT_TIMESTAMP, processing_error = ? WHERE id = ?')
       .run(`Agent processing failed: ${e.message}`, fileId);
