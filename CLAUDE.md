@@ -28,7 +28,7 @@ route.
 | admin         | admin.kirakon.com         | 3002 | _(TBD)_                          | Admin console                                      |
 | coffee        | coffee.kirakon.com        | 3003 | udaykondeti/cafe-dashboard       | Cafe / coffee tracking                             |
 | ai            | ai.kirakon.com            | 3004 | open-webui/open-webui (upstream) | Local Ollama UI                                    |
-| git           | git.kirakon.com           | 3005 | _(self-hosted Gitea)_            | Self-hosted git                                    |
+| git           | git.kirakon.com           | 3005 | udaykondeti/pippy                | Self-hosted git frontend (pippy)                   |
 | _(reserved)_  | _(none)_                  | 3006 | _(reserved)_                     | Next free port — claim before deploying a new app  |
 | token         | token.kirakon.com         | 3007 | udaykondeti/TokenVault           | TokenVault                                         |
 
