@@ -940,14 +940,14 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
       <!-- IMPORT TAB -->
       <div class="tab-content" id="inv-tab-import">
         <div style="max-width:680px">
-          <div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:6px">&#x1F4E5; Import Investments / Earnings from CSV</div>
-          <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">Upload a CSV export from your broker (Zerodha, Groww, CAMS, KFintech) to bulk-import holdings. Supported: Indian Stocks, Mutual Funds, Earnings.</div>
+          <div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:6px">&#x1F4E5; Drop any document and the agent will extract holdings</div>
+          <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">PDF, image, Word, Excel, CSV — anything. The local model reads it, classifies it, and proposes adds in the Agent page for you to confirm. No more per-broker CSV templates.</div>
 
           <div class="import-dropzone" id="importDropzone" onclick="document.getElementById('importFileInput').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleImportDrop(event)">
             <div style="font-size:36px;margin-bottom:10px">&#x1F4C2;</div>
-            <div style="font-size:14px;font-weight:600;color:var(--text-primary)">Click or drag &amp; drop CSV file here</div>
-            <div style="font-size:12px;color:var(--text-secondary);margin-top:6px">Zerodha Console · Groww · CAMS · KFintech · Generic CSV</div>
-            <input type="file" id="importFileInput" accept=".csv,.tsv,.txt" style="display:none" onchange="handleImportFile(event)">
+            <div style="font-size:14px;font-weight:600;color:var(--text-primary)">Click or drag &amp; drop a file here</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:6px">Local AI processes it · Confirm changes in the Agent page</div>
+            <input type="file" id="importFileInput" accept=".pdf,.png,.jpg,.jpeg,.gif,.bmp,.tif,.tiff,.webp,.heic,.heif,.csv,.tsv,.xml,.txt,.docx,.xls,.xlsx" style="display:none" onchange="handleImportFile(event)" multiple>
           </div>
 
           <div id="importPreviewSection" style="display:none;margin-top:20px">
@@ -5188,22 +5188,50 @@ function togglePropResearch() {
 var importRows = [];
 var importDetectedType = 'stocks';
 
-function handleImportFile(e) {
-  var file = e.target.files[0];
-  if (!file) return;
-  var reader = new FileReader();
-  reader.onload = function(ev) { previewImport(ev.target.result); };
-  reader.readAsText(file);
+// Import is now LLM-driven: any file the user drops goes straight to the
+// vault, where the watcher / processUpload pipeline feeds it to the local
+// model. The model proposes adds via propose_* tools and the user confirms
+// them in the Agent page. No more per-broker CSV parsing on the client.
+async function _vaultUpload(file) {
+  var token = localStorage.getItem('fin_token') || '';
+  var fd = new FormData();
+  fd.append('file', file);
+  var resp = await fetch('/api/vault/upload', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + token },
+    body: fd
+  });
+  var data = null;
+  try { data = await resp.json(); } catch (_) {}
+  if (!resp.ok) {
+    showToast((data && data.error) || ('Upload failed: HTTP ' + resp.status), 'error');
+    return false;
+  }
+  return true;
 }
+
+async function _handleImportFiles(files) {
+  if (!files || !files.length) return;
+  var zone = document.getElementById('importDropzone');
+  if (zone) zone.classList.add('drag-over');
+  var ok = 0;
+  for (var i = 0; i < files.length; i++) {
+    if (await _vaultUpload(files[i])) ok++;
+  }
+  if (zone) zone.classList.remove('drag-over');
+  if (ok > 0) {
+    showToast(ok + (ok === 1 ? ' file' : ' files') + ' sent to the vault — open the Agent page to confirm proposals.', 'success');
+  }
+  var inp = document.getElementById('importFileInput');
+  if (inp) inp.value = '';
+}
+
+function handleImportFile(e) { _handleImportFiles(e.target.files); }
 
 function handleImportDrop(e) {
   e.preventDefault();
   document.getElementById('importDropzone').classList.remove('drag-over');
-  var file = e.dataTransfer.files[0];
-  if (!file) return;
-  var reader = new FileReader();
-  reader.onload = function(ev) { previewImport(ev.target.result); };
-  reader.readAsText(file);
+  _handleImportFiles(e.dataTransfer.files);
 }
 
 async function previewImport(content) {
