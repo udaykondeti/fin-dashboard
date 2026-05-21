@@ -13,33 +13,6 @@ The repo owner has authorized fully automated change delivery. After completing 
 
 This standing authorization replaces the default "ask before pushing/merging" guidance for this repo.
 
-## Mac mini port allocation (kirakon tunnel)
-
-All kirakon.com subdomains route through one Cloudflare Tunnel to the Mac mini.
-Each service binds to `127.0.0.1:<port>` and the tunnel forwards the matching
-hostname to it. When adding a new service, pick the next free port and add both
-a `docker-compose.mac.yml` service entry **and** a Cloudflare published-app
-route.
-
-| App           | DNS                       | Port | GitHub repo                      | Notes                                              |
-| ------------- | ------------------------- | ---- | -------------------------------- | -------------------------------------------------- |
-| timesheet     | timesheet.kirakon.com     | 3000 | udaykondeti/timesheet            | Personal timesheet UI                              |
-| fin-dashboard | fin.kirakon.com           | 3001 | udaykondeti/fin-dashboard        | This repo — finance dashboard + agent              |
-| admin         | admin.kirakon.com         | 3002 | _(TBD)_                          | Admin console                                      |
-| coffee        | coffee.kirakon.com        | 3003 | udaykondeti/cafe-dashboard       | Cafe / coffee tracking                             |
-| ai            | ai.kirakon.com            | 3004 | open-webui/open-webui (upstream) | Local Ollama UI                                    |
-| git           | git.kirakon.com           | 3005 | udaykondeti/pippy                | Self-hosted git frontend (pippy)                   |
-| _(reserved)_  | _(none)_                  | 3006 | _(reserved)_                     | Next free port — claim before deploying a new app  |
-| token         | token.kirakon.com         | 3007 | udaykondeti/TokenVault           | TokenVault                                         |
-
-Rules of thumb:
-- Container always binds to `127.0.0.1:<port>:<port>` — never `0.0.0.0`. Public
-  ingress is the Cloudflare Tunnel; Tailscale handles internal admin access.
-- Update this table whenever a port is assigned or freed.
-- The shared compose file `~/kirakon/fin-dashboard/docker-compose.mac.yml` on
-  the Mac defines every service. Each app's deploy workflow should only `pull` /
-  `up -d` its own service (see `.github/workflows/deploy.yml` for the pattern).
-
 ## Commands
 
 ```bash
