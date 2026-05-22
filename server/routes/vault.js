@@ -187,6 +187,33 @@ router.delete('/files/:fileId', (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// POST /api/vault/files/:fileId/reprocess — re-run the agent on a file
+// Resets processed_at + processing_error and enqueues the file again. Useful
+// when the local model was unavailable or returned a bad extraction.
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/files/:fileId/reprocess', (req, res) => {
+  const userId = req.user.id;
+  const { fileId } = req.params;
+  const file = db.prepare('SELECT id FROM vault_files WHERE id = ? AND user_id = ?').get(fileId, userId);
+  if (!file) return res.status(404).json({ error: 'File not found' });
+
+  db.prepare('UPDATE vault_files SET processed_at = NULL, processing_error = NULL WHERE id = ?').run(file.id);
+
+  try {
+    const vaultProcessor = require('../services/vaultProcessor');
+    setImmediate(() =>
+      vaultProcessor.enqueue(userId, () => vaultProcessor.processUpload(file.id, userId))
+        .catch(err => console.error('[vault] reprocess error:', err))
+    );
+  } catch (e) {
+    console.error('[vault] could not schedule reprocess:', e.message);
+    return res.status(500).json({ error: 'Reprocess scheduling failed', message: e.message });
+  }
+
+  res.json({ message: 'Reprocess queued', fileId: parseInt(fileId) });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/vault/fy-summary
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/fy-summary', (req, res) => {

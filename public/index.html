@@ -1108,7 +1108,7 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
           <div class="table-wrap">
             <table class="data-table" id="recentUploadsTable">
               <thead><tr>
-                <th>File</th><th>Category</th><th>FY</th><th>Size</th><th>Date</th><th>Actions</th>
+                <th>File</th><th>Category</th><th>FY</th><th>Size</th><th>Date</th><th>Status</th><th>Actions</th>
               </tr></thead>
               <tbody id="recentUploadsTbody"></tbody>
             </table>
@@ -2938,9 +2938,22 @@ function switchVaultTab(tab, btn) {
   document.getElementById('vault-tab-'+tab).classList.add('active');
   document.querySelectorAll('.vault-subtab-btn').forEach(function(b){b.classList.remove('active')});
   btn.classList.add('active');
+  if(tab==='upload') loadVaultFilesFromServer();
   if(tab==='browse') renderBrowseTab();
   if(tab==='ca') renderCATokens();
 }
+
+// Refresh the file list whenever the Vault page is opened.
+document.addEventListener('click', function(e){
+  var t = e.target;
+  while (t && t !== document) {
+    if (t.getAttribute && t.getAttribute('onclick') && /navigateTo\('vault'\)/.test(t.getAttribute('onclick'))) {
+      setTimeout(loadVaultFilesFromServer, 50);
+      return;
+    }
+    t = t.parentNode;
+  }
+}, true);
 
 // ─── Category tree ────────────────────────────────────────────────
 function renderCategoryTree() {
@@ -3026,28 +3039,75 @@ function downloadVaultFile(id) {
 }
 
 // ─── Recent uploads table ─────────────────────────────────────────
+//
+// Pulls the server-side list so the user sees real files (not just the
+// mock seed) and so processing status is visible. Called on Vault page
+// open and after every upload / delete / reprocess.
+async function loadVaultFilesFromServer() {
+  try {
+    var r = await apiFetch('/api/vault/files');
+    if (!r || !Array.isArray(r.files)) return;
+    vaultFiles = r.files.map(function(f){
+      return {
+        id: f.id,
+        name: f.display_name || f.original_filename,
+        category: f.category,
+        subcategory: f.subcategory,
+        fy: f.financial_year,
+        size: f.file_size ? formatBytes(f.file_size) : '—',
+        date: (f.upload_date || '').split(' ')[0] || '',
+        processed_at: f.processed_at || null,
+        processing_error: f.processing_error || null
+      };
+    });
+    renderRecentUploads();
+  } catch (e) { console.warn('vault files load failed:', e.message); }
+}
+
+function _processingPill(f) {
+  if (f.processing_error) {
+    return '<span title="'+esc(f.processing_error)+'" style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(220,38,38,.10);color:#b91c1c;border:1px solid rgba(220,38,38,.30)">⚠ error</span>';
+  }
+  if (f.processed_at) {
+    return '<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(34,197,94,.12);color:#15803d;border:1px solid rgba(34,197,94,.35)">✓ processed</span>';
+  }
+  return '<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(198,134,66,.12);color:#92400e;border:1px solid rgba(198,134,66,.35)">⏳ pending</span>';
+}
+
 function renderRecentUploads() {
   var tbody = document.getElementById('recentUploadsTbody');
-  var recent = vaultFiles.slice().sort(function(a,b){return b.date.localeCompare(a.date)}).slice(0,10);
+  var recent = vaultFiles.slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'')}).slice(0,20);
   if(!recent.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-secondary);text-align:center;padding:24px">No uploads yet.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="color:var(--text-secondary);text-align:center;padding:24px">No uploads yet.</td></tr>';
     return;
   }
   tbody.innerHTML = recent.map(function(f){
     var catLabel = VAULT_CATS[f.category] ? VAULT_CATS[f.category].label : f.category;
     var subcatLabel = VAULT_SUBCAT_LABELS[f.subcategory]||f.subcategory;
+    var needsRerun = !f.processed_at || !!f.processing_error;
     return '<tr>'
       +'<td><span style="font-size:14px;margin-right:6px">&#x1F4C4;</span><strong>'+esc(f.name)+'</strong></td>'
       +'<td>'+esc(catLabel)+' / '+esc(subcatLabel)+'</td>'
       +'<td>'+esc(f.fy)+'</td>'
       +'<td>'+esc(f.size)+'</td>'
       +'<td>'+esc(f.date)+'</td>'
-      +'<td>'
-      +'<button class="action-btn" onclick="downloadVaultFile('+f.id+')" style="margin-right:4px">&#x2B07;</button>'
+      +'<td>'+_processingPill(f)+'</td>'
+      +'<td style="white-space:nowrap">'
+      +'<button class="action-btn" onclick="downloadVaultFile('+f.id+')" style="margin-right:4px" title="Download">&#x2B07;</button>'
+      +(needsRerun ? '<button class="action-btn" onclick="reprocessVaultFile('+f.id+')" style="margin-right:4px" title="Re-run agent on this file">&#x21BB;</button>' : '')
       +'<button class="action-btn del" onclick="deleteVaultFile('+f.id+')">Del</button>'
       +'</td>'
       +'</tr>';
   }).join('');
+}
+
+async function reprocessVaultFile(id) {
+  var r = await apiPost('/api/vault/files/'+id+'/reprocess', {});
+  if (!r || r.error) { showToast((r && r.error) || 'Reprocess failed', 'error'); return; }
+  showToast('Re-running agent — refresh in a moment to see updated status.', 'success');
+  // Optimistically mark as pending in the local cache so the pill flips immediately.
+  var f = vaultFiles.find(function(x){return x.id===id});
+  if (f) { f.processed_at = null; f.processing_error = null; renderRecentUploads(); }
 }
 
 function deleteVaultFile(id) {
@@ -3273,6 +3333,9 @@ async function srConfirm() {
     date: (serverFile.upload_date || '').split(' ')[0] || new Date().toISOString().split('T')[0]
   };
   vaultFiles.unshift(newFile);
+  // Re-fetch from server so processing status reflects what the agent did.
+  // (Optimistic local row stays in case the fetch races.)
+  setTimeout(loadVaultFilesFromServer, 800);
 
   var catLabel = VAULT_CATS[serverFile.category] ? VAULT_CATS[serverFile.category].label : serverFile.category;
   var subcatLabel = VAULT_SUBCAT_LABELS[serverFile.subcategory] || serverFile.subcategory;

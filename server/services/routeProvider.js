@@ -13,7 +13,7 @@
 const ANTHROPIC_DEFAULT = 'claude-haiku-4-5';
 const GROQ_DEFAULT      = 'llama-3.3-70b-versatile';  // kept for fallback chain; not used when Ollama is primary
 // Ollama: OpenAI-compatible API. OLLAMA_BASE_URL e.g. http://host.docker.internal:11434/v1
-const LOCAL_DEFAULT     = process.env.OLLAMA_MODEL || 'mistral';
+const LOCAL_DEFAULT     = process.env.OLLAMA_MODEL || 'qwen2.5:latest';
 
 function hasAnthropic() { return !!process.env.ANTHROPIC_API_KEY; }
 function hasGroq()      { return !!process.env.GROQ_API_KEY; }
