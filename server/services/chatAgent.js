@@ -227,7 +227,7 @@ function resolveModel(thread) {
   const provider = providerFor(thread.model);
   if (provider === 'anthropic') return { provider, model: thread.model };
   if (provider === 'local') {
-    return { provider, model: process.env.OLLAMA_MODEL || 'mistral' };
+    return { provider, model: process.env.OLLAMA_MODEL || 'qwen2.5:latest' };
   }
   throw new Error('No agent provider configured. Set OLLAMA_BASE_URL or ANTHROPIC_API_KEY.');
 }
