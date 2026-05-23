@@ -1,26 +1,27 @@
-# Mac Mini — kirakon.com apps (EC2 migration)
+# Mac Mini — kirakon.com apps
 #
-# cloudflared runs on the Kirakon server and routes to these containers
-# via the Mac Mini's Tailscale IP (100.85.165.105). No cloudflared needed here.
+# All apps run here on the Mac Mini (Tailscale IP: 100.85.165.105).
+# Kirakon Linux server (100.111.42.94) is the AI-only gateway — no apps.
 #
-# Cloudflare Tunnel routes (kirakon tunnel → Mac Mini):
+# Cloudflare Tunnel routes:
 #   coffee.kirakon.com     → http://100.85.165.105:3003  (cafe-dashboard)
 #   fin.kirakon.com        → http://100.85.165.105:3001  (fin-dashboard)
 #   timesheet.kirakon.com  → http://100.85.165.105:3000  (timesheet)
 #   admin.kirakon.com      → http://100.85.165.105:3002  (timesheet admin panel)
 #   git.kirakon.com        → http://100.85.165.105:3005  (pippy)
-#   ai.kirakon.com         → http://100.85.165.105:3004  (open-webui → Ollama)
+#   ai.kirakon.com         → http://100.85.165.105:3004  (open-webui, human chat UI)
+#
+# AI gateway (LiteLLM) on Kirakon: http://100.111.42.94:4000/v1
+#   All app AI calls go here. Set OLLAMA_API_KEY=<LITELLM_MASTER_KEY> in
+#   each app's .env on the Mac Mini (~/kirakon/<app>/.env).
 #
 # Required env files on Mac Mini (~/kirakon/):
-#   fin-dashboard/.env   — copy from EC2 /var/www/fin-dashboard/.env
-#   timesheet/.env       — copy from EC2 /home/ubuntu/timesheet-pro/.env
-#   pippy/.env           — copy from EC2 /home/ubuntu/pippy/.env
+#   fin-dashboard/.env   — must include OLLAMA_API_KEY
+#   timesheet/.env       — must include OLLAMA_API_KEY
+#   pippy/.env
 #
-# First-time setup on Mac Mini:
+# First-time setup:
 #   mkdir -p ~/kirakon/{fin-dashboard,timesheet,pippy,cafe-dashboard,open-webui}/data
-#   scp ubuntu@34.195.147.243:/home/ubuntu/timesheet-pro/.env ~/kirakon/timesheet/.env
-#   scp ubuntu@34.195.147.243:/home/ubuntu/pippy/.env ~/kirakon/pippy/.env
-#   scp ubuntu@34.195.147.243:/var/www/fin-dashboard/.env ~/kirakon/fin-dashboard/.env
 #   docker compose -f docker-compose.mac.yml up -d
 
 networks:
@@ -29,24 +30,18 @@ networks:
 
 services:
 
-  # ── Fin Dashboard (fin.kirakon.com) ───────────────────────────────────────
+  # ── Fin Dashboard (fin.kirakon.com) ─────────────────────────────────────────
   fin-dashboard:
     image: ghcr.io/udaykondeti/fin-dashboard:latest
     container_name: fin-dashboard
     restart: unless-stopped
     pull_policy: always
     ports:
-      - "127.0.0.1:3001:3001"   # bound to localhost; Tailscale reaches it via host IP
+      - "127.0.0.1:3001:3001"
     env_file: ~/kirakon/fin-dashboard/.env
     environment:
-      # Route agent calls through the shared kirakon gateway (Open WebUI in
-      # the same compose network) so they're authenticated, logged, and
-      # subject to per-app rate-limits. Direct host Ollama bypass is at
-      # http://host.docker.internal:11434/v1 if needed for debugging.
-      # OLLAMA_API_KEY must come from ~/kirakon/fin-dashboard/.env on the
-      # Mac Mini — generate one in Open WebUI → Settings → Account → API keys.
-      OLLAMA_BASE_URL: "http://open-webui:8080/ollama/v1"
-      OLLAMA_MODEL: "${OLLAMA_MODEL:-mistral}"
+      OLLAMA_BASE_URL: "http://100.111.42.94:4000/v1"
+      OLLAMA_MODEL: "agent"
       VAULT_PATH: "/app/vault"
     volumes:
       - ~/kirakon/fin-dashboard/data:/app/data
@@ -62,7 +57,7 @@ services:
       driver: json-file
       options: { max-size: "10m", max-file: "5" }
 
-  # ── Timesheet (timesheet.kirakon.com) ─────────────────────────────────────
+  # ── Timesheet (timesheet.kirakon.com) ────────────────────────────────────
   timesheet:
     image: ghcr.io/udaykondeti/timesheet:latest
     container_name: timesheet
@@ -84,7 +79,7 @@ services:
       driver: json-file
       options: { max-size: "10m", max-file: "5" }
 
-  # ── Timesheet Agent (sidecar — internal only) ─────────────────────────────
+  # ── Timesheet Agent (sidecar — AI calls only, internal) ──────────────────
   timesheet-agent:
     image: ghcr.io/udaykondeti/timesheet:latest
     container_name: timesheet-agent
@@ -92,6 +87,9 @@ services:
     pull_policy: always
     command: ["node", "local-agent/index.js"]
     env_file: ~/kirakon/timesheet/.env
+    environment:
+      OLLAMA_BASE_URL: "http://100.111.42.94:4000/v1"
+      OLLAMA_MODEL: "agent"
     networks: [kirakon]
     depends_on: [timesheet]
     logging:
@@ -127,7 +125,7 @@ services:
     restart: unless-stopped
     pull_policy: always
     ports:
-      - "127.0.0.1:3003:3003"   # update inner port if app listens on different port
+      - "127.0.0.1:3003:3003"
     volumes:
       - ~/kirakon/cafe-dashboard/data:/app/data
     networks: [kirakon]
@@ -141,19 +139,20 @@ services:
       driver: json-file
       options: { max-size: "10m", max-file: "5" }
 
-  # ── Open WebUI / ai.kirakon.com (Ollama frontend) ────────────────────────
-  # Ollama runs natively on the Mac Mini host (not in Docker).
-  # Open WebUI connects to it via host.docker.internal:11434.
+  # ── Open WebUI / ai.kirakon.com (human chat UI only) ────────────────────
+  # UI for humans to chat with Ollama models. Apps do NOT route through here
+  # — they go directly to Kirakon LiteLLM. Connects to Mac Mini's native
+  # Ollama on the host (host.docker.internal:11434).
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
     container_name: open-webui
     restart: unless-stopped
     pull_policy: always
     ports:
-      - "127.0.0.1:3004:8080"   # Open WebUI listens on 8080 internally
+      - "127.0.0.1:3004:8080"
     environment:
       OLLAMA_BASE_URL: "http://host.docker.internal:11434"
-      WEBUI_AUTH: "true"        # set false to disable login (Tailscale-only access)
+      WEBUI_AUTH: "true"
     volumes:
       - ~/kirakon/open-webui/data:/app/backend/data
     extra_hosts:
