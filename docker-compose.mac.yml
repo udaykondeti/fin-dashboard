@@ -9,9 +9,9 @@
 #   timesheet.kirakon.com  → http://100.85.165.105:3000  (timesheet)
 #   admin.kirakon.com      → http://100.85.165.105:3002  (timesheet admin panel)
 #   git.kirakon.com        → http://100.85.165.105:3005  (pippy)
-#   ai.kirakon.com         → http://100.85.165.105:3004  (open-webui, human chat UI)
+#   ai.kirakon.com         → https://ai.kirakon.com      (LiteLLM AI gateway on Kirakon)
 #
-# AI gateway (LiteLLM) on Kirakon: http://100.111.42.94:4000/v1
+# AI gateway (LiteLLM) on Kirakon: https://ai.kirakon.com/v1
 #   All app AI calls go here. Set OLLAMA_API_KEY=<LITELLM_MASTER_KEY> in
 #   each app's .env on the Mac Mini (~/kirakon/<app>/.env).
 #
@@ -40,7 +40,7 @@ services:
       - "127.0.0.1:3001:3001"
     env_file: ~/kirakon/fin-dashboard/.env
     environment:
-      OLLAMA_BASE_URL: "http://100.111.42.94:4000/v1"
+      OLLAMA_BASE_URL: "https://ai.kirakon.com/v1"
       OLLAMA_MODEL: "agent"
       VAULT_PATH: "/app/vault"
     volumes:
@@ -88,7 +88,7 @@ services:
     command: ["node", "local-agent/index.js"]
     env_file: ~/kirakon/timesheet/.env
     environment:
-      OLLAMA_BASE_URL: "http://100.111.42.94:4000/v1"
+      OLLAMA_BASE_URL: "https://ai.kirakon.com/v1"
       OLLAMA_MODEL: "agent"
     networks: [kirakon]
     depends_on: [timesheet]
@@ -139,10 +139,10 @@ services:
       driver: json-file
       options: { max-size: "10m", max-file: "5" }
 
-  # ── Open WebUI / ai.kirakon.com (human chat UI only) ────────────────────
+  # ── Open WebUI (human chat UI only) ─────────────────────────────────────
   # UI for humans to chat with Ollama models. Apps do NOT route through here
-  # — they go directly to Kirakon LiteLLM. Connects to Mac Mini's native
-  # Ollama on the host (host.docker.internal:11434).
+  # — they go directly to https://ai.kirakon.com/v1 (Kirakon LiteLLM).
+  # Connects to Mac Mini's native Ollama on the host (host.docker.internal:11434).
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
     container_name: open-webui
