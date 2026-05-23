@@ -1,7 +1,8 @@
-// Thin Ollama client. Uses the OpenAI-compatible chat-completions endpoint
-// at OLLAMA_BASE_URL (default http://localhost:11434/v1). No API key needed —
-// Ollama is unauthenticated by default. Kept minimal — services/agent.js
-// handles auditing, retries, and pricing.
+// Thin OpenAI-compatible chat-completions client. Points at OLLAMA_BASE_URL
+// (default http://localhost:11434/v1 for a local Ollama). Set OLLAMA_API_KEY
+// to authenticate against a fronted endpoint like ai.kirakon.com — when unset,
+// no Authorization header is sent, preserving the unauthenticated local-Ollama
+// default. Kept minimal — services/agent.js handles auditing, retries, pricing.
 
 const DEFAULT_BASE = 'http://localhost:11434/v1';
 
@@ -11,13 +12,17 @@ function isOllamaConfigured() {
 
 async function chatCompletion({ model, system, user, maxTokens = 400, timeoutMs = 30000 }) {
   const base = (process.env.OLLAMA_BASE_URL || DEFAULT_BASE).replace(/\/$/, '');
+  const apiKey = process.env.OLLAMA_API_KEY;
   const messages = [];
   if (system) messages.push({ role: 'system', content: system });
   messages.push({ role: 'user', content: user });
 
+  const headers = { 'Content-Type': 'application/json' };
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+
   const res = await fetch(`${base}/chat/completions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.2 }),
     signal: AbortSignal.timeout(timeoutMs)
   });
