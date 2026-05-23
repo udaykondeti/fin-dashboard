@@ -39,7 +39,13 @@ services:
       - "127.0.0.1:3001:3001"   # bound to localhost; Tailscale reaches it via host IP
     env_file: ~/kirakon/fin-dashboard/.env
     environment:
-      OLLAMA_BASE_URL: "http://host.docker.internal:11434/v1"
+      # Route agent calls through the shared kirakon gateway (Open WebUI in
+      # the same compose network) so they're authenticated, logged, and
+      # subject to per-app rate-limits. Direct host Ollama bypass is at
+      # http://host.docker.internal:11434/v1 if needed for debugging.
+      # OLLAMA_API_KEY must come from ~/kirakon/fin-dashboard/.env on the
+      # Mac Mini — generate one in Open WebUI → Settings → Account → API keys.
+      OLLAMA_BASE_URL: "http://open-webui:8080/ollama/v1"
       OLLAMA_MODEL: "${OLLAMA_MODEL:-mistral}"
       VAULT_PATH: "/app/vault"
     volumes:
