@@ -75,10 +75,6 @@ async function _ingestOne(absPath) {
     return;
   }
 
-  // Once the file is safely copied into its canonical vault key, remove the
-  // original from the inbox so subsequent watcher events don't double-ingest.
-  try { fs.unlinkSync(absPath); } catch (_) {}
-
   const result = db.prepare(`
     INSERT INTO vault_files
       (user_id, profile_id, s3_key, original_filename, display_name, file_size,
