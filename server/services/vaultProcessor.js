@@ -105,15 +105,21 @@ async function processUpload(fileId, userId) {
     db.prepare('UPDATE vault_files SET processed_at = CURRENT_TIMESTAMP WHERE id = ?').run(fileId);
 
     // Move the file under <userId>/processed/<rest> so the inbox stays tidy.
-    // Key structure is "<userId>/<rest...>" so we splice "processed/" after the
-    // userId segment. The download route reads s3_key, so update it in lockstep.
+    // Strip any existing 'processed/' prefix from rest so reprocessing never
+    // double-nests. Move before the DB update; if the DB write fails, revert.
     try {
       const parts = localKey.split('/');
-      const rest = parts.slice(1).join('/');
+      let rest = parts.slice(1).join('/');
+      if (rest.startsWith('processed/')) rest = rest.slice('processed/'.length);
       const newKey = `${parts[0]}/processed/${rest}`;
       if (newKey !== localKey) {
         localVault.moveFile(localKey, newKey);
-        db.prepare('UPDATE vault_files SET s3_key = ? WHERE id = ?').run(newKey, fileId);
+        try {
+          db.prepare('UPDATE vault_files SET s3_key = ? WHERE id = ?').run(newKey, fileId);
+        } catch (dbErr) {
+          try { localVault.moveFile(newKey, localKey); } catch (_) {}
+          throw dbErr;
+        }
       }
     } catch (mvErr) {
       console.error('[vaultProcessor] move-to-processed failed:', mvErr.message);

@@ -3110,11 +3110,17 @@ async function reprocessVaultFile(id) {
   if (f) { f.processed_at = null; f.processing_error = null; renderRecentUploads(); }
 }
 
-function deleteVaultFile(id) {
-  vaultFiles = vaultFiles.filter(function(f){return f.id!==id});
+async function deleteVaultFile(id) {
+  var token = localStorage.getItem('fin_token') || '';
+  var resp = await fetch('/api/vault/files/' + id, {
+    method: 'DELETE',
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+  if (!resp.ok) { showToast('Delete failed', 'error'); return; }
+  vaultFiles = vaultFiles.filter(function(f){ return f.id !== id; });
   renderRecentUploads();
   renderBrowseGrid();
-  showToast('File removed','info');
+  showToast('File removed', 'success');
 }
 
 // ─── Drag & drop ──────────────────────────────────────────────────
