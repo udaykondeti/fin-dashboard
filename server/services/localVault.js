@@ -42,25 +42,35 @@ function getCategoryPath(category, subcategory) {
  * Creates parent directories as needed. Returns the key.
  */
 function saveFile(buffer, localKey) {
-  const fullPath = path.join(VAULT_ROOT, localKey);
+  const fullPath = getFilePath(localKey);
   _ensureDir(path.dirname(fullPath));
   fs.writeFileSync(fullPath, buffer);
   return localKey;
 }
 
-/** Returns the absolute path for a given relative key. */
+/** Asserts that a resolved path is inside VAULT_ROOT. Throws on traversal attempt. */
+function _assertContained(resolvedPath) {
+  const root = path.resolve(VAULT_ROOT) + path.sep;
+  if (!resolvedPath.startsWith(root)) {
+    throw new Error(`Path traversal blocked: ${resolvedPath}`);
+  }
+}
+
+/** Returns the absolute path for a given relative key. Throws if key escapes vault root. */
 function getFilePath(localKey) {
-  return path.join(VAULT_ROOT, localKey);
+  const resolved = path.resolve(path.join(VAULT_ROOT, localKey));
+  _assertContained(resolved);
+  return resolved;
 }
 
 /** Reads a vault file and returns a Buffer. */
 function getFileBuffer(localKey) {
-  return fs.readFileSync(path.join(VAULT_ROOT, localKey));
+  return fs.readFileSync(getFilePath(localKey));
 }
 
 /** Deletes a vault file. Silently ignores missing files. */
 function deleteFile(localKey) {
-  const fullPath = path.join(VAULT_ROOT, localKey);
+  const fullPath = getFilePath(localKey);
   try { fs.unlinkSync(fullPath); } catch (_) {}
 }
 
@@ -70,8 +80,8 @@ function deleteFile(localKey) {
  * doesn't exist this is a no-op — callers may have already moved/deleted it.
  */
 function moveFile(fromKey, toKey) {
-  const src = path.join(VAULT_ROOT, fromKey);
-  const dst = path.join(VAULT_ROOT, toKey);
+  const src = getFilePath(fromKey);
+  const dst = getFilePath(toKey);
   if (!fs.existsSync(src)) return toKey;
   _ensureDir(path.dirname(dst));
   fs.renameSync(src, dst);

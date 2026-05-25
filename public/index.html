@@ -1124,7 +1124,7 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
         <span style="font-size:13px;color:var(--text-secondary)">Securely store &amp; organise your financial documents</span>
       </div>
 
-      <div class="vault-notice" id="vaultNotice">&#x26A0;&#xFE0F; S3 not configured yet. Files shown are demo only.</div>
+      <div class="vault-notice" id="vaultNotice">Local vault — files stored on server.</div>
 
       <div class="vault-subtab-bar">
         <button class="vault-subtab-btn active" onclick="switchVaultTab('upload',this)">&#x1F4E4; Upload Files</button>
@@ -3113,8 +3113,26 @@ function renderBrowseGrid() {
 }
 
 function downloadVaultFile(id) {
-  var f = vaultFiles.find(function(x){return x.id===id});
-  if(f) showToast('Downloading: '+f.name, 'info');
+  var token = localStorage.getItem('fin_token');
+  var a = document.createElement('a');
+  a.href = '/api/vault/download/' + id;
+  a.download = '';
+  // Use fetch so we can attach the auth header, then trigger a blob download
+  fetch('/api/vault/download/' + id, {headers: {'Authorization': 'Bearer ' + token}})
+    .then(function(r) {
+      if (!r.ok) { showToast('Download failed', 'error'); return; }
+      var cd = r.headers.get('Content-Disposition') || '';
+      var nameMatch = cd.match(/filename="([^"]+)"/);
+      var filename = nameMatch ? decodeURIComponent(nameMatch[1]) : ('vault-file-' + id);
+      return r.blob().then(function(blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click();
+        setTimeout(function(){ URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
+      });
+    })
+    .catch(function(e){ showToast('Download error: ' + e.message, 'error'); });
 }
 
 // ─── Recent uploads table ─────────────────────────────────────────
@@ -3465,10 +3483,10 @@ async function generateCALink(e) {
     var res = await fetch('/api/vault/ca-access', {
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-      body: JSON.stringify({fy:fy,categories:cats,expiryHours:parseInt(expiry),note:note}),
+      body: JSON.stringify({financialYear:fy,categories:cats,expiresInHours:parseInt(expiry),note:note}),
       signal: AbortSignal.timeout(4000)
     });
-    if(res.ok) {var data=await res.json();link=data.url||data.link;}
+    if(res.ok) {var data=await res.json();link=data.accessUrl||null;}
   } catch(x) {}
   if(!link) {
     // Generate demo link

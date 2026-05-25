@@ -1,17 +1,21 @@
-const express = require('express');
-const router  = express.Router();
-const crypto  = require('crypto');
-const multer  = require('multer');
-const path    = require('path');
-const db      = require('../db/database');
-const vault   = require('../services/localVault');
+const express        = require('express');
+const router         = express.Router();
+const crypto         = require('crypto');
+const multer         = require('multer');
+const path           = require('path');
+const db             = require('../db/database');
+const vault          = require('../services/localVault');
 const { classifyDocument } = require('../services/smartRouter');
 const { assertProfileOwnership } = require('../middleware/profileGuard');
+const vaultProcessor = require('../services/vaultProcessor');
+
+const MAX_FILE_BYTES    = 50 * 1024 * 1024; // 50 MB
+const CA_DEFAULT_MAX_USES = 50;
 
 // ─── Multer: store in memory; we write to vault ourselves ─────────────────
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 }  // 50 MB max
+  limits: { fileSize: MAX_FILE_BYTES }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -34,7 +38,7 @@ router.get('/files', (req, res) => {
     const files = db.prepare(query).all(...params);
     res.json({ files, count: files.length });
   } catch (err) {
-    res.status(500).json({ error: 'Database error', message: err.message });
+    res.status(500).json({ error: 'Database error' });
   }
 });
 
@@ -88,7 +92,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     vault.saveFile(buffer, localKey);
   } catch (err) {
     console.error('[vault] saveFile error:', err.message);
-    return res.status(500).json({ error: 'Failed to save file', message: err.message });
+    return res.status(500).json({ error: 'Failed to save file' });
   }
 
   // Register in DB (s3_key column reused for the local relative path)
@@ -119,20 +123,15 @@ router.post('/upload', upload.single('file'), async (req, res) => {
   } catch (err) {
     // Clean up the orphaned file
     vault.deleteFile(localKey);
-    return res.status(500).json({ error: 'Database error', message: err.message });
+    return res.status(500).json({ error: 'Database error' });
   }
 
   // Fire-and-forget: process with Ollama
-  try {
-    const vaultProcessor = require('../services/vaultProcessor');
-    setImmediate(() =>
-      vaultProcessor.enqueue(userId, () =>
-        vaultProcessor.processUpload(file.id, userId)
-      ).catch(err => console.error('[vault] processor error:', err))
-    );
-  } catch (e) {
-    console.error('[vault] could not schedule processor:', e.message);
-  }
+  setImmediate(() =>
+    vaultProcessor.enqueue(userId, () =>
+      vaultProcessor.processUpload(file.id, userId)
+    ).catch(err => console.error('[vault] processor error:', err))
+  );
 
   res.status(201).json({ message: 'File uploaded successfully', file });
 });
@@ -166,7 +165,7 @@ router.get('/download/:fileId', (req, res) => {
   res.sendFile(filePath, err => {
     if (err) {
       console.error('[vault] sendFile error:', err.message);
-      if (!res.headersSent) res.status(500).json({ error: 'File read error', message: err.message });
+      if (!res.headersSent) res.status(500).json({ error: 'File read error' });
     }
   });
 });
@@ -178,12 +177,17 @@ router.delete('/files/:fileId', (req, res) => {
   const userId   = req.user.id;
   const { fileId } = req.params;
 
-  const file = db.prepare('SELECT * FROM vault_files WHERE id = ? AND user_id = ?').get(fileId, userId);
-  if (!file) return res.status(404).json({ error: 'File not found' });
+  try {
+    const file = db.prepare('SELECT * FROM vault_files WHERE id = ? AND user_id = ?').get(fileId, userId);
+    if (!file) return res.status(404).json({ error: 'File not found' });
 
-  vault.deleteFile(file.s3_key);
-  db.prepare('DELETE FROM vault_files WHERE id = ?').run(fileId);
-  res.json({ message: 'File deleted', fileId: parseInt(fileId) });
+    vault.deleteFile(file.s3_key);
+    db.prepare('DELETE FROM vault_files WHERE id = ?').run(fileId);
+    res.json({ message: 'File deleted', fileId: parseInt(fileId) });
+  } catch (err) {
+    console.error('[vault] delete error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -199,16 +203,10 @@ router.post('/files/:fileId/reprocess', (req, res) => {
 
   db.prepare('UPDATE vault_files SET processed_at = NULL, processing_error = NULL WHERE id = ?').run(file.id);
 
-  try {
-    const vaultProcessor = require('../services/vaultProcessor');
-    setImmediate(() =>
-      vaultProcessor.enqueue(userId, () => vaultProcessor.processUpload(file.id, userId))
-        .catch(err => console.error('[vault] reprocess error:', err))
-    );
-  } catch (e) {
-    console.error('[vault] could not schedule reprocess:', e.message);
-    return res.status(500).json({ error: 'Reprocess scheduling failed', message: e.message });
-  }
+  setImmediate(() =>
+    vaultProcessor.enqueue(userId, () => vaultProcessor.processUpload(file.id, userId))
+      .catch(err => console.error('[vault] reprocess error:', err))
+  );
 
   res.json({ message: 'Reprocess queued', fileId: parseInt(fileId) });
 });
@@ -235,7 +233,7 @@ router.get('/fy-summary', (req, res) => {
     const rows = db.prepare(q).all(...p);
     res.json({ summary: rows, currentFY: vault.getFYFolder() });
   } catch (err) {
-    res.status(500).json({ error: 'Database error', message: err.message });
+    res.status(500).json({ error: 'Database error' });
   }
 });
 
@@ -261,7 +259,7 @@ router.get('/stats', (req, res) => {
     `).all(userId);
     res.json({ totalFiles: totals.total_files, totalSize: totals.total_size, byCategory, byFY, currentFY: vault.getFYFolder() });
   } catch (err) {
-    res.status(500).json({ error: 'Database error', message: err.message });
+    res.status(500).json({ error: 'Database error' });
   }
 });
 
@@ -269,6 +267,9 @@ router.get('/stats', (req, res) => {
 // POST /api/vault/ca-access  — generate temporary CA link
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/ca-access', (req, res) => {
+  if (!process.env.BASE_URL) {
+    return res.status(500).json({ error: 'BASE_URL must be set to generate CA links' });
+  }
   const userId = req.user.id;
   const { financialYear, categories, expiresInHours = 48, maxUses = 5 } = req.body;
   try {
@@ -276,17 +277,18 @@ router.post('/ca-access', (req, res) => {
     const expiresAt     = new Date(Date.now() + expiresInHours * 60 * 60 * 1000).toISOString();
     const categoriesStr = Array.isArray(categories) ? categories.join(',') : (categories || null);
     const fy            = financialYear || vault.getFYFolder();
-    const cappedUses    = Math.max(1, Math.min(parseInt(maxUses, 10) || 5, 50));
+    const cappedUses    = Math.max(1, Math.min(parseInt(maxUses, 10) || 5, CA_DEFAULT_MAX_USES));
 
     db.prepare(`
       INSERT INTO ca_access_tokens (user_id, token, financial_year, categories, expires_at, max_uses)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(userId, token, fy, categoriesStr, expiresAt, cappedUses);
 
-    const accessUrl = `${process.env.BASE_URL || ''}/api/vault/ca/${token}`;
+    const accessUrl = `${process.env.BASE_URL}/api/vault/ca/${token}`;
     res.status(201).json({ token, accessUrl, financialYear: fy, categories: categoriesStr, expiresAt, expiresInHours, maxUses: cappedUses });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to generate CA token', message: err.message });
+    console.error('[vault] ca-access error:', err);
+    res.status(500).json({ error: 'Failed to generate CA token' });
   }
 });
 
@@ -321,7 +323,8 @@ async function caAccess(req, res) {
     query += ' ORDER BY category, subcategory, upload_date DESC';
     const files = db.prepare(query).all(...params);
 
-    // Return file metadata + local download URLs (auth required on the download route)
+    // Return file metadata + public download URLs (no auth required)
+    const base = process.env.BASE_URL || '';
     res.json({
       financialYear: tokenRecord.financial_year,
       categories:    tokenRecord.categories ? tokenRecord.categories.split(',') : 'all',
@@ -336,13 +339,56 @@ async function caAccess(req, res) {
         mimeType:    f.mime_type,
         uploadDate:  f.upload_date,
         description: f.description,
-        downloadUrl: `${process.env.BASE_URL || ''}/api/vault/download/${f.id}`
+        downloadUrl: `${base}/api/vault/ca/${token}/download/${f.id}`
       }))
     });
   } catch (err) {
-    res.status(500).json({ error: 'Internal server error', message: err.message });
+    console.error('[vault] caAccess error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 }
 
-router.caAccess = caAccess;
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/vault/ca/:token/download/:fileId  — PUBLIC, mounted in index.js
+// CA users download individual files using the token as auth.
+// ─────────────────────────────────────────────────────────────────────────────
+async function caDownload(req, res) {
+  const { token, fileId } = req.params;
+  if (!token || token.length < 32) return res.status(400).json({ error: 'Invalid token' });
+
+  try {
+    const tokenRecord = db.prepare('SELECT * FROM ca_access_tokens WHERE token = ?').get(token);
+    if (!tokenRecord)           return res.status(404).json({ error: 'Access token not found' });
+    if (tokenRecord.revoked_at) return res.status(410).json({ error: 'Access token revoked' });
+    if (new Date(tokenRecord.expires_at) < new Date()) return res.status(410).json({ error: 'Access token expired' });
+
+    const file = db.prepare('SELECT * FROM vault_files WHERE id = ? AND user_id = ?').get(fileId, tokenRecord.user_id);
+    if (!file) return res.status(404).json({ error: 'File not found' });
+
+    // Enforce category restriction if the token specifies categories
+    if (tokenRecord.categories) {
+      const cats = tokenRecord.categories.split(',').map(c => c.trim()).filter(Boolean);
+      if (cats.length && !cats.includes(file.category)) {
+        return res.status(403).json({ error: 'File not in token scope' });
+      }
+    }
+
+    const filePath    = vault.getFilePath(file.s3_key);
+    const displayName = file.display_name || file.original_filename;
+    res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(displayName)}"`);
+    res.sendFile(filePath, err => {
+      if (err) {
+        console.error('[vault] caDownload sendFile error:', err.message);
+        if (!res.headersSent) res.status(500).json({ error: 'File read error' });
+      }
+    });
+  } catch (err) {
+    console.error('[vault] caDownload error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+router.caAccess   = caAccess;
+router.caDownload = caDownload;
 module.exports = router;

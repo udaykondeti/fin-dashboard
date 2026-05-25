@@ -616,6 +616,14 @@ function runMigrations() {
     } },
     { id: 31, name: 'scheduled_payments.source',     run: () => addColumnIfMissing('scheduled_payments', 'source',     "ALTER TABLE scheduled_payments ADD COLUMN source TEXT DEFAULT 'manual'") },
     { id: 32, name: 'scheduled_payments.updated_at', run: () => addColumnIfMissing('scheduled_payments', 'updated_at', 'ALTER TABLE scheduled_payments ADD COLUMN updated_at DATETIME') },
+    { id: 33, name: 'vault_files_indexes', run: () => {
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_vault_files_user ON vault_files(user_id);
+        CREATE INDEX IF NOT EXISTS idx_vault_files_user_fy ON vault_files(user_id, financial_year);
+        CREATE INDEX IF NOT EXISTS idx_vault_files_user_cat ON vault_files(user_id, category);
+        CREATE INDEX IF NOT EXISTS idx_vault_files_profile ON vault_files(profile_id);
+      `);
+    } },
   ];
 
   const appliedIds = new Set(
