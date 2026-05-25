@@ -14,6 +14,16 @@
 
 const MAX_CHARS = 30000;
 
+// Singleton Tesseract worker — initialized on first use, kept alive for the
+// process lifetime to avoid the 1–3 s WASM load on every OCR job.
+let _tesseractWorker = null;
+async function _getWorker() {
+  if (_tesseractWorker) return _tesseractWorker;
+  const { createWorker } = require('tesseract.js');
+  _tesseractWorker = await createWorker('eng', 1, { logger: () => {} });
+  return _tesseractWorker;
+}
+
 function _detectKind(mimeType, filename) {
   const m = String(mimeType || '').toLowerCase();
   const n = String(filename  || '').toLowerCase();
@@ -33,10 +43,8 @@ function _detectKind(mimeType, filename) {
 
 async function _ocrBuffer(imgBuffer, warnings) {
   try {
-    const { createWorker } = require('tesseract.js');
-    const worker = await createWorker('eng', 1, { logger: () => {} });
+    const worker = await _getWorker();
     const { data: { text } } = await worker.recognize(imgBuffer);
-    await worker.terminate();
     return text || '';
   } catch (e) {
     warnings.push(`OCR failed: ${e.message}`);

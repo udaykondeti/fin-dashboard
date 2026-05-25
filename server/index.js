@@ -137,8 +137,10 @@ const requireAdmin = require('./middleware/requireAdmin');
 // Public CA download endpoint must be registered BEFORE the authenticated
 // /api/vault router; otherwise Express's first-match routing sends it
 // through authMiddleware and the public link is unreachable.
-app.get('/api/vault/ca/:token', vaultRoutes.caAccess);
-app.get('/api/vault/ca/:token/download/:fileId', vaultRoutes.caDownload);
+const rateLimit = require('express-rate-limit');
+const caLimiter = rateLimit({ windowMs: 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
+app.get('/api/vault/ca/:token', caLimiter, vaultRoutes.caAccess);
+app.get('/api/vault/ca/:token/download/:fileId', caLimiter, vaultRoutes.caDownload);
 app.use('/api/vault', authMiddleware, vaultRoutes);
 app.use('/api/admin', authMiddleware, requireAdmin, adminRoutes);
 

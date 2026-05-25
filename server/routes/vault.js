@@ -242,21 +242,27 @@ router.get('/fy-summary', (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/stats', (req, res) => {
   const userId = req.user.id;
+  const { profile_id } = req.query;
+  if (!assertProfileOwnership(req, res, profile_id)) return;
+
+  const profileClause = profile_id ? ' AND (profile_id = ? OR profile_id IS NULL)' : '';
+  const baseParams    = profile_id ? [userId, profile_id] : [userId];
+
   try {
-    const totals = db.prepare(`
-      SELECT COUNT(*) as total_files, SUM(COALESCE(file_size, 0)) as total_size
-      FROM vault_files WHERE user_id = ?
-    `).get(userId);
-    const byCategory = db.prepare(`
-      SELECT category, subcategory, COUNT(*) as file_count, SUM(COALESCE(file_size, 0)) as total_size
-      FROM vault_files WHERE user_id = ?
-      GROUP BY category, subcategory ORDER BY category, subcategory
-    `).all(userId);
-    const byFY = db.prepare(`
-      SELECT financial_year, COUNT(*) as file_count, SUM(COALESCE(file_size, 0)) as total_size
-      FROM vault_files WHERE user_id = ?
-      GROUP BY financial_year ORDER BY financial_year DESC
-    `).all(userId);
+    const totals = db.prepare(
+      `SELECT COUNT(*) as total_files, SUM(COALESCE(file_size, 0)) as total_size
+       FROM vault_files WHERE user_id = ?${profileClause}`
+    ).get(...baseParams);
+    const byCategory = db.prepare(
+      `SELECT category, subcategory, COUNT(*) as file_count, SUM(COALESCE(file_size, 0)) as total_size
+       FROM vault_files WHERE user_id = ?${profileClause}
+       GROUP BY category, subcategory ORDER BY category, subcategory`
+    ).all(...baseParams);
+    const byFY = db.prepare(
+      `SELECT financial_year, COUNT(*) as file_count, SUM(COALESCE(file_size, 0)) as total_size
+       FROM vault_files WHERE user_id = ?${profileClause}
+       GROUP BY financial_year ORDER BY financial_year DESC`
+    ).all(...baseParams);
     res.json({ totalFiles: totals.total_files, totalSize: totals.total_size, byCategory, byFY, currentFY: vault.getFYFolder() });
   } catch (err) {
     res.status(500).json({ error: 'Database error' });
