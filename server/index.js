@@ -77,15 +77,23 @@ app.use(cors((req, callback) => {
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
-// No browser caching anywhere in the app. Every refresh must hit the server
-// and re-query — both for HTML/static assets AND for API JSON responses.
-// This is intentional: the dashboard surfaces live financial data and we
-// never want a stale page or stale net-worth figures behind a cached
-// response.
+// Caching policy — split by resource type:
+//   - API routes + HTML: never cache (live financial data must always be fresh)
+//   - Static assets (JS, CSS, images, fonts): cache for 1 day so repeat visits
+//     don't re-download Chart.js (~220 KB) on every page load.
+// The SPA catch-all at the bottom of this file also forces no-cache on
+// index.html itself, so the app shell always stays current.
 app.use((req, res, next) => {
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
+  const isApi = req.path.startsWith('/api/');
+  const isHtml = req.path === '/' || req.path.endsWith('.html') || !req.path.includes('.');
+  if (isApi || isHtml) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  } else {
+    // Static assets — safe to cache for 1 day (JS/CSS/images/fonts)
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+  }
   next();
 });
 
@@ -132,6 +140,13 @@ const requireAdmin = require('./middleware/requireAdmin');
 app.get('/api/vault/ca/:token', vaultRoutes.caAccess);
 app.use('/api/vault', authMiddleware, vaultRoutes);
 app.use('/api/admin', authMiddleware, requireAdmin, adminRoutes);
+
+const gmailRoutes = require('./routes/gmail');
+// The OAuth callback is public — Google redirects the browser here and
+// there is no Bearer token in the redirect. Register it before the
+// auth-protected /api/gmail sub-tree so Express matches it first.
+app.get('/api/gmail/callback', gmailRoutes.oauthCallback);
+app.use('/api/gmail', authMiddleware, gmailRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -191,6 +206,15 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`fin.kirakon.com server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+
+  // Start watching <VAULT_PATH>/_inbox for files dropped outside the UI.
+  // Wrapped in try/catch so a bad watcher init can't keep the server from
+  // serving regular traffic.
+  try {
+    require('./services/vaultWatcher').start();
+  } catch (e) {
+    console.error('[startup] vaultWatcher failed to start:', e.message);
+  }
 });
 
 module.exports = app;

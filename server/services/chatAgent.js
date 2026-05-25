@@ -190,55 +190,46 @@ function persistArtifacts(threadId, messageId, artifacts) {
 // USD per 1M tokens. Anthropic prices mirror PRICE_TABLE in
 // services/agent.js — kept in sync manually because the chat module
 // can't import from agent.js without pulling in its single-shot
-// machinery. Groq prices from groq.com/pricing as of 2026-04.
+// machinery. Ollama models run locally — cost is $0.
 const PRICE_TABLE = {
   // Anthropic
   'claude-haiku-4-5':        { input: 1.0,  output: 5.0  },
   'claude-sonnet-4-5':       { input: 3.0,  output: 15.0 },
   'claude-opus-4-5':         { input: 15.0, output: 75.0 },
-  // Groq (OpenAI-compatible)
-  'llama-3.3-70b-versatile': { input: 0.59, output: 0.79 },
-  'llama-3.1-8b-instant':    { input: 0.05, output: 0.08 }
+  // Ollama (local) — no cost
+  'mistral':                 { input: 0,    output: 0    },
+  'qwen2.5':                 { input: 0,    output: 0    }
 };
-// 'auto' triggers per-message provider routing via routeProvider.js — Anthropic
-// for app/data questions, Groq for general queries. Users can override by
-// picking a specific Claude or Llama model from the chat header dropdown.
+// 'auto' triggers per-message provider routing via routeProvider.js — Ollama
+// when configured (primary/free), Anthropic as cloud fallback.
 const DEFAULT_MODEL = 'auto';
-const GROQ_DEFAULT  = 'llama-3.3-70b-versatile';
 
-// Provider routing. Anthropic preferred when its key is set; Groq is the
-// fallback. The chat agent works against either provider; the rest of
-// the module handles protocol differences via the *Anthropic / *Groq
-// helpers below.
+// Provider routing. Ollama (local) is preferred when configured; Anthropic
+// is the cloud fallback. The chat agent works against either provider; the
+// rest of the module handles protocol differences via the *Anthropic /
+// *OpenAI helpers below.
 function hasAnthropic() { return !!process.env.ANTHROPIC_API_KEY; }
-function hasGroq()      { return !!process.env.GROQ_API_KEY; }
-function isAgentConfigured() { return hasAnthropic() || hasGroq(); }
+function hasLocal()     { return !!process.env.OLLAMA_BASE_URL; }
+function isAgentConfigured() { return hasAnthropic() || hasLocal(); }
 
 // Pick the provider for a given thread. If the thread's stored model is a
 // Claude model, we need Anthropic (else fall back to whichever is set).
 function providerFor(model) {
   if (typeof model === 'string' && model.startsWith('claude-')) {
-    return hasAnthropic() ? 'anthropic' : (hasGroq() ? 'groq' : null);
+    return hasAnthropic() ? 'anthropic' : (hasLocal() ? 'local' : null);
   }
-  if (typeof model === 'string' && (model.startsWith('llama-') || model.includes('mixtral'))) {
-    return hasGroq() ? 'groq' : null;
-  }
-  // Unknown model id — pick whichever is configured.
-  return hasAnthropic() ? 'anthropic' : (hasGroq() ? 'groq' : null);
+  // Anything else — prefer Ollama (local), then Anthropic.
+  return hasLocal() ? 'local' : (hasAnthropic() ? 'anthropic' : null);
 }
 
-// Resolve the actual model to call. If the thread asks for Claude but
-// only Groq is configured, transparently swap to GROQ_DEFAULT.
+// Resolve the actual model to call.
 function resolveModel(thread) {
   const provider = providerFor(thread.model);
   if (provider === 'anthropic') return { provider, model: thread.model };
-  if (provider === 'groq') {
-    if (typeof thread.model === 'string' && (thread.model.startsWith('llama-') || thread.model.includes('mixtral'))) {
-      return { provider, model: thread.model };
-    }
-    return { provider, model: GROQ_DEFAULT };
+  if (provider === 'local') {
+    return { provider, model: process.env.OLLAMA_MODEL || 'qwen2.5:latest' };
   }
-  throw new Error('No agent provider configured. Set ANTHROPIC_API_KEY or GROQ_API_KEY.');
+  throw new Error('No agent provider configured. Set OLLAMA_BASE_URL or ANTHROPIC_API_KEY.');
 }
 
 function getAnthropicClient() {
@@ -346,11 +337,11 @@ function rowsToMessages(rows) {
 async function sendMessage({ threadId, userId, content }) {
   const t = getThread.get(threadId, userId);
   if (!t) throw new Error(`Thread ${threadId} not found for user ${userId}`);
-  if (!isAgentConfigured()) throw new Error('No agent provider configured. Set ANTHROPIC_API_KEY or GROQ_API_KEY.');
+  if (!isAgentConfigured()) throw new Error('No agent provider configured. Set OLLAMA_BASE_URL or ANTHROPIC_API_KEY.');
   if (providerFor(t.model) !== 'anthropic') {
     // The non-streaming sendMessage is only used by smoke tests, which run
     // against Anthropic. Production/UI uses streamMessage which supports both.
-    throw new Error('sendMessage requires Anthropic; use streamMessage for Groq.');
+    throw new Error('sendMessage requires Anthropic; use streamMessage for Ollama.');
   }
 
   // Persist user message
@@ -477,7 +468,7 @@ function recordToolResult({ threadId, userId, message_id, tool_use_id, result, i
 async function streamMessage({ threadId, userId, content, forceProvider = null }, emit) {
   const t = getThread.get(threadId, userId);
   if (!t) throw new Error(`Thread ${threadId} not found for user ${userId}`);
-  if (!isAgentConfigured()) throw new Error('No agent provider configured. Set ANTHROPIC_API_KEY or GROQ_API_KEY.');
+  if (!isAgentConfigured()) throw new Error('No agent provider configured. Set OLLAMA_BASE_URL or ANTHROPIC_API_KEY.');
 
   const userMsgId = Number(insertMessage.run(threadId, 'user', content, null, 'final').lastInsertRowid);
   emit('thread_meta', { user_message_id: userMsgId });
