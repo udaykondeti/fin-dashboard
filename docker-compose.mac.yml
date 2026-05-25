@@ -1,51 +1,36 @@
-# Mac Mini — kirakon.com apps (EC2 migration)
+# Production compose for the Mac Mini (Apple Silicon).
 #
-# cloudflared runs on the Kirakon server and routes to these containers
-# via the Mac Mini's Tailscale IP (100.85.165.105). No cloudflared needed here.
+# Differences from docker-compose.yml (EC2):
+#   - adds a cloudflared sidecar so the dashboard is reachable at
+#     https://fin.kirakon.com without port-forwarding or a public IP
+#   - the app talks to Ollama running natively on the Mac host via
+#     host.docker.internal (Docker Desktop provides this automatically)
 #
-# Cloudflare Tunnel routes (kirakon tunnel → Mac Mini):
-#   coffee.kirakon.com     → http://100.85.165.105:3003  (cafe-dashboard)
-#   fin.kirakon.com        → http://100.85.165.105:3001  (fin-dashboard)
-#   timesheet.kirakon.com  → http://100.85.165.105:3000  (timesheet)
-#   admin.kirakon.com      → http://100.85.165.105:3002  (timesheet admin panel)
-#   git.kirakon.com        → http://100.85.165.105:3005  (pippy)
-#   ai.kirakon.com         → http://100.85.165.105:3004  (open-webui → Ollama)
+# Paths assume the repo / data live under ~/fin-dashboard on the Mac.
+# Override with: APP_DIR=/some/path docker compose -f docker-compose.mac.yml up -d
 #
-# Required env files on Mac Mini (~/kirakon/):
-#   fin-dashboard/.env   — copy from EC2 /var/www/fin-dashboard/.env
-#   timesheet/.env       — copy from EC2 /home/ubuntu/timesheet-pro/.env
-#   pippy/.env           — copy from EC2 /home/ubuntu/pippy/.env
-#
-# First-time setup on Mac Mini:
-#   mkdir -p ~/kirakon/{fin-dashboard,timesheet,pippy,cafe-dashboard,open-webui}/data
-#   scp ubuntu@34.195.147.243:/home/ubuntu/timesheet-pro/.env ~/kirakon/timesheet/.env
-#   scp ubuntu@34.195.147.243:/home/ubuntu/pippy/.env ~/kirakon/pippy/.env
-#   scp ubuntu@34.195.147.243:/var/www/fin-dashboard/.env ~/kirakon/fin-dashboard/.env
-#   docker compose -f docker-compose.mac.yml up -d
-
-networks:
-  kirakon:
-    name: kirakon
+# Required host-side files:
+#   ${APP_DIR}/.env               — app secrets + OLLAMA_BASE_URL
+#   ${APP_DIR}/data/              — SQLite volume
+#   ${APP_DIR}/cloudflared.env    — contains TUNNEL_TOKEN=...
 
 services:
-
-  # ── Fin Dashboard (fin.kirakon.com) ───────────────────────────────────────
   fin-dashboard:
     image: ghcr.io/udaykondeti/fin-dashboard:latest
     container_name: fin-dashboard
     restart: unless-stopped
     pull_policy: always
     ports:
-      - "127.0.0.1:3001:3001"   # bound to localhost; Tailscale reaches it via host IP
-    env_file: ~/kirakon/fin-dashboard/.env
+      - "127.0.0.1:3001:3001"
+    env_file:
+      - ${APP_DIR:-./}/.env
     environment:
+      # Ollama runs natively on the Mac host, not in a container.
+      # host.docker.internal resolves to the host on Docker Desktop.
       OLLAMA_BASE_URL: "http://host.docker.internal:11434/v1"
-      OLLAMA_MODEL: "${OLLAMA_MODEL:-mistral}"
-      VAULT_PATH: "/app/vault"
+      OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.1:8b}"
     volumes:
-      - ~/kirakon/fin-dashboard/data:/app/data
-      - ~/kirakon/fin-dashboard/vault:/app/vault
-    networks: [kirakon]
+      - ${APP_DIR:-./}/data:/app/data
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:3001/api/health"]
       interval: 30s
@@ -56,109 +41,16 @@ services:
       driver: json-file
       options: { max-size: "10m", max-file: "5" }
 
-  # ── Timesheet (timesheet.kirakon.com) ─────────────────────────────────────
-  timesheet:
-    image: ghcr.io/udaykondeti/timesheet:latest
-    container_name: timesheet
+  # Cloudflare Tunnel — outbound-only connection to Cloudflare's edge.
+  # No inbound ports opened on the home router. Create the tunnel + token
+  # in the Cloudflare Zero Trust dashboard, then put TUNNEL_TOKEN in
+  # ${APP_DIR}/cloudflared.env.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: fin-cloudflared
     restart: unless-stopped
-    pull_policy: always
-    ports:
-      - "127.0.0.1:3000:3000"
-    env_file: ~/kirakon/timesheet/.env
-    volumes:
-      - ~/kirakon/timesheet/data:/app/data
-    networks: [kirakon]
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:3000/"]
-      interval: 30s
-      timeout: 5s
-      start_period: 15s
-      retries: 3
-    logging:
-      driver: json-file
-      options: { max-size: "10m", max-file: "5" }
-
-  # ── Timesheet Agent (sidecar — internal only) ─────────────────────────────
-  timesheet-agent:
-    image: ghcr.io/udaykondeti/timesheet:latest
-    container_name: timesheet-agent
-    restart: unless-stopped
-    pull_policy: always
-    command: ["node", "local-agent/index.js"]
-    env_file: ~/kirakon/timesheet/.env
-    networks: [kirakon]
-    depends_on: [timesheet]
-    logging:
-      driver: json-file
-      options: { max-size: "10m", max-file: "3" }
-
-  # ── Pippy / git.kirakon.com ───────────────────────────────────────────────
-  pippy:
-    image: ghcr.io/udaykondeti/pippy:latest
-    container_name: pippy
-    restart: unless-stopped
-    pull_policy: always
-    ports:
-      - "127.0.0.1:3005:3005"
-    env_file: ~/kirakon/pippy/.env
-    volumes:
-      - ~/kirakon/pippy/data:/app/data
-    networks: [kirakon]
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:3005/"]
-      interval: 30s
-      timeout: 5s
-      start_period: 15s
-      retries: 3
-    logging:
-      driver: json-file
-      options: { max-size: "10m", max-file: "5" }
-
-  # ── Cafe Dashboard / coffee.kirakon.com ───────────────────────────────────
-  cafe-dashboard:
-    image: ghcr.io/udaykondeti/cafe-dashboard:latest
-    container_name: cafe-dashboard
-    restart: unless-stopped
-    pull_policy: always
-    ports:
-      - "127.0.0.1:3003:3003"   # update inner port if app listens on different port
-    volumes:
-      - ~/kirakon/cafe-dashboard/data:/app/data
-    networks: [kirakon]
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:3003/"]
-      interval: 30s
-      timeout: 5s
-      start_period: 15s
-      retries: 3
-    logging:
-      driver: json-file
-      options: { max-size: "10m", max-file: "5" }
-
-  # ── Open WebUI / ai.kirakon.com (Ollama frontend) ────────────────────────
-  # Ollama runs natively on the Mac Mini host (not in Docker).
-  # Open WebUI connects to it via host.docker.internal:11434.
-  open-webui:
-    image: ghcr.io/open-webui/open-webui:main
-    container_name: open-webui
-    restart: unless-stopped
-    pull_policy: always
-    ports:
-      - "127.0.0.1:3004:8080"   # Open WebUI listens on 8080 internally
-    environment:
-      OLLAMA_BASE_URL: "http://host.docker.internal:11434"
-      WEBUI_AUTH: "true"        # set false to disable login (Tailscale-only access)
-    volumes:
-      - ~/kirakon/open-webui/data:/app/backend/data
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    networks: [kirakon]
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 5s
-      start_period: 20s
-      retries: 3
-    logging:
-      driver: json-file
-      options: { max-size: "10m", max-file: "5" }
+    command: tunnel --no-autoupdate run
+    env_file:
+      - ${APP_DIR:-./}/cloudflared.env
+    depends_on:
+      - fin-dashboard

@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const Anthropic = require('@anthropic-ai/sdk');
 const db = require('../db/database');
-const ollamaClient = require('./ollamaClient');
+const groqClient = require('./groqClient');
 
 // Allowed task types. Extend this list as new agent-driven features land.
 const TASK_TYPES = [
@@ -9,28 +9,28 @@ const TASK_TYPES = [
   'validate_name',
   'parse_message',
   'suggest_tax_action',
-  // Run by scripts/ollama-watcher.js every 5 minutes — summarises recent DB
+  // Run by scripts/groq-watcher.js every 5 minutes — summarises recent DB
   // changes into plain-English activity_log entries.
   'summarise_db_changes'
 ];
 
 // USD per 1M tokens. Source of truth so admin cost views stay in sync. Models
-// are keyed by model_id where provider matches PROVIDERS below.
-// Ollama models run locally — cost is $0.
+// are keyed by provider:model_id where provider matches PROVIDERS below.
+// Update when pricing changes.
 const PRICE_TABLE = {
   // Anthropic
   'claude-haiku-4-5':           { input: 1.0,  output: 5.0  },
   'claude-sonnet-4-5':          { input: 3.0,  output: 15.0 },
   'claude-opus-4-5':            { input: 15.0, output: 75.0 },
-  // Ollama (local) — no cost
-  'mistral':                    { input: 0,    output: 0    },
-  'qwen2.5':                    { input: 0,    output: 0    }
+  // Groq (OpenAI-compatible) — prices as of 2026-04
+  'llama-3.1-8b-instant':       { input: 0.05, output: 0.08 },
+  'llama-3.3-70b-versatile':    { input: 0.59, output: 0.79 }
 };
 
-const PROVIDERS = ['anthropic', 'ollama'];
+const PROVIDERS = ['anthropic', 'groq'];
 
 const DEFAULT_MODEL = 'claude-haiku-4-5';
-const OLLAMA_DEFAULT_MODEL = 'mistral';
+const GROQ_DEFAULT_MODEL = 'llama-3.1-8b-instant';
 
 /**
  * True iff ANTHROPIC_API_KEY is present in the environment.
@@ -105,8 +105,8 @@ async function runTask({ userId, taskType, systemPrompt, userInput, maxTokens, p
 
   const useModel =
     model ||
-    (useProvider === 'ollama'
-      ? (process.env.OLLAMA_MODEL || OLLAMA_DEFAULT_MODEL)
+    (useProvider === 'groq'
+      ? (process.env.GROQ_MODEL || GROQ_DEFAULT_MODEL)
       : (process.env.ANTHROPIC_MODEL || DEFAULT_MODEL));
 
   const inputHash = sha256(systemPrompt + '\n' + userInput);
@@ -119,8 +119,8 @@ async function runTask({ userId, taskType, systemPrompt, userInput, maxTokens, p
   let usage = null;
 
   try {
-    if (useProvider === 'ollama') {
-      const r = await ollamaClient.chatCompletion({
+    if (useProvider === 'groq') {
+      const r = await groqClient.chatCompletion({
         model: useModel,
         system: systemPrompt,
         user: userInput,
@@ -173,7 +173,7 @@ async function runTask({ userId, taskType, systemPrompt, userInput, maxTokens, p
 
 module.exports = {
   isAgentConfigured,
-  isOllamaConfigured: ollamaClient.isOllamaConfigured,
+  isGroqConfigured: groqClient.isGroqConfigured,
   getClient,
   runTask,
   estimateCost,

@@ -601,21 +601,6 @@ function runMigrations() {
         CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_artifacts_thread_ident ON agent_artifacts(thread_id, identifier);
       `);
     } },
-    { id: 30, name: 'create_gmail_tokens', run: () => {
-      db.exec(`
-        CREATE TABLE IF NOT EXISTS gmail_tokens (
-          user_id      INTEGER PRIMARY KEY,
-          access_token  TEXT NOT NULL,
-          refresh_token TEXT,
-          expiry_date   INTEGER,
-          scope         TEXT,
-          updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-      `);
-    } },
-    { id: 31, name: 'scheduled_payments.source',     run: () => addColumnIfMissing('scheduled_payments', 'source',     "ALTER TABLE scheduled_payments ADD COLUMN source TEXT DEFAULT 'manual'") },
-    { id: 32, name: 'scheduled_payments.updated_at', run: () => addColumnIfMissing('scheduled_payments', 'updated_at', 'ALTER TABLE scheduled_payments ADD COLUMN updated_at DATETIME') },
   ];
 
   const appliedIds = new Set(

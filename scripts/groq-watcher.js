@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// Ollama-powered DB-change watcher.
+// Groq-powered DB-change watcher.
 //
 // Run via PM2 cron every 5 minutes (see ecosystem.config.js). For each user,
 // scans the major user-data tables for rows newer than the last watch tick,
-// asks Ollama (mistral) to summarise them into 1-3 plain-English bullets, and
-// inserts the result into activity_log. The dashboard's Activity feed reads
-// from activity_log (replacing the previous hardcoded mock).
+// asks Groq to summarise them into 1-3 plain-English bullets, and inserts
+// the result into activity_log. The dashboard's Activity feed reads from
+// activity_log (replacing the previous hardcoded mock).
 //
 // This script is one-shot: it processes a single tick and exits. PM2's
 // cron_restart triggers the next run.
@@ -21,7 +21,7 @@ process.env.NODE_ENV = 'production';
 const db = require('../server/db/database');
 process.env.NODE_ENV = _envProd || '';
 
-const { runTask, isOllamaConfigured } = require('../server/services/agent');
+const { runTask, isGroqConfigured } = require('../server/services/agent');
 
 // Tables we monitor — each maps to a single column we read for a row label.
 // Anything missing a `created_at` column is excluded; updates/deletes are not
@@ -44,10 +44,10 @@ const TABLES = [
   { table: 'vault_files',           fields: 'original_filename, category, subcategory, financial_year' }
 ];
 
-const WATCHER_NAME = 'ollama_db_watcher';
-// First run: look at the last 30 minutes so we don't dump the entire DB into Ollama.
+const WATCHER_NAME = 'groq_db_watcher';
+// First run: look at the last 30 minutes so we don't dump the entire DB into Groq.
 const FIRST_RUN_LOOKBACK_MS = 30 * 60 * 1000;
-// Hard cap on rows per tick per user — protects against a bulk import flooding Ollama.
+// Hard cap on rows per tick per user — protects against a bulk import flooding Groq.
 const MAX_ROWS_PER_TICK = 50;
 
 function getActiveUsers() {
@@ -120,7 +120,7 @@ async function processUser(user) {
     const r = await runTask({
       userId: user.id,
       taskType: 'summarise_db_changes',
-      provider: 'ollama',
+      provider: 'groq',
       systemPrompt: SYSTEM,
       userInput: USER,
       maxTokens: 400
@@ -136,34 +136,34 @@ async function processUser(user) {
   if (summary && summary.toUpperCase() !== 'NONE') {
     db.prepare(
       'INSERT INTO activity_log (user_id, source, summary, details) VALUES (?, ?, ?, ?)'
-    ).run(user.id, 'ollama_watcher', summary, JSON.stringify({ event_count: events.length }));
+    ).run(user.id, 'groq_watcher', summary, JSON.stringify({ event_count: events.length }));
   }
   setLastProcessedAt(user.id, newCutoff);
   return { user_id: user.id, events: events.length, summary };
 }
 
 async function main() {
-  if (!isOllamaConfigured()) {
-    console.log('[ollama-watcher] OLLAMA_BASE_URL not set — skipping tick.');
+  if (!isGroqConfigured()) {
+    console.log('[groq-watcher] GROQ_API_KEY not set — skipping tick.');
     process.exit(0);
   }
   const users = getActiveUsers();
   if (!users.length) {
-    console.log('[ollama-watcher] No users — skipping tick.');
+    console.log('[groq-watcher] No users — skipping tick.');
     process.exit(0);
   }
   for (const user of users) {
     try {
       const r = await processUser(user);
-      console.log(`[ollama-watcher] user=${user.id} events=${r.events} ${r.summary ? '✓' : '(no entry)'}`);
+      console.log(`[groq-watcher] user=${user.id} events=${r.events} ${r.summary ? '✓' : '(no entry)'}`);
     } catch (err) {
-      console.error(`[ollama-watcher] user=${user.id} failed:`, err.message);
+      console.error(`[groq-watcher] user=${user.id} failed:`, err.message);
     }
   }
   process.exit(0);
 }
 
 main().catch(err => {
-  console.error('[ollama-watcher] Fatal:', err);
+  console.error('[groq-watcher] Fatal:', err);
   process.exit(1);
 });

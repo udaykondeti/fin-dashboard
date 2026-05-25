@@ -133,13 +133,6 @@ app.get('/api/vault/ca/:token', vaultRoutes.caAccess);
 app.use('/api/vault', authMiddleware, vaultRoutes);
 app.use('/api/admin', authMiddleware, requireAdmin, adminRoutes);
 
-const gmailRoutes = require('./routes/gmail');
-// The OAuth callback is public — Google redirects the browser here and
-// there is no Bearer token in the redirect. Register it before the
-// auth-protected /api/gmail sub-tree so Express matches it first.
-app.get('/api/gmail/callback', gmailRoutes.oauthCallback);
-app.use('/api/gmail', authMiddleware, gmailRoutes);
-
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'fin.kirakon.com', timestamp: new Date().toISOString() });
