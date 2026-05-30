@@ -6,7 +6,16 @@
 //
 // Per-user serial queue: two rapid uploads from the same user are
 // processed sequentially. Cross-user uploads run in parallel.
+//
+// Dedup levels:
+//   1. File hash  — SHA-256 of raw bytes. Blocks exact re-upload of the same file.
+//   2. Text hash  — SHA-256 of extracted text. Blocks same content in a different
+//      format (e.g. PDF statement + screenshot of the same statement).
+//   3. source_ref — agent prompt instructs the LLM to use a normalised transaction
+//      fingerprint as source_ref; the transactions UNIQUE(user_id, source, source_ref)
+//      constraint silently discards cross-document duplicates at insert time.
 
+const crypto      = require('crypto');
 const db          = require('../db/database');
 const localVault  = require('./localVault');
 const textExtract = require('./textExtract');
@@ -72,8 +81,52 @@ async function processUpload(fileId, userId) {
     return;
   }
 
+  // ── Dedup level 1: exact file bytes ─────────────────────────────────────
+  const fileHash = crypto.createHash('sha256').update(buffer).digest('hex');
+  let dupByHash = null;
+  try {
+    dupByHash = db.prepare(
+      `SELECT id, original_filename FROM vault_files
+       WHERE user_id = ? AND file_hash = ? AND id != ? AND processed_at IS NOT NULL LIMIT 1`
+    ).get(userId, fileHash, fileId);
+  } catch (_) { /* file_hash column may not exist on older DBs — non-fatal */ }
+
+  if (dupByHash) {
+    db.prepare('UPDATE vault_files SET processed_at = CURRENT_TIMESTAMP, processing_error = ? WHERE id = ?')
+      .run(`Duplicate of already-processed file #${dupByHash.id} (${dupByHash.original_filename})`, fileId);
+    console.log(`[vaultProcessor] file ${fileId} is a byte-exact duplicate of #${dupByHash.id} — skipped`);
+    return;
+  }
+  // Store hash so future uploads of the same bytes are caught above.
+  try { db.prepare('UPDATE vault_files SET file_hash = ? WHERE id = ?').run(fileHash, fileId); } catch (_) {}
+
   const extracted = await textExtract.extractText(buffer, file.mime_type, file.original_filename);
   const threadId  = getOrCreatePendingThread(userId);
+
+  // ── Dedup level 2: extracted text hash ──────────────────────────────────
+  if (extracted.text.length >= 50) {
+    const textHash = crypto.createHash('sha256').update(extracted.text.trim()).digest('hex');
+    const dedupKey = `text:${textHash}`;
+    let dupByText = null;
+    try {
+      dupByText = db.prepare(
+        `SELECT vault_file_id FROM vault_dedup_keys WHERE user_id = ? AND dedup_key = ? LIMIT 1`
+      ).get(userId, dedupKey);
+    } catch (_) { /* table may not exist on older DBs — non-fatal */ }
+
+    if (dupByText) {
+      db.prepare('UPDATE vault_files SET processed_at = CURRENT_TIMESTAMP, processing_error = ? WHERE id = ?')
+        .run(`Duplicate content of vault file #${dupByText.vault_file_id} — same extracted text`, fileId);
+      console.log(`[vaultProcessor] file ${fileId} content matches already-processed #${dupByText.vault_file_id} — skipped`);
+      return;
+    }
+    // Register so future files with identical content are skipped.
+    try {
+      db.prepare(
+        `INSERT OR IGNORE INTO vault_dedup_keys (user_id, dedup_key, vault_file_id) VALUES (?, ?, ?)`
+      ).run(userId, dedupKey, fileId);
+    } catch (_) {}
+  }
 
   // Short / unsupported — write a status note and stop
   if (extracted.kind === 'unknown' || extracted.text.length < 50) {
@@ -87,7 +140,10 @@ async function processUpload(fileId, userId) {
     return;
   }
 
-  // Build the synthetic user message that introduces the document to the agent
+  // Build the synthetic user message that introduces the document to the agent.
+  // The dedup instruction tells the LLM to emit a stable source_ref per transaction
+  // so the transactions UNIQUE(user_id, source, source_ref) constraint silently
+  // rejects duplicates when the same transaction appears in two different files.
   const userMessage =
     `New vault upload to process.\n` +
     `Filename: ${file.original_filename}\n` +
@@ -95,6 +151,9 @@ async function processUpload(fileId, userId) {
     `Financial Year: ${file.financial_year}\n` +
     `Type: ${extracted.kind.toUpperCase()}\n` +
     (extracted.warnings.length ? `Warnings: ${extracted.warnings.join('; ')}\n` : '') +
+    `\nDedup rule: when proposing transactions set source="vault" and ` +
+    `source_ref=YYYYMMDD-{amount_in_paise}-{first20chars_of_description_lowercase_no_spaces}. ` +
+    `The database will silently ignore any source_ref it has already seen for this user.\n` +
     `\n--- DOCUMENT TEXT ---\n${extracted.text}\n--- END ---`;
 
   try {
@@ -105,8 +164,6 @@ async function processUpload(fileId, userId) {
     db.prepare('UPDATE vault_files SET processed_at = CURRENT_TIMESTAMP WHERE id = ?').run(fileId);
 
     // Move the file under <userId>/processed/<rest> so the inbox stays tidy.
-    // Strip any existing 'processed/' prefix from rest so reprocessing never
-    // double-nests. Move before the DB update; if the DB write fails, revert.
     try {
       const parts = localKey.split('/');
       let rest = parts.slice(1).join('/');

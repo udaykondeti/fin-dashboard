@@ -477,19 +477,11 @@ function runMigrations() {
     { id: 14, name: 'ca_access_tokens.revoked_at',    run: () => addColumnIfMissing('ca_access_tokens', 'revoked_at', 'ALTER TABLE ca_access_tokens ADD COLUMN revoked_at TEXT') },
     { id: 15, name: 'users.is_admin',                 run: () => addColumnIfMissing('users', 'is_admin', 'ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0') },
     { id: 16, name: 'bootstrap_admin_from_env', run: () => {
-      // Optional bootstrap: when BOOTSTRAP_ADMIN_EMAIL is set, promote that
-      // user to admin once. This migration runs only once (recorded in
-      // schema_migrations), so re-running with a different env value has no
-      // effect — change admins manually via UPDATE users SET is_admin=1.
       const email = (process.env.BOOTSTRAP_ADMIN_EMAIL || '').toLowerCase().trim();
       if (!email) return;
       db.prepare('UPDATE users SET is_admin = 1 WHERE email = ?').run(email);
     } },
     { id: 17, name: 'create_networth_snapshots', run: () => {
-      // Daily net worth snapshot, one row per (user_id, snapshot_date). The
-      // dashboard trend chart reads from here instead of fabricating a linear
-      // interpolation. Populated lazily by GET /api/networth (at most one
-      // upsert per user per day).
       db.exec(`
         CREATE TABLE IF NOT EXISTS networth_snapshots (
           user_id INTEGER NOT NULL,
@@ -505,11 +497,6 @@ function runMigrations() {
       `);
     } },
     { id: 18, name: 'create_activity_log_and_watcher_state', run: () => {
-      // activity_log holds plain-English entries describing recent DB changes,
-      // produced by scripts/groq-watcher.js. The dashboard's Activity feed
-      // reads from this table (replacing the previous hardcoded mock).
-      // watcher_state tracks the last timestamp the watcher processed, per
-      // user, so each cron tick only summarises rows newer than that.
       db.exec(`
         CREATE TABLE IF NOT EXISTS activity_log (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -541,11 +528,6 @@ function runMigrations() {
     { id: 27, name: 'mutual_funds.scheme_code',      run: () => addColumnIfMissing('mutual_funds', 'scheme_code', 'ALTER TABLE mutual_funds ADD COLUMN scheme_code TEXT') },
     { id: 28, name: 'mutual_funds.yahoo_symbol',     run: () => addColumnIfMissing('mutual_funds', 'yahoo_symbol', 'ALTER TABLE mutual_funds ADD COLUMN yahoo_symbol TEXT') },
     { id: 29, name: 'create_transactions',           run: () => {
-      // Persistent log of every paid bill, deposit, transfer, etc.
-      // Sources include manual entry, the agent's propose flow, and the
-      // Gmail-driven importer (next PR). source_ref is the Gmail message
-      // id (or other source id) so re-runs of the importer don't insert
-      // duplicates.
       db.exec(`
         CREATE TABLE IF NOT EXISTS transactions (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -569,19 +551,9 @@ function runMigrations() {
       `);
     } },
     { id: 22, name: 'rename_financial_advisor_to_assistant', run: () => {
-      // The 'financial_advisor' agent_kind had India/INR/tax-regime
-      // opinions baked into its system prompt. Replaced with a generic
-      // 'assistant' kind. Existing threads are flipped over so they
-      // pick up the new prompt on next message.
       db.exec(`UPDATE agent_threads SET agent_kind = 'assistant' WHERE agent_kind = 'financial_advisor'`);
     } },
     { id: 21, name: 'create_agent_artifacts', run: () => {
-      // Live artifacts emitted by the chat agent (Claude.ai-style side-panel
-      // renders for substantial generated content — markdown reports, HTML
-      // snippets, SVG charts, code). Streamed in real time via SSE; persisted
-      // here so they reload on thread switch. `identifier` is the model-
-      // supplied stable id used to disambiguate or update artifacts within a
-      // thread; `(thread_id, identifier)` is the natural key.
       db.exec(`
         CREATE TABLE IF NOT EXISTS agent_artifacts (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -616,6 +588,29 @@ function runMigrations() {
     } },
     { id: 31, name: 'scheduled_payments.source',     run: () => addColumnIfMissing('scheduled_payments', 'source',     "ALTER TABLE scheduled_payments ADD COLUMN source TEXT DEFAULT 'manual'") },
     { id: 32, name: 'scheduled_payments.updated_at', run: () => addColumnIfMissing('scheduled_payments', 'updated_at', 'ALTER TABLE scheduled_payments ADD COLUMN updated_at DATETIME') },
+    { id: 33, name: 'vault_files.file_hash', run: () => {
+      addColumnIfMissing('vault_files', 'file_hash', 'ALTER TABLE vault_files ADD COLUMN file_hash TEXT');
+      try { db.exec('CREATE INDEX IF NOT EXISTS idx_vault_files_file_hash ON vault_files(user_id, file_hash)'); } catch (_) {}
+    } },
+    { id: 34, name: 'create_vault_dedup_keys', run: () => {
+      // Stores content fingerprints per user to prevent reprocessing the same
+      // financial document even when uploaded in a different format (e.g. a PDF
+      // statement and a screenshot of the same statement). dedup_key format:
+      //   "text:<sha256_of_extracted_text>"  — content-level dedup
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS vault_dedup_keys (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          dedup_key TEXT NOT NULL,
+          vault_file_id INTEGER NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, dedup_key),
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          FOREIGN KEY (vault_file_id) REFERENCES vault_files(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_vault_dedup_keys_user ON vault_dedup_keys(user_id, dedup_key);
+      `);
+    } },
   ];
 
   const appliedIds = new Set(

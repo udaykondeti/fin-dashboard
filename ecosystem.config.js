@@ -33,6 +33,7 @@ module.exports = {
         DB_PATH: path.join(root, 'data/finance.db'),
         OLLAMA_BASE_URL: 'http://localhost:11434/v1',
         OLLAMA_MODEL: 'mistral:latest',
+        OLLAMA_VISION_MODEL: 'llava:7b',
       }
     }
   ]

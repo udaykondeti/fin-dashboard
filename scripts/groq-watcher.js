@@ -7,6 +7,10 @@
 // inserts the result into activity_log. The dashboard's Activity feed reads
 // from activity_log (replacing the previous hardcoded mock).
 //
+// Phase 0 (catch-up): before summarising DB changes, process any vault_files
+// rows where processed_at IS NULL. This handles files uploaded while the
+// server was down or before vaultWatcher was running.
+//
 // This script is one-shot: it processes a single tick and exits. PM2's
 // cron_restart triggers the next run.
 
@@ -24,8 +28,6 @@ process.env.NODE_ENV = _envProd || '';
 const { runTask, isOllamaConfigured } = require('../server/services/agent');
 
 // Tables we monitor — each maps to a single column we read for a row label.
-// Anything missing a `created_at` column is excluded; updates/deletes are not
-// detected in this v1 (would need triggers or audit columns).
 const TABLES = [
   { table: 'stocks',                fields: 'symbol, company_name, quantity, avg_buy_price' },
   { table: 'mutual_funds',          fields: 'fund_name, units, avg_nav' },
@@ -45,10 +47,9 @@ const TABLES = [
 ];
 
 const WATCHER_NAME = 'ollama_db_watcher';
-// First run: look at the last 30 minutes so we don't dump the entire DB into Ollama.
 const FIRST_RUN_LOOKBACK_MS = 30 * 60 * 1000;
-// Hard cap on rows per tick per user — protects against a bulk import flooding Ollama.
 const MAX_ROWS_PER_TICK = 50;
+const MAX_VAULT_CATCHUP = 10;
 
 function getActiveUsers() {
   return db.prepare('SELECT id, email FROM users').all();
@@ -59,7 +60,6 @@ function getLastProcessedAt(userId) {
     'SELECT last_processed_at FROM watcher_state WHERE name = ? AND user_id = ?'
   ).get(WATCHER_NAME, userId);
   if (row && row.last_processed_at) return row.last_processed_at;
-  // First run: pick a recent floor instead of the epoch.
   return new Date(Date.now() - FIRST_RUN_LOOKBACK_MS).toISOString().replace('T', ' ').slice(0, 19);
 }
 
@@ -84,13 +84,11 @@ function collectChanges(userId, sinceTs) {
          ORDER BY created_at ASC LIMIT ${MAX_ROWS_PER_TICK}`
       ).all(userId, sinceTs);
     } catch (err) {
-      // Table may not exist on older DBs; skip silently.
       continue;
     }
     rows.forEach(r => events.push({ table: t.table, row: r }));
     if (events.length >= MAX_ROWS_PER_TICK) break;
   }
-  // Newest events first into the prompt is fine; we'll just present chronologically.
   events.sort((a, b) => (a.row.created_at || '').localeCompare(b.row.created_at || ''));
   return events.slice(0, MAX_ROWS_PER_TICK);
 }
@@ -128,7 +126,6 @@ async function processUser(user) {
     summary = (r.output || '').trim();
   } catch (err) {
     console.error(`[groq-watcher] runTask failed for user ${user.id}:`, err.message);
-    // Still advance the cutoff to avoid re-summarising the same window forever.
     setLastProcessedAt(user.id, newCutoff);
     return { user_id: user.id, events: events.length, error: err.message };
   }
@@ -142,11 +139,43 @@ async function processUser(user) {
   return { user_id: user.id, events: events.length, summary };
 }
 
+// Phase 0: catch-up processor for vault files uploaded while the server was
+// down or before vaultWatcher was initialised.
+async function processUnprocessedVaultFiles() {
+  let unprocessed;
+  try {
+    unprocessed = db.prepare(
+      `SELECT id, user_id FROM vault_files
+       WHERE processed_at IS NULL
+       ORDER BY id ASC LIMIT ${MAX_VAULT_CATCHUP}`
+    ).all();
+  } catch (err) {
+    console.error('[ollama-watcher] Phase 0: DB query failed:', err.message);
+    return;
+  }
+  if (!unprocessed.length) return;
+
+  const vaultProcessor = require('../server/services/vaultProcessor');
+  console.log(`[ollama-watcher] Phase 0: processing ${unprocessed.length} unprocessed vault file(s)`);
+  for (const file of unprocessed) {
+    try {
+      await vaultProcessor.processUpload(file.id, file.user_id);
+      console.log(`[ollama-watcher] Phase 0: vault_file id=${file.id} done`);
+    } catch (err) {
+      console.error(`[ollama-watcher] Phase 0: vault_file id=${file.id} failed:`, err.message);
+    }
+  }
+}
+
 async function main() {
   if (!isOllamaConfigured()) {
     console.log('[ollama-watcher] OLLAMA_BASE_URL not set — skipping tick.');
     process.exit(0);
   }
+
+  // Phase 0: catch up any vault files that weren't processed in real time
+  await processUnprocessedVaultFiles();
+
   const users = getActiveUsers();
   if (!users.length) {
     console.log('[ollama-watcher] No users — skipping tick.');
