@@ -616,6 +616,29 @@ function runMigrations() {
     } },
     { id: 31, name: 'scheduled_payments.source',     run: () => addColumnIfMissing('scheduled_payments', 'source',     "ALTER TABLE scheduled_payments ADD COLUMN source TEXT DEFAULT 'manual'") },
     { id: 32, name: 'scheduled_payments.updated_at', run: () => addColumnIfMissing('scheduled_payments', 'updated_at', 'ALTER TABLE scheduled_payments ADD COLUMN updated_at DATETIME') },
+    { id: 33, name: 'vault_files.file_hash', run: () => {
+      addColumnIfMissing('vault_files', 'file_hash', 'ALTER TABLE vault_files ADD COLUMN file_hash TEXT');
+      try { db.exec('CREATE INDEX IF NOT EXISTS idx_vault_files_file_hash ON vault_files(user_id, file_hash)'); } catch (_) {}
+    } },
+    { id: 34, name: 'create_vault_dedup_keys', run: () => {
+      // Stores content fingerprints per user to prevent reprocessing the same
+      // financial document even when uploaded in a different format (e.g. a PDF
+      // statement and a screenshot of the same statement). dedup_key format:
+      //   "text:<sha256_of_extracted_text>"  — content-level dedup
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS vault_dedup_keys (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          dedup_key TEXT NOT NULL,
+          vault_file_id INTEGER NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, dedup_key),
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          FOREIGN KEY (vault_file_id) REFERENCES vault_files(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_vault_dedup_keys_user ON vault_dedup_keys(user_id, dedup_key);
+      `);
+    } },
   ];
 
   const appliedIds = new Set(
