@@ -9,10 +9,14 @@
 //   XML  — xml2js (converted to JSON-ish text for LLM)
 //   DOCX — mammoth (extracts raw text from Word documents)
 //   XLSX / XLS — xlsx (SheetJS, each sheet rendered as CSV)
-//   PNG / JPEG / GIF / BMP / TIFF / WEBP — Tesseract OCR
-//   HEIC / HEIF — heic-convert → JPEG → Tesseract OCR
+//   PNG / JPEG / GIF / BMP / TIFF / WEBP — Vision LLM (OLLAMA_VISION_MODEL) → Tesseract OCR fallback
+//   HEIC / HEIF — heic-convert → JPEG → Vision LLM → Tesseract OCR fallback
 
 const MAX_CHARS = 30000;
+
+const VISION_PROMPT =
+  'Extract all visible text, dates, amounts, merchant names, account numbers, and ' +
+  'transaction details from this image. Output as plain text. Be thorough and accurate.';
 
 function _detectKind(mimeType, filename) {
   const m = String(mimeType || '').toLowerCase();
@@ -29,6 +33,25 @@ function _detectKind(mimeType, filename) {
   if (m.startsWith('image/') || /\.(png|jpe?g|gif|bmp|tiff?|webp)$/i.test(n)) return 'image';
   if (m.startsWith('text/') || n.endsWith('.txt'))                      return 'text';
   return 'unknown';
+}
+
+// Try the configured vision LLM first; returns null on failure or if not configured.
+async function _visionExtract(buffer, mimeType, warnings) {
+  try {
+    const ollamaClient = require('./ollamaClient');
+    if (!ollamaClient.isVisionConfigured()) return null;
+    const model = process.env.OLLAMA_VISION_MODEL;
+    const result = await ollamaClient.chatCompletionWithImage({
+      model,
+      prompt: VISION_PROMPT,
+      imageBase64: buffer.toString('base64'),
+      mimeType: mimeType || 'image/jpeg',
+    });
+    return result.output || '';
+  } catch (e) {
+    warnings.push(`Vision LLM failed: ${e.message}`);
+    return null;
+  }
 }
 
 async function _ocrBuffer(imgBuffer, warnings) {
@@ -78,14 +101,16 @@ async function extractText(buffer, mimeType, filename) {
       const jpegBuf = Buffer.from(
         await heicConvert({ buffer, format: 'JPEG', quality: 0.85 })
       );
-      text = await _ocrBuffer(jpegBuf, warnings);
+      const visionText = await _visionExtract(jpegBuf, 'image/jpeg', warnings);
+      text = visionText !== null ? visionText : await _ocrBuffer(jpegBuf, warnings);
     } catch (e) {
       warnings.push(`HEIC convert failed: ${e.message}`);
       return { text: '', kind: 'unknown', warnings };
     }
 
   } else if (kind === 'image') {
-    text = await _ocrBuffer(buffer, warnings);
+    const visionText = await _visionExtract(buffer, mimeType, warnings);
+    text = visionText !== null ? visionText : await _ocrBuffer(buffer, warnings);
 
   } else if (kind === 'docx') {
     try {
