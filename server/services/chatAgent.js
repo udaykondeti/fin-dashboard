@@ -3,15 +3,7 @@ const db = require('../db/database');
 const tools = require('./chatTools');
 const routeProvider = require('./routeProvider');
 
-// ─────────────────────────── Live artifacts ───────────────────────────────
-//
-// Substantial generated content (markdown reports, HTML/SVG visualisations,
-// code snippets) is wrapped by the model in <artifact ...>...</artifact> tags
-// so the frontend can render it in a side panel and stream updates in real
-// time. The parser below intercepts streamed text deltas, splits them into
-// inline-text vs artifact-content, and emits SSE events the chat route
-// proxies to the client.
-
+// ─────────────────────────── Live artifacts ─────────────────────────────────
 const ARTIFACT_INSTRUCTIONS = [
   'Artifacts: when you produce substantial generated content (a multi-line code snippet, an HTML or SVG visualisation, a markdown report, a tabular summary the user will want to read or copy in full), wrap it in an artifact tag so it renders in a live side panel:',
   '  <artifact identifier="stable-id" type="markdown|html|svg|code" language="js|python|..." title="Short title">...content...</artifact>',
@@ -30,10 +22,7 @@ function parseArtifactAttrs(openTag) {
 }
 
 // Defensive scrub against models (especially Llama on Groq) hallucinating
-// fake SQL/database errors in their reply text. The system prompt forbids
-// this, but models occasionally do it anyway. We replace the offending
-// substring with a short placeholder so users never see "no such column:
-// user" or fabricated SELECT statements coming from the assistant.
+// fake SQL/database errors in their reply text.
 const SQL_HALLUCINATION_PATTERNS = [
   /no such column[^\n]{0,200}/gi,
   /no such table[^\n]{0,200}/gi,
@@ -44,8 +33,6 @@ const SQL_HALLUCINATION_PATTERNS = [
 ];
 function scrubAssistantText(s) {
   if (typeof s !== 'string' || !s) return s == null ? '' : String(s);
-  // Defensive: a pathological regex match shouldn't crash the chat
-  // pipeline. If anything throws, return the original input unchanged.
   try {
     let out = s;
     for (const re of SQL_HALLUCINATION_PATTERNS) {
@@ -58,16 +45,14 @@ function scrubAssistantText(s) {
   }
 }
 
-// Streaming parser: feed text deltas, get back text/artifact_* events.
-// Handles the split-tag case (a delta may end mid-tag like '<arti').
 class ArtifactStreamParser {
   constructor(emit) {
     this.emit = emit;
     this.buf = '';
-    this.mode = 'text';   // 'text' | 'artifact'
-    this.current = null;  // { identifier, type, language, title, content }
-    this.cleanText = '';  // text outside artifacts, accumulated for DB persistence
-    this.artifacts = [];  // completed artifacts for the current turn
+    this.mode = 'text';
+    this.current = null;
+    this.cleanText = '';
+    this.artifacts = [];
   }
 
   feed(delta) {
@@ -76,8 +61,6 @@ class ArtifactStreamParser {
       if (this.mode === 'text') {
         const i = this.buf.indexOf('<artifact');
         if (i === -1) {
-          // Hold back any tail that could be a prefix of '<artifact' so we
-          // don't emit '<arti' as text and then have to retract it.
           let hold = 0;
           for (let n = Math.min(9, this.buf.length); n > 0; n--) {
             if ('<artifact'.startsWith(this.buf.slice(this.buf.length - n))) { hold = n; break; }
@@ -94,7 +77,6 @@ class ArtifactStreamParser {
           this.emit('text', { delta: safe });
           this.buf = this.buf.slice(i);
         }
-        // buf now starts with '<artifact'. Wait for the closing '>'.
         const gt = this.buf.indexOf('>');
         if (gt === -1) return;
         const attrs = parseArtifactAttrs(this.buf.slice(0, gt + 1));
@@ -112,7 +94,6 @@ class ArtifactStreamParser {
         const close = '</artifact>';
         const i = this.buf.indexOf(close);
         if (i === -1) {
-          // Hold back any tail that could be a prefix of '</artifact>'.
           let hold = 0;
           for (let n = Math.min(close.length, this.buf.length); n > 0; n--) {
             if (close.startsWith(this.buf.slice(this.buf.length - n))) { hold = n; break; }
@@ -139,9 +120,6 @@ class ArtifactStreamParser {
     }
   }
 
-  // End-of-stream: flush whatever is left. If we're stuck inside an open
-  // artifact (model didn't close the tag), close it implicitly so the UI
-  // doesn't hang on a half-open render.
   flush() {
     if (this.buf.length) {
       if (this.mode === 'text') {
@@ -187,42 +165,27 @@ function persistArtifacts(threadId, messageId, artifacts) {
   }
 }
 
-// USD per 1M tokens. Anthropic prices mirror PRICE_TABLE in
-// services/agent.js — kept in sync manually because the chat module
-// can't import from agent.js without pulling in its single-shot
-// machinery. Ollama models run locally — cost is $0.
+// USD per 1M tokens.
 const PRICE_TABLE = {
-  // Anthropic
   'claude-haiku-4-5':        { input: 1.0,  output: 5.0  },
   'claude-sonnet-4-5':       { input: 3.0,  output: 15.0 },
   'claude-opus-4-5':         { input: 15.0, output: 75.0 },
-  // Ollama (local) — no cost
   'mistral':                 { input: 0,    output: 0    },
   'qwen2.5':                 { input: 0,    output: 0    }
 };
-// 'auto' triggers per-message provider routing via routeProvider.js — Ollama
-// when configured (primary/free), Anthropic as cloud fallback.
 const DEFAULT_MODEL = 'auto';
 
-// Provider routing. Ollama (local) is preferred when configured; Anthropic
-// is the cloud fallback. The chat agent works against either provider; the
-// rest of the module handles protocol differences via the *Anthropic /
-// *OpenAI helpers below.
 function hasAnthropic() { return !!process.env.ANTHROPIC_API_KEY; }
 function hasLocal()     { return !!process.env.OLLAMA_BASE_URL; }
 function isAgentConfigured() { return hasAnthropic() || hasLocal(); }
 
-// Pick the provider for a given thread. If the thread's stored model is a
-// Claude model, we need Anthropic (else fall back to whichever is set).
 function providerFor(model) {
   if (typeof model === 'string' && model.startsWith('claude-')) {
     return hasAnthropic() ? 'anthropic' : (hasLocal() ? 'local' : null);
   }
-  // Anything else — prefer Ollama (local), then Anthropic.
   return hasLocal() ? 'local' : (hasAnthropic() ? 'anthropic' : null);
 }
 
-// Resolve the actual model to call.
 function resolveModel(thread) {
   const provider = providerFor(thread.model);
   if (provider === 'anthropic') return { provider, model: thread.model };
@@ -237,7 +200,7 @@ function getAnthropicClient() {
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 }
 
-// ────────────────────────────── Thread + message persistence ──────────────
+// ────────────────────────────── Thread + message persistence ──────
 
 const insertThread = db.prepare(`
   INSERT INTO agent_threads (user_id, agent_kind, model) VALUES (?, ?, ?)
@@ -261,12 +224,9 @@ function createThread({ userId, agentKind = 'assistant', model = DEFAULT_MODEL }
   return Number(insertThread.run(userId, agentKind, model).lastInsertRowid);
 }
 
-// ────────────────────────────── System prompt ─────────────────────────────
+// ───────────────────────────────────── System prompt ─────────────────
 
 function systemPromptFor(agentKind) {
-  // Default — generic assistant. No hardcoded geography, currency, or tax
-  // regime opinions. Tools remain available for fetching the user's data
-  // when they ask, but the model is not nudged to use them otherwise.
   if (agentKind === 'assistant' || agentKind === 'financial_advisor') {
     return [
       "You are a helpful assistant inside a personal-finance dashboard.",
@@ -301,13 +261,12 @@ function systemPromptFor(agentKind) {
   return 'You are a helpful assistant.';
 }
 
-// ────────────────────────────── Conversation construction ────────────────
+// ───────────────────────────────── Conversation construction ────────────
 
-// Convert agent_messages rows into the Anthropic Messages API shape.
 function rowsToMessages(rows) {
   const out = [];
   for (const r of rows) {
-    if (r.status !== 'final') continue;            // skip half-written rows
+    if (r.status !== 'final') continue;
     if (r.role === 'user') {
       out.push({ role: 'user', content: r.content });
     } else if (r.role === 'assistant') {
@@ -317,9 +276,6 @@ function rowsToMessages(rows) {
       for (const t of tu) blocks.push({ type: 'tool_use', id: t.id, name: t.name, input: t.input });
       out.push({ role: 'assistant', content: blocks });
     } else if (r.role === 'tool') {
-      // tool_result blocks are user-role per Anthropic API. The content
-      // field accepts either a string or content blocks; pass strings
-      // through verbatim so error messages don't get double-JSON-encoded.
       const parsed = JSON.parse(r.content);
       const resultStr = typeof parsed.result === 'string'
         ? parsed.result
@@ -332,37 +288,23 @@ function rowsToMessages(rows) {
   return out;
 }
 
-// ────────────────────────────── Main entry: sendMessage ──────────────────
+// ─────────────────────────────────── Main entry: sendMessage ────────────
 
 async function sendMessage({ threadId, userId, content }) {
   const t = getThread.get(threadId, userId);
   if (!t) throw new Error(`Thread ${threadId} not found for user ${userId}`);
   if (!isAgentConfigured()) throw new Error('No agent provider configured. Set OLLAMA_BASE_URL or ANTHROPIC_API_KEY.');
   if (providerFor(t.model) !== 'anthropic') {
-    // The non-streaming sendMessage is only used by smoke tests, which run
-    // against Anthropic. Production/UI uses streamMessage which supports both.
     throw new Error('sendMessage requires Anthropic; use streamMessage for Ollama.');
   }
 
-  // Persist user message
   const userMsgId = Number(insertMessage.run(threadId, 'user', content, null, 'final').lastInsertRowid);
-  // Auto-title on first user message
-  // SQLite parses "user" (double quotes) as a column identifier, not a
-  // string literal. Use single quotes for the literal to avoid the
-  // "no such column: user" error.
   const msgCountRow = db.prepare("SELECT COUNT(*) AS n FROM agent_messages WHERE thread_id = ? AND role = 'user'").get(threadId);
   if (msgCountRow.n === 1) {
     updateThreadTitle.run(content.slice(0, 40).trim() || 'New chat', threadId, userId);
   } else {
     updateThreadTouch.run(threadId, userId);
   }
-
-  // Multi-turn loop. On each iteration we send the conversation, examine
-  // the response: if it ended with stop_reason === 'tool_use' and ALL the
-  // tool calls are read tools, run them, append tool_result blocks, and
-  // loop. If a propose_* tool appears, persist the assistant message in
-  // 'streaming' state and return a 'paused' result for the caller to
-  // surface as a proposal card.
 
   const client = getAnthropicClient();
   let totalIn = 0, totalOut = 0;
@@ -392,28 +334,20 @@ async function sendMessage({ threadId, userId, content }) {
       .map(b => ({ id: b.id, name: b.name, input: b.input }));
 
     if (resp.stop_reason !== 'tool_use' || toolUses.length === 0) {
-      // Final assistant turn
       Number(insertMessage.run(threadId, 'assistant', text, toolUses.length ? JSON.stringify(toolUses) : null, 'final').lastInsertRowid);
       auditAndCost({ userId, threadId, model: t.model, content, text, totalIn, totalOut, t0, error: null });
       return { status: 'final', text };
     }
 
-    // tool_use stop. Decide kind for each.
     const proposals = toolUses.filter(u => tools.TOOL_KIND[u.name] === 'propose');
     if (proposals.length > 0) {
-      // Persist assistant message (with text + tool_uses) as streaming.
-      // It stays "streaming" until /confirm finalises it.
       const asstId = Number(insertMessage.run(threadId, 'assistant', text, JSON.stringify(toolUses), 'streaming').lastInsertRowid);
-      // Build a proposal payload per propose_* tool. (We send only the
-      // first one back to the caller; multiple proposals in one turn are
-      // rare and would require a UI for batch-confirmation.)
       const first = proposals[0];
       const payload = tools.buildProposal(first.name, first.input, { userId });
       auditAndCost({ userId, threadId, model: t.model, content, text, totalIn, totalOut, t0, error: null });
       return { status: 'paused', text, message_id: asstId, proposal: { tool_use_id: first.id, name: first.name, input: first.input, ...payload } };
     }
 
-    // All read tools — run them and append tool_result rows, then loop.
     Number(insertMessage.run(threadId, 'assistant', text, JSON.stringify(toolUses), 'final').lastInsertRowid);
     for (const u of toolUses) {
       let result, isError = false;
@@ -428,43 +362,25 @@ async function sendMessage({ threadId, userId, content }) {
     auditAndCost({ userId, threadId, model: t.model, content, text: '', totalIn, totalOut, t0, error: lastError });
     throw new Error(lastError);
   }
-  // Hit iteration cap without final — treat as error for now.
   auditAndCost({ userId, threadId, model: t.model, content, text: '', totalIn, totalOut, t0, error: 'iteration_cap' });
   throw new Error('Tool loop did not converge in 8 iterations');
 }
 
-// Confirm/reject a pending proposal. Called from the chat route after the
-// user clicks a button. If decision === 'confirm', the caller must dispatch
-// the stored mutation against the real route handler and pass the result
-// in here so we can write a tool_result row and finalize the assistant
-// message.
 function recordToolResult({ threadId, userId, message_id, tool_use_id, result, is_error }) {
   const t = getThread.get(threadId, userId);
   if (!t) throw new Error(`Thread ${threadId} not found`);
-  // Append tool result row
   insertMessage.run(threadId, 'tool',
     JSON.stringify({ tool_use_id, name: 'proposal_result', result, is_error: !!is_error }), null, 'final');
-  // Finalize the assistant row
   updateMessageStatus.run('final', null, null, message_id);
   updateThreadTouch.run(threadId, userId);
 }
 
-// Streaming variant. `emit(event, data)` is invoked for each SSE-shaped
-// event. Returns the same shape as sendMessage — the route module
-// translates {status, ...} into the final SSE event so the client knows
-// the stream is done.
-//
-// Dispatches by provider: Anthropic uses the SDK's native streaming and
-// tool-use protocol; Groq goes through the OpenAI-compatible chat
-// completions endpoint with translated message + tool formats.
-//
-// Provider selection:
-//   - thread.model === 'auto' (default for new threads) → routeForMessage()
-//     classifies the user's content and picks Anthropic for app/data
-//     questions, Groq for general questions
-//   - explicit thread.model (e.g. 'claude-sonnet-4-5', 'llama-3.3-70b-versatile')
-//     wins; user-pinned model is respected verbatim
-//   - forceProvider in opts overrides everything ('anthropic'|'groq')
+// Streaming variant. Provider selection:
+//   - thread.model === 'auto' (default) → routeForMessage() picks local Ollama
+//     when configured (primary/free), Anthropic as cloud fallback.
+//   - explicit thread.model wins; forceProvider overrides everything.
+// When Anthropic is chosen but throws before streaming (e.g. 402 credit
+// exhaustion), falls back to local Ollama if OLLAMA_BASE_URL is set.
 async function streamMessage({ threadId, userId, content, forceProvider = null }, emit) {
   const t = getThread.get(threadId, userId);
   if (!t) throw new Error(`Thread ${threadId} not found for user ${userId}`);
@@ -473,9 +389,6 @@ async function streamMessage({ threadId, userId, content, forceProvider = null }
   const userMsgId = Number(insertMessage.run(threadId, 'user', content, null, 'final').lastInsertRowid);
   emit('thread_meta', { user_message_id: userMsgId });
 
-  // SQLite parses "user" (double quotes) as a column identifier, not a
-  // string literal. Use single quotes for the literal to avoid the
-  // "no such column: user" error.
   const msgCountRow = db.prepare("SELECT COUNT(*) AS n FROM agent_messages WHERE thread_id = ? AND role = 'user'").get(threadId);
   if (msgCountRow.n === 1) updateThreadTitle.run(content.slice(0, 40).trim() || 'New chat', threadId, userId);
   else updateThreadTouch.run(threadId, userId);
@@ -485,7 +398,6 @@ async function streamMessage({ threadId, userId, content, forceProvider = null }
     forceProvider,
     pinnedModel: t.model
   });
-  // Surface routing decision so the UI can show "answered with Groq (auto, general)"
   emit('routing', { provider: routed.provider, model: routed.model, reason: routed.reason });
 
   if (routed.provider === 'groq') {
@@ -493,15 +405,26 @@ async function streamMessage({ threadId, userId, content, forceProvider = null }
       baseUrl: GROQ_BASE, apiKey: process.env.GROQ_API_KEY, providerLabel: 'groq' }, emit);
   }
   if (routed.provider === 'local') {
-    // Ollama (or any OpenAI-compatible local server). No API key needed.
-    // OLLAMA_BASE_URL must include the /v1 suffix.
     return streamMessageOpenAI({ thread: t, userId, content, model: routed.model,
       baseUrl: process.env.OLLAMA_BASE_URL, apiKey: null, providerLabel: 'local' }, emit);
+  }
+  // Anthropic path: fall back to local Ollama on error (e.g. credit exhaustion)
+  // if local is configured and no content has streamed yet.
+  if (hasLocal()) {
+    try {
+      return await streamMessageAnthropic({ thread: t, userId, content, model: routed.model }, emit);
+    } catch (err) {
+      console.warn(`[chatAgent] Anthropic failed (${err.message}) — falling back to local Ollama`);
+      const fallbackModel = process.env.OLLAMA_MODEL || 'qwen2.5:latest';
+      emit('routing', { provider: 'local', model: fallbackModel, reason: 'fallback:anthropic-error' });
+      return streamMessageOpenAI({ thread: t, userId, content, model: fallbackModel,
+        baseUrl: process.env.OLLAMA_BASE_URL, apiKey: null, providerLabel: 'local' }, emit);
+    }
   }
   return streamMessageAnthropic({ thread: t, userId, content, model: routed.model }, emit);
 }
 
-// ────────────────────────────── Anthropic streaming path ──────────────────
+// ────────────────────────────────── Anthropic streaming path ──────────────
 
 async function streamMessageAnthropic({ thread: t, userId, content, model }, emit) {
   const client = getAnthropicClient();
@@ -545,13 +468,10 @@ async function streamMessageAnthropic({ thread: t, userId, content, model }, emi
     totalIn  += final.usage?.input_tokens  || 0;
     totalOut += final.usage?.output_tokens || 0;
 
-    // Resolve tool_use inputs (input_buf is a JSON string; the SDK also
-    // exposes parsed input on the final block, prefer that).
     const finalToolUses = final.content.filter(b => b.type === 'tool_use')
       .map(b => ({ id: b.id, name: b.name, input: b.input }));
 
     if (final.stop_reason !== 'tool_use' || finalToolUses.length === 0) {
-      // Finalize the assistant row with the buffered text
       if (asstId == null) asstId = Number(insertMessage.run(threadId, 'assistant', textBuf, null, 'final').lastInsertRowid);
       else updateMessageStatus.run('final', textBuf, null, asstId);
       persistArtifacts(threadId, asstId, parser.artifacts);
@@ -562,7 +482,6 @@ async function streamMessageAnthropic({ thread: t, userId, content, model }, emi
 
     const proposals = finalToolUses.filter(u => tools.TOOL_KIND[u.name] === 'propose');
     if (proposals.length > 0) {
-      // Persist assistant message with text + tool_uses, status streaming
       if (asstId == null) {
         asstId = Number(insertMessage.run(threadId, 'assistant', textBuf, JSON.stringify(finalToolUses), 'streaming').lastInsertRowid);
       } else {
@@ -581,7 +500,6 @@ async function streamMessageAnthropic({ thread: t, userId, content, model }, emi
       return;
     }
 
-    // All read tools — finalize the assistant row, run them, loop.
     if (asstId == null) asstId = Number(insertMessage.run(threadId, 'assistant', textBuf, JSON.stringify(finalToolUses), 'final').lastInsertRowid);
     else updateMessageStatus.run('final', textBuf, JSON.stringify(finalToolUses), asstId);
     persistArtifacts(threadId, asstId, parser.artifacts);
@@ -599,15 +517,7 @@ async function streamMessageAnthropic({ thread: t, userId, content, model }, emi
   emit('error', { message: 'Tool loop did not converge in 8 iterations' });
 }
 
-// ────────────────────────────── Groq streaming path ──────────────────────
-//
-// Groq exposes an OpenAI-compatible /chat/completions endpoint. The wire
-// format differs from Anthropic in three ways that matter for us:
-//   - tools spec is wrapped in { type: 'function', function: {...} }
-//   - tool calls come back on assistant.tool_calls (not as content blocks)
-//   - tool results go in role: 'tool' messages with tool_call_id
-// We translate at the boundary so the rest of the chat module (DB rows,
-// proposal flow, audit) is identical across providers.
+// ──────────────────────────────────── Groq / OpenAI-compat streaming ──────
 
 const GROQ_BASE = 'https://api.groq.com/openai/v1';
 
@@ -618,7 +528,6 @@ function toolsToOpenAI(toolsArr) {
   }));
 }
 
-// Convert agent_messages rows into OpenAI-format messages.
 function rowsToMessagesGroq(rows) {
   const out = [];
   for (const r of rows) {
@@ -645,11 +554,6 @@ function rowsToMessagesGroq(rows) {
   return out;
 }
 
-// Streams from any OpenAI-compatible chat-completions endpoint: Groq
-// (cloud) and Ollama (local) both speak this protocol. baseUrl must point
-// at the API root that exposes /chat/completions; apiKey may be null for
-// servers that don't authenticate (Ollama). providerLabel only feeds the
-// audit/error strings.
 async function streamMessageOpenAI({ thread: t, userId, content, model, baseUrl, apiKey, providerLabel }, emit) {
   if (!baseUrl) throw new Error(`${providerLabel}: base URL not set`);
   const threadId = t.id;
@@ -658,7 +562,6 @@ async function streamMessageOpenAI({ thread: t, userId, content, model, baseUrl,
 
   for (let iter = 0; iter < 8; iter++) {
     const messages = rowsToMessagesGroq(listMessages.all(threadId));
-    // OpenAI-compatible servers want the system message inline.
     const fullMessages = [{ role: 'system', content: systemPromptFor(t.agent_kind) }, ...messages];
 
     const headers = { 'Content-Type': 'application/json' };
@@ -682,12 +585,11 @@ async function streamMessageOpenAI({ thread: t, userId, content, model, baseUrl,
     }
 
     let asstId = null;
-    const toolCalls = [];   // [{ id, name, arguments_buf }]
+    const toolCalls = [];
     let finishReason = null;
     let usage = null;
     const parser = new ArtifactStreamParser(emit);
 
-    // Parse SSE stream
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
@@ -735,7 +637,6 @@ async function streamMessageOpenAI({ thread: t, userId, content, model, baseUrl,
     const textBuf = parser.cleanText;
     if (usage) { totalIn += usage.prompt_tokens || 0; totalOut += usage.completion_tokens || 0; }
 
-    // Resolve tool calls' input from accumulated argument JSON
     const finalToolUses = toolCalls.filter(Boolean).map(tc => {
       let input = {};
       try { input = tc.arguments_buf ? JSON.parse(tc.arguments_buf) : {}; } catch (_) { /* keep {} */ }
@@ -771,7 +672,6 @@ async function streamMessageOpenAI({ thread: t, userId, content, model, baseUrl,
       return;
     }
 
-    // All read tools — finalize the assistant row, run them, loop.
     if (asstId == null) asstId = Number(insertMessage.run(threadId, 'assistant', textBuf, JSON.stringify(finalToolUses), 'final').lastInsertRowid);
     else updateMessageStatus.run('final', textBuf, JSON.stringify(finalToolUses), asstId);
     persistArtifacts(threadId, asstId, parser.artifacts);
@@ -790,8 +690,6 @@ async function streamMessageOpenAI({ thread: t, userId, content, model, baseUrl,
 }
 
 function auditAndCost({ userId, threadId, model, content, text, totalIn, totalOut, t0, error }) {
-  // Local (Ollama) models and unknown ids cost nothing — fall back to a
-  // zero-price entry rather than crashing on `prices.input` of undefined.
   const prices = PRICE_TABLE[model] || { input: 0, output: 0 };
   const cost = (totalIn / 1_000_000) * prices.input + (totalOut / 1_000_000) * prices.output;
   insertCall.run(userId, model, content.slice(0, 200), (text || '').slice(0, 200),
@@ -802,8 +700,8 @@ function auditAndCost({ userId, threadId, model, content, text, totalIn, totalOu
 module.exports = {
   isAgentConfigured,
   createThread,
-  sendMessage,       // non-streaming, used by smoke test
-  streamMessage,     // SSE-streaming, used by routes
+  sendMessage,
+  streamMessage,
   recordToolResult,
   _getThread: (id, userId) => getThread.get(id, userId),
   _listMessages: (threadId) => listMessages.all(threadId),
