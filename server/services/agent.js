@@ -29,14 +29,18 @@ const PRICE_TABLE = {
 
 const PROVIDERS = ['anthropic', 'ollama'];
 
-const DEFAULT_MODEL = 'claude-haiku-4-5';
-const OLLAMA_DEFAULT_MODEL = 'mistral';
+const ANTHROPIC_DEFAULT_MODEL = 'claude-haiku-4-5';
+const OLLAMA_DEFAULT_MODEL = 'qwen2.5:latest';
 
 /**
- * True iff ANTHROPIC_API_KEY is present in the environment.
- * Mirrors `isS3Configured` in services/s3.js so callers can degrade gracefully.
+ * True iff any LLM provider is configured (local Ollama or Anthropic).
+ * Local Ollama is primary; Anthropic is the cloud fallback only.
  */
 function isAgentConfigured() {
+  return !!(process.env.ANTHROPIC_API_KEY || process.env.OLLAMA_BASE_URL);
+}
+
+function isAnthropicConfigured() {
   return !!process.env.ANTHROPIC_API_KEY;
 }
 
@@ -58,8 +62,8 @@ function getClient() {
  * Returns the cost in USD for a given token count and model.
  * Unknown models fall back to Haiku 4.5 prices so we never crash on a new model.
  */
-function estimateCost({ tokensIn = 0, tokensOut = 0, model = DEFAULT_MODEL } = {}) {
-  const prices = PRICE_TABLE[model] || PRICE_TABLE[DEFAULT_MODEL];
+function estimateCost({ tokensIn = 0, tokensOut = 0, model = ANTHROPIC_DEFAULT_MODEL } = {}) {
+  const prices = PRICE_TABLE[model] || PRICE_TABLE[ANTHROPIC_DEFAULT_MODEL];
   const inCost = (tokensIn / 1_000_000) * prices.input;
   const outCost = (tokensOut / 1_000_000) * prices.output;
   return inCost + outCost;
@@ -84,8 +88,10 @@ const insertCallStmt = db.prepare(`
 `);
 
 /**
- * Single entry point for all agent calls. Validates task_type, dispatches to
- * the Anthropic API, audits the call to `agent_calls`, and returns the result.
+ * Single entry point for all agent calls. Defaults to local Ollama; falls back
+ * to Anthropic automatically on any error (including credit exhaustion). Pass
+ * provider:'anthropic' to explicitly start with Anthropic — it will still fall
+ * back to Ollama if Anthropic fails and OLLAMA_BASE_URL is set.
  *
  * Privacy: full prompts are NEVER persisted. Only a SHA-256 of (system+user)
  * input plus a 200-char preview are stored.
@@ -98,77 +104,93 @@ async function runTask({ userId, taskType, systemPrompt, userInput, maxTokens, p
     throw new Error('runTask requires string systemPrompt and userInput');
   }
 
-  const useProvider = provider || 'anthropic';
-  if (!PROVIDERS.includes(useProvider)) {
-    throw new Error(`Invalid provider "${useProvider}". Allowed: ${PROVIDERS.join(', ')}`);
-  }
+  // Local Ollama is primary by default. Only switch to Anthropic when explicitly
+  // requested — and even then fall back to Ollama if Anthropic fails.
+  const primaryProvider = (provider && PROVIDERS.includes(provider)) ? provider : 'ollama';
 
-  const useModel =
-    model ||
-    (useProvider === 'ollama'
-      ? (process.env.OLLAMA_MODEL || OLLAMA_DEFAULT_MODEL)
-      : (process.env.ANTHROPIC_MODEL || DEFAULT_MODEL));
+  // Build provider chain: primary first, then the other as fallback if configured.
+  const chain = [primaryProvider];
+  if (primaryProvider === 'ollama' && isAnthropicConfigured()) chain.push('anthropic');
+  if (primaryProvider === 'anthropic' && ollamaClient.isOllamaConfigured()) chain.push('ollama');
 
   const inputHash = sha256(systemPrompt + '\n' + userInput);
   const inputPreview = preview(userInput);
   const startedAt = Date.now();
 
-  let outputText = '';
-  let tokensIn = 0;
-  let tokensOut = 0;
-  let usage = null;
+  let lastErr;
+  for (let i = 0; i < chain.length; i++) {
+    const p = chain[i];
+    if (p === 'anthropic' && !isAnthropicConfigured()) continue;
+    if (p === 'ollama' && !ollamaClient.isOllamaConfigured()) continue;
 
-  try {
-    if (useProvider === 'ollama') {
-      const r = await ollamaClient.chatCompletion({
-        model: useModel,
-        system: systemPrompt,
-        user: userInput,
-        maxTokens: maxTokens || 400
-      });
-      outputText = r.output;
-      tokensIn = r.tokensIn;
-      tokensOut = r.tokensOut;
-      usage = { input_tokens: tokensIn, output_tokens: tokensOut };
-    } else {
-      const client = getClient();
-      const response = await client.messages.create({
-        model: useModel,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userInput }],
-        max_tokens: maxTokens || 200
-      });
-      outputText = (response.content && response.content[0] && response.content[0].text) || '';
-      tokensIn = (response.usage && response.usage.input_tokens) || 0;
-      tokensOut = (response.usage && response.usage.output_tokens) || 0;
-      usage = response.usage;
+    const useModel = model ||
+      (p === 'ollama'
+        ? (process.env.OLLAMA_MODEL || OLLAMA_DEFAULT_MODEL)
+        : (process.env.ANTHROPIC_MODEL || ANTHROPIC_DEFAULT_MODEL));
+
+    if (i > 0) {
+      console.warn(`[agent] ${chain[i - 1]} failed (${lastErr?.message}) — falling back to ${p}`);
     }
-  } catch (err) {
-    const latencyMs = Date.now() - startedAt;
+
     try {
-      insertCallStmt.run(
+      let outputText = '';
+      let tokensIn = 0;
+      let tokensOut = 0;
+      let usage = null;
+
+      if (p === 'ollama') {
+        const r = await ollamaClient.chatCompletion({
+          model: useModel,
+          system: systemPrompt,
+          user: userInput,
+          maxTokens: maxTokens || 400
+        });
+        outputText = r.output;
+        tokensIn = r.tokensIn;
+        tokensOut = r.tokensOut;
+        usage = { input_tokens: tokensIn, output_tokens: tokensOut };
+      } else {
+        const client = getClient();
+        const response = await client.messages.create({
+          model: useModel,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userInput }],
+          max_tokens: maxTokens || 200
+        });
+        outputText = (response.content && response.content[0] && response.content[0].text) || '';
+        tokensIn = (response.usage && response.usage.input_tokens) || 0;
+        tokensOut = (response.usage && response.usage.output_tokens) || 0;
+        usage = response.usage;
+      }
+
+      const latencyMs = Date.now() - startedAt;
+      const costUsd = estimateCost({ tokensIn, tokensOut, model: useModel });
+      const result = insertCallStmt.run(
         userId || null, taskType, useModel,
-        inputHash, inputPreview, null,
-        0, 0, 0, latencyMs,
-        err.message || String(err)
+        inputHash, inputPreview, preview(outputText),
+        tokensIn, tokensOut, costUsd, latencyMs,
+        null
       );
-    } catch (auditErr) {
-      console.error('[agent] Failed to audit error call:', auditErr.message);
+      return { output: outputText, usage, callId: result.lastInsertRowid, provider: p, model: useModel };
+    } catch (err) {
+      lastErr = err;
     }
-    throw err;
   }
 
+  // All providers exhausted — audit the final error and throw.
   const latencyMs = Date.now() - startedAt;
-  const costUsd = estimateCost({ tokensIn, tokensOut, model: useModel });
-
-  const result = insertCallStmt.run(
-    userId || null, taskType, useModel,
-    inputHash, inputPreview, preview(outputText),
-    tokensIn, tokensOut, costUsd, latencyMs,
-    null
-  );
-
-  return { output: outputText, usage, callId: result.lastInsertRowid, provider: useProvider, model: useModel };
+  const auditModel = model || (primaryProvider === 'ollama' ? OLLAMA_DEFAULT_MODEL : ANTHROPIC_DEFAULT_MODEL);
+  try {
+    insertCallStmt.run(
+      userId || null, taskType, auditModel,
+      inputHash, inputPreview, null,
+      0, 0, 0, latencyMs,
+      lastErr?.message || String(lastErr)
+    );
+  } catch (auditErr) {
+    console.error('[agent] Failed to audit error call:', auditErr.message);
+  }
+  throw lastErr || new Error('No LLM provider available (set OLLAMA_BASE_URL or ANTHROPIC_API_KEY)');
 }
 
 module.exports = {
