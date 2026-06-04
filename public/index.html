@@ -6077,7 +6077,7 @@ function renderVaultProposals(data) {
     proposals.forEach(function(p) {
       var inp = p.input || {};
       var label = p.name.replace('propose_','').replace(/_/g,' ');
-      var summary = inp.name || inp.symbol || inp.fund_name || inp.source_name || inp.lender || JSON.stringify(inp).slice(0,60);
+      var summary = inp.name || inp.symbol || inp.fund_name || inp.source_name || inp.lender || inp.tier || JSON.stringify(inp).slice(0,60);
       var details = Object.keys(inp).slice(0,4).map(function(k){return k+': '+inp[k];}).join(' · ');
       html += '<div style="padding:14px;border:1px solid var(--border);border-radius:8px;margin-bottom:10px;background:var(--bg-secondary)">'
         + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">'
@@ -6086,7 +6086,7 @@ function renderVaultProposals(data) {
         + '<div style="font-size:11px;color:var(--text-secondary)">' + esc(details) + '</div>'
         + '</div>'
         + '<div style="display:flex;gap:8px;flex-shrink:0">'
-        + '<button onclick="confirmVaultProposal(' + JSON.stringify(p.id) + ',' + msg.id + ',' + JSON.stringify(JSON.stringify(p.input || {})) + ',this)" '
+        + '<button onclick="confirmVaultProposal(' + JSON.stringify(p.id) + ',' + msg.id + ',' + JSON.stringify(JSON.stringify(p.input || {})) + ',this,' + JSON.stringify(p.name) + ')" '
         + 'style="background:var(--caramel);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">✓ Add</button>'
         + '<button onclick="rejectVaultProposal(' + JSON.stringify(p.id) + ',' + msg.id + ',this)"'
         + ' style="background:var(--bg-primary);color:var(--text-secondary);border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer">✕</button>'
@@ -6098,7 +6098,7 @@ function renderVaultProposals(data) {
   document.getElementById('vaultProposalsContent').innerHTML = html || '<div style="text-align:center;color:var(--text-secondary);padding:40px">✅ No actionable proposals found.</div>';
 }
 
-async function confirmVaultProposal(toolUseId, messageId, inputJson, btn) {
+async function confirmVaultProposal(toolUseId, messageId, inputJson, btn, toolName) {
   btn.disabled = true; btn.textContent = '…';
   var token = localStorage.getItem('fin_token') || '';
   try {
@@ -6111,16 +6111,35 @@ async function confirmVaultProposal(toolUseId, messageId, inputJson, btn) {
     if (d.applied) {
       btn.closest('div[style*="border"]').style.opacity = '0.5';
       btn.textContent = '✓ Added';
-      // Reload proposals panel + relevant page data after a brief delay
       setTimeout(function() {
         openVaultProposals();
         reloadAllDashboardData();
-      }, 600);
+        navigateToProposalTab(toolName);
+      }, 800);
     } else {
       btn.textContent = d.error || 'Failed'; btn.disabled = false;
     }
   } catch (e) {
     btn.textContent = 'Error'; btn.disabled = false;
+  }
+}
+
+function navigateToProposalTab(toolName) {
+  var map = {
+    propose_add_stock:            { page: 'investments', invTab: 'stocks' },
+    propose_add_mutual_fund:      { page: 'investments', invTab: 'mf' },
+    propose_add_nps:              { page: 'investments', invTab: 'nps' },
+    propose_add_earning:          { page: 'earnings' },
+    propose_add_payment:          { page: 'payments' },
+    propose_record_advance_tax:   { page: 'incometax' },
+    propose_mark_handloan_status: { page: 'handloans' }
+  };
+  var dest = map[toolName];
+  if (!dest) return;
+  navigateTo(dest.page);
+  if (dest.invTab) {
+    var invBtn = document.querySelector('#page-investments .tab-btn[onclick*="switchInvTab(\'' + dest.invTab + '\'"]');
+    if (invBtn) switchInvTab(dest.invTab, invBtn);
   }
 }
 
