@@ -885,7 +885,7 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
         <button class="tab-btn" onclick="switchInvTab('savings',this)">💰 Savings</button>
         <button class="tab-btn" onclick="switchInvTab('insurance',this)">🛡️ Insurance</button>
         <button class="tab-btn" onclick="switchInvTab('nps',this)">🏛️ NPS</button>
-        <button class="tab-btn" onclick="switchInvTab('import',this)">&#x1F4E5; Import</button>
+
       </div>
       <div class="tab-content active" id="inv-tab-stocks">
         <div class="section-header">
@@ -978,60 +978,7 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
         <div class="nps-grid" id="npsGrid"></div>
       </div>
 
-      <!-- IMPORT TAB -->
-      <div class="tab-content" id="inv-tab-import">
-        <div style="max-width:680px">
-          <div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:6px">&#x1F4E5; Drop any document and the agent will extract holdings</div>
-          <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">PDF, image, Word, Excel, CSV — anything. The local model reads it, classifies it, and proposes adds in the Agent page for you to confirm. No more per-broker CSV templates.</div>
 
-          <div class="import-dropzone" id="importDropzone" onclick="document.getElementById('importFileInput').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleImportDrop(event)">
-            <div style="font-size:36px;margin-bottom:10px">&#x1F4C2;</div>
-            <div style="font-size:14px;font-weight:600;color:var(--text-primary)">Click or drag &amp; drop a file here</div>
-            <div style="font-size:12px;color:var(--text-secondary);margin-top:6px">Local AI processes it · Confirm changes in the Agent page</div>
-            <input type="file" id="importFileInput" accept=".pdf,.png,.jpg,.jpeg,.gif,.bmp,.tif,.tiff,.webp,.heic,.heif,.csv,.tsv,.xml,.txt,.docx,.xls,.xlsx" style="display:none" onchange="handleImportFile(event)" multiple>
-          </div>
-
-          <div id="importPreviewSection" style="display:none;margin-top:20px">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-              <div>
-                <span style="font-size:14px;font-weight:600;color:var(--text-primary)" id="importDetectedType">Detected: —</span>
-                <span style="font-size:12px;color:var(--text-secondary);margin-left:10px" id="importRowCount"></span>
-              </div>
-              <div style="display:flex;gap:8px;align-items:center">
-                <label style="font-size:12px;color:var(--text-secondary)">Import as:</label>
-                <select id="importTypeOverride" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);padding:5px 9px;border-radius:6px;font-size:12px">
-                  <option value="stocks">Indian Stocks</option>
-                  <option value="us_stocks">US Stocks</option>
-                  <option value="mutual_funds">Mutual Funds</option>
-                  <option value="earnings">Earnings</option>
-                </select>
-              </div>
-            </div>
-            <div class="table-wrap" style="max-height:280px;overflow-y:auto">
-              <table class="data-table" id="importPreviewTable"></table>
-            </div>
-            <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
-              <button class="add-btn" onclick="commitImport()">&#x2714; Import All</button>
-              <button class="add-btn" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border)" onclick="clearImport()">&#x2715; Clear</button>
-            </div>
-            <div id="importResultMsg" style="margin-top:12px;font-size:13px"></div>
-          </div>
-
-          <div style="margin-top:28px;padding:16px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;font-size:12px;color:var(--text-secondary)">
-            <div style="font-weight:700;color:var(--text-primary);margin-bottom:8px">&#x1F4D6; Supported Formats</div>
-            <table style="width:100%;border-collapse:collapse">
-              <tr><td style="padding:4px 8px;font-weight:600;color:var(--text-primary)">Zerodha Console</td><td style="padding:4px 8px">Holdings export: Instrument, ISIN, Qty, Avg cost, LTP...</td></tr>
-              <tr><td style="padding:4px 8px;font-weight:600;color:var(--text-primary)">Groww Stocks</td><td style="padding:4px 8px">Symbol, Company Name, Quantity, Average Price...</td></tr>
-              <tr><td style="padding:4px 8px;font-weight:600;color:var(--text-primary)">Groww / CAMS MF</td><td style="padding:4px 8px">Scheme Name, Units, Avg NAV, Fund Type...</td></tr>
-              <tr><td style="padding:4px 8px;font-weight:600;color:var(--text-primary)">Generic Earnings</td><td style="padding:4px 8px">Source Name, Amount, Frequency, Source Type</td></tr>
-            </table>
-          </div>
-
-          <div style="margin-top:16px;padding:12px 16px;background:rgba(198,134,66,.08);border:1px solid rgba(198,134,66,.25);border-radius:10px;font-size:12px;color:var(--text-secondary)">
-            &#x26A0;&#xFE0F; Import adds new rows — it does not update or deduplicate existing holdings. Review the preview before confirming.
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- LIABILITIES PAGE -->
@@ -1134,6 +1081,17 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
 
       <!-- SUB-TAB: UPLOAD -->
       <div class="vault-subtab-content active" id="vault-tab-upload">
+        <!-- Processing status banner — shown when uploads are being processed or proposals are ready -->
+        <div id="vaultProposalsBanner" style="display:none;margin-bottom:16px;padding:14px 18px;background:rgba(198,134,66,.12);border:1px solid rgba(198,134,66,.4);border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span id="vaultBannerIcon" style="font-size:20px">⏳</span>
+            <div>
+              <div style="font-size:14px;font-weight:600;color:var(--text-primary)" id="vaultBannerTitle">Processing uploads…</div>
+              <div style="font-size:12px;color:var(--text-secondary)" id="vaultBannerSub"></div>
+            </div>
+          </div>
+          <button id="vaultReviewBtn" onclick="openVaultProposals()" style="display:none;background:var(--caramel);color:#fff;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer">Review Proposals →</button>
+        </div>
         <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInputHidden').click()" ondragover="vaultDragOver(event)" ondragleave="vaultDragLeave(event)" ondrop="vaultDrop(event)">
           <div class="upload-icon">&#x1F4E4;</div>
           <div class="upload-label">Drag files here or click to browse</div>
@@ -3164,13 +3122,13 @@ function renderRecentUploads() {
     var catLabel = VAULT_CATS[f.category] ? VAULT_CATS[f.category].label : f.category;
     var subcatLabel = VAULT_SUBCAT_LABELS[f.subcategory]||f.subcategory;
     var needsRerun = !f.processed_at || !!f.processing_error;
-    return '<tr>'
+    return '<tr data-vault-file-id="'+f.id+'">'
       +'<td><span style="font-size:14px;margin-right:6px">&#x1F4C4;</span><strong>'+esc(f.name)+'</strong></td>'
       +'<td>'+esc(catLabel)+' / '+esc(subcatLabel)+'</td>'
       +'<td>'+esc(f.fy)+'</td>'
       +'<td>'+esc(f.size)+'</td>'
       +'<td>'+esc(f.date)+'</td>'
-      +'<td>'+_processingPill(f)+'</td>'
+      +'<td class="vault-file-status">'+_processingPill(f)+'</td>'
       +'<td style="white-space:nowrap">'
       +'<button class="action-btn" onclick="downloadVaultFile('+f.id+')" style="margin-right:4px" title="Download">&#x2B07;</button>'
       +(needsRerun ? '<button class="action-btn" onclick="reprocessVaultFile('+f.id+')" style="margin-right:4px" title="Re-run agent on this file">&#x21BB;</button>' : '')
@@ -3425,6 +3383,7 @@ async function srConfirm() {
   var catLabel = VAULT_CATS[serverFile.category] ? VAULT_CATS[serverFile.category].label : serverFile.category;
   var subcatLabel = VAULT_SUBCAT_LABELS[serverFile.subcategory] || serverFile.subcategory;
   showToast('✅ ' + newFile.name + ' uploaded to ' + catLabel + '/' + subcatLabel, 'success');
+  startVaultStatusPoll();
 
   // Auto-process kicks off server-side; surface a hint and let user
   // jump to the Agent page where proposals will appear.
@@ -4161,8 +4120,6 @@ tr.earn-auto td{color:var(--text-secondary);font-style:italic}
 
 /* Tax estimate card */
 .tax-estimate-card{background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:18px;margin-top:20px}
-.import-dropzone{border:2px dashed var(--caramel);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:background .2s,border-color .2s}
-.import-dropzone:hover,.import-dropzone.drag-over{background:rgba(198,134,66,.08);border-color:var(--caramel)}
 
 /* Profile manage */
 .profile-manage-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
@@ -5331,118 +5288,6 @@ function togglePropResearch() {
   panel.style.display = open ? 'none' : '';
   if (chevron) chevron.textContent = open ? '▼' : '▲';
 }
-
-// ─── CSV IMPORT ───────────────────────────────────────────────────────────────
-var importRows = [];
-var importDetectedType = 'stocks';
-
-// Import is now LLM-driven: any file the user drops goes straight to the
-// vault, where the watcher / processUpload pipeline feeds it to the local
-// model. The model proposes adds via propose_* tools and the user confirms
-// them in the Agent page. No more per-broker CSV parsing on the client.
-async function _vaultUpload(file) {
-  var token = localStorage.getItem('fin_token') || '';
-  var fd = new FormData();
-  fd.append('file', file);
-  var resp = await fetch('/api/vault/upload', {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + token },
-    body: fd
-  });
-  var data = null;
-  try { data = await resp.json(); } catch (_) {}
-  if (!resp.ok) {
-    showToast((data && data.error) || ('Upload failed: HTTP ' + resp.status), 'error');
-    return false;
-  }
-  return true;
-}
-
-async function _handleImportFiles(files) {
-  if (!files || !files.length) return;
-  var zone = document.getElementById('importDropzone');
-  if (zone) zone.classList.add('drag-over');
-  var ok = 0;
-  for (var i = 0; i < files.length; i++) {
-    if (await _vaultUpload(files[i])) ok++;
-  }
-  if (zone) zone.classList.remove('drag-over');
-  if (ok > 0) {
-    showToast(ok + (ok === 1 ? ' file' : ' files') + ' sent to the vault — open the Agent page to confirm proposals.', 'success');
-  }
-  var inp = document.getElementById('importFileInput');
-  if (inp) inp.value = '';
-}
-
-function handleImportFile(e) { _handleImportFiles(e.target.files); }
-
-function handleImportDrop(e) {
-  e.preventDefault();
-  document.getElementById('importDropzone').classList.remove('drag-over');
-  _handleImportFiles(e.dataTransfer.files);
-}
-
-async function previewImport(content) {
-  var r = await apiPost('/api/import/preview', {content: content});
-  if (!r || r.error) { showToast(r ? r.error : 'Parse failed', 'error'); return; }
-  importRows = r.all_rows || [];
-  importDetectedType = r.detected_type !== 'unknown' ? r.detected_type : 'stocks';
-  var section = document.getElementById('importPreviewSection');
-  section.style.display = '';
-  var TYPE_LABEL = {stocks:'Indian Stocks', mutual_funds:'Mutual Funds', earnings:'Earnings', unknown:'Unknown (select below)'};
-  document.getElementById('importDetectedType').textContent = 'Detected: ' + (TYPE_LABEL[r.detected_type] || r.detected_type || 'Unknown');
-  var hint = '';
-  if (r.detected_type === 'unknown' || !importRows.length) {
-    hint = '<div style="color:var(--accent-red);font-size:12px;margin-top:6px">Couldn\'t auto-detect this format. Headers seen: <code>'+esc((r.headers||[]).join(', '))+'</code>. Pick a type below to import anyway.</div>';
-  }
-  document.getElementById('importRowCount').innerHTML = (r.row_count||0) + ' rows in file, ' + importRows.length + ' importable.' + hint;
-  document.getElementById('importTypeOverride').value = importDetectedType;
-  document.getElementById('importResultMsg').innerHTML = '';
-  renderImportPreview(importRows, importDetectedType);
-}
-
-function renderImportPreview(rows, type) {
-  var t = document.getElementById('importPreviewTable');
-  if (!rows.length) { t.innerHTML = '<tr><td>No rows detected</td></tr>'; return; }
-  var keys = Object.keys(rows[0]);
-  t.innerHTML = '<thead><tr>'+keys.map(function(k){return '<th>'+k+'</th>'}).join('')+'</tr></thead>'
-    +'<tbody>'+rows.slice(0,10).map(function(r){
-      return '<tr>'+keys.map(function(k){return '<td>'+esc(String(r[k]||''))+'</td>'}).join('')+'</tr>';
-    }).join('')+(rows.length>10?'<tr><td colspan="'+keys.length+'" style="color:var(--text-secondary);text-align:center">... and '+(rows.length-10)+' more rows</td></tr>':'')
-    +'</tbody>';
-}
-
-document.addEventListener('change', function(e){
-  if (e.target.id==='importTypeOverride') {
-    importDetectedType = e.target.value;
-    renderImportPreview(importRows, importDetectedType);
-  }
-});
-
-async function commitImport() {
-  if (!importRows.length) { showToast('No rows to import','error'); return; }
-  var type = document.getElementById('importTypeOverride').value || importDetectedType;
-  var r = await apiPost('/api/import/commit', {type: type, rows: importRows});
-  var msg = document.getElementById('importResultMsg');
-  if (!r || r.error) { showToast(r?r.error:'Import failed','error'); return; }
-  var ins = r.inserted || 0, upd = r.updated || 0;
-  msg.innerHTML = '<span style="color:var(--accent-green);font-weight:700">&#x2714; '+ins+' new, '+upd+' updated</span>'
-    +(r.skipped?' <span style="color:var(--text-secondary)">· '+r.skipped+' skipped</span>':'')
-    +(r.errors&&r.errors.length?'<div style="color:var(--accent-red);font-size:11px;margin-top:6px">Errors: '+r.errors.join(', ')+'</div>':'');
-  showToast(ins+' new, '+upd+' updated', 'success');
-  // Refresh relevant data — loadAllData re-fetches stocks/MFs/etc.
-  if (type==='stocks' || type==='mutual_funds') {
-    if (typeof loadAllData === 'function') loadAllData();
-  }
-  if (type==='earnings' && typeof loadEarnings === 'function') loadEarnings();
-}
-
-function clearImport() {
-  importRows = [];
-  document.getElementById('importPreviewSection').style.display = 'none';
-  document.getElementById('importFileInput').value = '';
-}
-
 // ─── AGENT CHAT PAGE ────────────────────────────────────────────────────────
 var agentState = {
   threads: [],
@@ -6113,7 +5958,230 @@ function agentMdInline(s) {
   s = s.replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
   return s;
 }
+
+// ── Vault proposals panel ──────────────────────────────────────────────────
+
+var _vaultPollTimer = null;
+var _vaultThreadId  = null;
+
+function startVaultStatusPoll() {
+  if (_vaultPollTimer) return;
+  _vaultPollTimer = setInterval(checkVaultProcessingStatus, 5000);
+  checkVaultProcessingStatus();
+}
+
+function stopVaultStatusPoll() {
+  if (_vaultPollTimer) { clearInterval(_vaultPollTimer); _vaultPollTimer = null; }
+}
+
+async function checkVaultProcessingStatus() {
+  var token = localStorage.getItem('fin_token') || '';
+  try {
+    var r = await fetch('/api/vault/processing-status', { headers: { Authorization: 'Bearer ' + token } });
+    if (!r.ok) return;
+    var data = await r.json();
+    _vaultThreadId = data.threadId;
+
+    var banner = document.getElementById('vaultProposalsBanner');
+    var bannerIcon = document.getElementById('vaultBannerIcon');
+    var bannerTitle = document.getElementById('vaultBannerTitle');
+    var bannerSub = document.getElementById('vaultBannerSub');
+    var reviewBtn = document.getElementById('vaultReviewBtn');
+    if (!banner) return;
+
+    // Check if any files are still processing
+    var processing = data.recentFiles.filter(function(f) { return !f.processed_at && !f.processing_error; });
+    var errors = data.recentFiles.filter(function(f) { return !!f.processing_error; });
+
+    if (data.pendingCount > 0) {
+      banner.style.display = 'flex';
+      bannerIcon.textContent = '💡';
+      bannerTitle.textContent = data.pendingCount + ' proposal' + (data.pendingCount > 1 ? 's' : '') + ' ready for review';
+      bannerSub.textContent = 'The agent extracted entries from your uploads. Review and confirm to add them to your dashboard.';
+      reviewBtn.style.display = 'block';
+      stopVaultStatusPoll();
+    } else if (processing.length > 0) {
+      banner.style.display = 'flex';
+      bannerIcon.textContent = '⏳';
+      bannerTitle.textContent = 'Processing ' + processing.length + ' file' + (processing.length > 1 ? 's' : '') + '…';
+      bannerSub.textContent = 'The agent is reading your uploads and will propose entries shortly.';
+      reviewBtn.style.display = 'none';
+    } else if (errors.length > 0 && data.pendingCount === 0) {
+      banner.style.display = 'flex';
+      bannerIcon.textContent = '⚠️';
+      bannerTitle.textContent = errors.length + ' file' + (errors.length > 1 ? 's' : '') + ' could not be processed';
+      bannerSub.textContent = errors[0].processing_error || 'Check the file and try again.';
+      reviewBtn.style.display = 'none';
+      stopVaultStatusPoll();
+    } else {
+      banner.style.display = 'none';
+      stopVaultStatusPoll();
+    }
+
+    // Update status icons in the recent files table
+    refreshVaultFileStatuses(data.recentFiles);
+  } catch (e) {
+    console.warn('[vault] status poll error:', e.message);
+  }
+}
+
+function refreshVaultFileStatuses(files) {
+  files.forEach(function(f) {
+    var row = document.querySelector('[data-vault-file-id="' + f.id + '"]');
+    if (!row) return;
+    var statusCell = row.querySelector('.vault-file-status');
+    if (!statusCell) return;
+    if (!f.processed_at && !f.processing_error) {
+      statusCell.innerHTML = '<span title="Processing">⏳</span>';
+    } else if (f.processing_error) {
+      statusCell.innerHTML = '<span title="' + f.processing_error.replace(/"/g,"'") + '">❌</span>';
+    } else {
+      statusCell.innerHTML = '<span title="Processed">✅</span>';
+    }
+  });
+}
+
+async function openVaultProposals() {
+  document.getElementById('vaultProposalsModal').style.display = 'block';
+  if (!_vaultThreadId) {
+    document.getElementById('vaultProposalsContent').innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:40px">No proposals thread found.</div>';
+    return;
+  }
+  var token = localStorage.getItem('fin_token') || '';
+  try {
+    var r = await fetch('/api/chat/threads/' + _vaultThreadId, { headers: { Authorization: 'Bearer ' + token } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    var data = await r.json();
+    renderVaultProposals(data);
+  } catch (e) {
+    document.getElementById('vaultProposalsContent').innerHTML = '<div style="text-align:center;color:var(--danger,#dc2626);padding:40px">Failed to load proposals: ' + e.message + '</div>';
+  }
+}
+
+function closeVaultProposals() {
+  document.getElementById('vaultProposalsModal').style.display = 'none';
+}
+
+function renderVaultProposals(data) {
+  var msgs = (data.messages || []).filter(function(m) { return m.role === 'assistant' && m.status === 'streaming'; });
+  if (!msgs.length) {
+    document.getElementById('vaultProposalsContent').innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:40px">✅ No pending proposals — all caught up!</div>';
+    checkVaultProcessingStatus();
+    return;
+  }
+  var html = '';
+  msgs.forEach(function(msg) {
+    var toolUses = msg.tool_uses ? JSON.parse(msg.tool_uses) : [];
+    var proposals = toolUses.filter(function(u) { return u && u.name && u.name.indexOf('propose_') === 0; });
+    if (!proposals.length) return;
+    proposals.forEach(function(p) {
+      var inp = p.input || {};
+      var label = p.name.replace('propose_','').replace(/_/g,' ');
+      var summary = inp.name || inp.symbol || inp.fund_name || inp.source_name || inp.lender || JSON.stringify(inp).slice(0,60);
+      var details = Object.keys(inp).slice(0,4).map(function(k){return k+': '+inp[k];}).join(' · ');
+      html += '<div style="padding:14px;border:1px solid var(--border);border-radius:8px;margin-bottom:10px;background:var(--bg-secondary)">'
+        + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">'
+        + '<div>'
+        + '<div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:4px">' + esc(label) + ': ' + esc(String(summary)) + '</div>'
+        + '<div style="font-size:11px;color:var(--text-secondary)">' + esc(details) + '</div>'
+        + '</div>'
+        + '<div style="display:flex;gap:8px;flex-shrink:0">'
+        + '<button onclick="confirmVaultProposal(' + JSON.stringify(p.id) + ',' + msg.id + ',' + JSON.stringify(JSON.stringify(p.input || {})) + ',this)" '
+        + 'style="background:var(--caramel);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">✓ Add</button>'
+        + '<button onclick="rejectVaultProposal(' + JSON.stringify(p.id) + ',' + msg.id + ',this)"'
+        + ' style="background:var(--bg-primary);color:var(--text-secondary);border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer">✕</button>'
+        + '</div>'
+        + '</div>'
+        + '</div>';
+    });
+  });
+  document.getElementById('vaultProposalsContent').innerHTML = html || '<div style="text-align:center;color:var(--text-secondary);padding:40px">✅ No actionable proposals found.</div>';
+}
+
+async function confirmVaultProposal(toolUseId, messageId, inputJson, btn) {
+  btn.disabled = true; btn.textContent = '…';
+  var token = localStorage.getItem('fin_token') || '';
+  try {
+    var r = await fetch('/api/chat/threads/' + _vaultThreadId + '/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ tool_use_id: toolUseId, message_id: messageId, decision: 'confirm', mutation: null })
+    });
+    var d = await r.json();
+    if (d.applied) {
+      btn.closest('div[style*="border"]').style.opacity = '0.5';
+      btn.textContent = '✓ Added';
+      // Reload proposals panel + relevant page data after a brief delay
+      setTimeout(function() {
+        openVaultProposals();
+        reloadAllDashboardData();
+      }, 600);
+    } else {
+      btn.textContent = d.error || 'Failed'; btn.disabled = false;
+    }
+  } catch (e) {
+    btn.textContent = 'Error'; btn.disabled = false;
+  }
+}
+
+async function rejectVaultProposal(toolUseId, messageId, btn) {
+  btn.disabled = true;
+  var token = localStorage.getItem('fin_token') || '';
+  try {
+    await fetch('/api/chat/threads/' + _vaultThreadId + '/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ tool_use_id: toolUseId, message_id: messageId, decision: 'reject' })
+    });
+    btn.closest('div[style*="border"]').style.opacity = '0.4';
+    btn.textContent = 'Skipped';
+    setTimeout(function() { openVaultProposals(); }, 400);
+  } catch (e) {
+    btn.disabled = false;
+  }
+}
+
+function reloadAllDashboardData() {
+  // Reload whichever data-loading functions exist in the page
+  var fns = ['loadInvestments','loadStocks','loadMutualFunds','loadLoans','loadLiabilities',
+             'loadNetworth','loadEarnings','loadPayments','loadTax','loadSavings',
+             'loadInsurance','loadNPS','loadProperties','loadTransactions'];
+  fns.forEach(function(fn) { try { if (typeof window[fn] === 'function') window[fn](); } catch(_) {} });
+}
+
+// Auto-start vault polling when the vault page tab is active
+// Hook into the existing navigateTo function
+(function() {
+  var _origNavigateTo = window.navigateTo;
+  if (typeof _origNavigateTo === 'function') {
+    window.navigateTo = function(page) {
+      _origNavigateTo.apply(this, arguments);
+      if (page === 'vault') startVaultStatusPoll();
+      else stopVaultStatusPoll();
+    };
+  }
+})();
+
 </script>
+
+  <!-- Vault Proposals Modal -->
+  <div id="vaultProposalsModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;overflow-y:auto">
+    <div style="max-width:720px;margin:40px auto;background:var(--bg-primary);border:1px solid var(--border);border-radius:14px;overflow:hidden">
+      <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--text-primary)">📥 Pending Proposals</div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">Review what the agent extracted from your uploads</div>
+        </div>
+        <button onclick="closeVaultProposals()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
+      </div>
+      <div id="vaultProposalsContent" style="padding:20px 24px;min-height:120px">
+        <div style="text-align:center;color:var(--text-secondary);padding:40px">Loading proposals…</div>
+      </div>
+      <div style="padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px">
+        <button onclick="closeVaultProposals()" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:7px;padding:8px 18px;font-size:13px;cursor:pointer">Close</button>
+      </div>
+    </div>
+  </div>
 
 </body>
 </html>

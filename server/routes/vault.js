@@ -8,15 +8,15 @@ const vault   = require('../services/localVault');
 const { classifyDocument } = require('../services/smartRouter');
 const { assertProfileOwnership } = require('../middleware/profileGuard');
 
-// ─── Multer: store in memory; we write to vault ourselves ─────────────────
+// ─── Multer: store in memory; we write to vault ourselves ─────────────────────
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 }  // 50 MB max
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────────
 // GET /api/vault/files
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────────
 router.get('/files', (req, res) => {
   const userId = req.user.id;
   const { fy, category, subcategory, profile_id } = req.query;
@@ -38,12 +38,12 @@ router.get('/files', (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────────
 // POST /api/vault/upload  (multipart/form-data, field name: "file")
 // Replaces the old two-step upload-url + confirm-upload flow.
 // Body fields (form): category, subcategory, financialYear, description,
 //                     linkedType, linkedId, profileId
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────────
 router.post('/upload', upload.single('file'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file attached (field name must be "file")' });
@@ -137,9 +137,9 @@ router.post('/upload', upload.single('file'), async (req, res) => {
   res.status(201).json({ message: 'File uploaded successfully', file });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────────
 // POST /api/vault/classify  — keyword classification hint
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────────
 router.post('/classify', (req, res) => {
   const { filename, description, linkedType, linkedId } = req.body;
   if (!filename && !description) {
@@ -148,9 +148,9 @@ router.post('/classify', (req, res) => {
   res.json(classifyDocument(filename, description, linkedType, linkedId));
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────────
 // GET /api/vault/download/:fileId  — serves file directly
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────────
 router.get('/download/:fileId', (req, res) => {
   const userId   = req.user.id;
   const { fileId } = req.params;
@@ -171,9 +171,9 @@ router.get('/download/:fileId', (req, res) => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────────
 // DELETE /api/vault/files/:fileId
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────────
 router.delete('/files/:fileId', (req, res) => {
   const userId   = req.user.id;
   const { fileId } = req.params;
@@ -186,11 +186,11 @@ router.delete('/files/:fileId', (req, res) => {
   res.json({ message: 'File deleted', fileId: parseInt(fileId) });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────────
 // POST /api/vault/files/:fileId/reprocess — re-run the agent on a file
 // Resets processed_at + processing_error and enqueues the file again. Useful
 // when the local model was unavailable or returned a bad extraction.
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────────
 router.post('/files/:fileId/reprocess', (req, res) => {
   const userId = req.user.id;
   const { fileId } = req.params;
@@ -213,9 +213,9 @@ router.post('/files/:fileId/reprocess', (req, res) => {
   res.json({ message: 'Reprocess queued', fileId: parseInt(fileId) });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────────
 // GET /api/vault/fy-summary
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────────
 router.get('/fy-summary', (req, res) => {
   const userId = req.user.id;
   const { profile_id } = req.query;
@@ -239,9 +239,9 @@ router.get('/fy-summary', (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────────
 // GET /api/vault/stats
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────────
 router.get('/stats', (req, res) => {
   const userId = req.user.id;
   try {
@@ -265,9 +265,9 @@ router.get('/stats', (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────────
 // POST /api/vault/ca-access  — generate temporary CA link
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────────
 router.post('/ca-access', (req, res) => {
   const userId = req.user.id;
   const { financialYear, categories, expiresInHours = 48, maxUses = 5 } = req.body;
@@ -290,9 +290,41 @@ router.post('/ca-access', (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────────
+// GET /api/vault/processing-status
+// Returns pending-proposals count + recent file statuses. Used by the vault
+// page to drive the live "proposals ready" banner without polling the full files list.
+// ───────────────────────────────────────────────────────────────────────────────
+router.get('/processing-status', (req, res) => {
+  const userId = req.user.id;
+  // Find the upload_processor thread for this user
+  const thread = db.prepare(
+    `SELECT id FROM agent_threads WHERE user_id = ? AND agent_kind = 'upload_processor' ORDER BY id ASC LIMIT 1`
+  ).get(userId);
+
+  let pendingCount = 0;
+  let threadId = null;
+  if (thread) {
+    threadId = thread.id;
+    // Count assistant messages in streaming state (= proposals waiting for user action)
+    const row = db.prepare(
+      `SELECT COUNT(*) as n FROM agent_messages WHERE thread_id = ? AND role = 'assistant' AND status = 'streaming'`
+    ).get(threadId);
+    pendingCount = row ? row.n : 0;
+  }
+
+  // Recent files with their processing state
+  const recentFiles = db.prepare(
+    `SELECT id, original_filename, category, subcategory, financial_year, processed_at, processing_error, agent_thread_id, created_at
+     FROM vault_files WHERE user_id = ? ORDER BY id DESC LIMIT 20`
+  ).all(userId);
+
+  res.json({ pendingCount, threadId, recentFiles });
+});
+
+// ───────────────────────────────────────────────────────────────────────────────
 // GET /api/vault/ca/:token  — PUBLIC (no auth middleware), mounted in index.js
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────────
 async function caAccess(req, res) {
   const { token } = req.params;
   if (!token || token.length < 32) return res.status(400).json({ error: 'Invalid token' });

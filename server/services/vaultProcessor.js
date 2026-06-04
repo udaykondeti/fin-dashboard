@@ -103,6 +103,9 @@ async function processUpload(fileId, userId) {
   const extracted = await textExtract.extractText(buffer, file.mime_type, file.original_filename);
   const threadId  = getOrCreatePendingThread(userId);
 
+  // Store threadId on the vault_files row so the status endpoint can surface it.
+  try { db.prepare('UPDATE vault_files SET agent_thread_id = ? WHERE id = ?').run(threadId, fileId); } catch (_) {}
+
   // ── Dedup level 2: extracted text hash ──────────────────────────────────
   if (extracted.text.length >= 50) {
     const textHash = crypto.createHash('sha256').update(extracted.text.trim()).digest('hex');
