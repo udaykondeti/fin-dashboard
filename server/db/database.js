@@ -611,6 +611,7 @@ function runMigrations() {
         CREATE INDEX IF NOT EXISTS idx_vault_dedup_keys_user ON vault_dedup_keys(user_id, dedup_key);
       `);
     } },
+    { id: 35, name: 'vault_files.agent_thread_id', run: () => addColumnIfMissing('vault_files', 'agent_thread_id', 'ALTER TABLE vault_files ADD COLUMN agent_thread_id INTEGER') },
   ];
 
   const appliedIds = new Set(
