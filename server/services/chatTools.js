@@ -201,6 +201,35 @@ const PROPOSE = {
         notes: notes || null
       }}
     };
+  },
+
+  propose_add_nps(input, { userId }) {
+    const { pran, tier, total_invested, current_value, equity_pct, bonds_pct, govt_pct, notes } = input || {};
+    if (!tier || total_invested == null || current_value == null) throw new Error('tier, total_invested, current_value required');
+    if (!['Tier I', 'Tier II'].includes(tier)) throw new Error("tier must be 'Tier I' or 'Tier II'");
+    const existing = pran
+      ? db.prepare(`SELECT id, tier, current_value FROM nps_accounts WHERE user_id = ? AND pran = ? LIMIT 1`).get(userId, pran)
+      : db.prepare(`SELECT id, tier, current_value FROM nps_accounts WHERE user_id = ? AND tier = ? LIMIT 1`).get(userId, tier);
+    const eq = Number(equity_pct) || 75;
+    const bd = Number(bonds_pct)  || 15;
+    const gv = Number(govt_pct)   || 10;
+    return {
+      summary: `Add NPS ${tier}` +
+               (pran ? ` (PRAN ${pran})` : '') +
+               ` — invested ₹${Number(total_invested).toLocaleString('en-IN')}, current ₹${Number(current_value).toLocaleString('en-IN')}` +
+               ` (${eq}E/${bd}B/${gv}G)`,
+      duplicate: existing ? { id: existing.id, hint: `NPS ${tier} already on file: current value ₹${Number(existing.current_value).toLocaleString('en-IN')}.` } : null,
+      mutation: { method: 'POST', path: '/api/investments/nps', body: {
+        pran: pran || null,
+        tier,
+        total_invested: Number(total_invested),
+        current_value:  Number(current_value),
+        equity_pct: eq,
+        bonds_pct:  bd,
+        govt_pct:   gv,
+        notes: notes || null
+      }}
+    };
   }
 };
 
@@ -309,6 +338,19 @@ const TOOLS = [
         avg_nav:   { type: 'number', minimum: 0 },
         fund_type: { type: 'string', enum: ['Equity', 'Debt', 'Hybrid', 'ELSS', 'Index', 'ETF', 'Other'] },
         notes:     { type: 'string' }
+      }, additionalProperties: false } },
+
+  { name: 'propose_add_nps', description: "Propose adding an NPS (National Pension System) account holding. The user will explicitly confirm.",
+    input_schema: { type: 'object', required: ['tier', 'total_invested', 'current_value'],
+      properties: {
+        pran:           { type: 'string', description: 'Permanent Retirement Account Number (optional).' },
+        tier:           { type: 'string', enum: ['Tier I', 'Tier II'], description: "Account tier." },
+        total_invested: { type: 'number', minimum: 0, description: 'Total amount invested so far (₹).' },
+        current_value:  { type: 'number', minimum: 0, description: 'Current corpus value (₹).' },
+        equity_pct:     { type: 'number', minimum: 0, maximum: 100, description: 'Equity allocation %. Defaults to 75.' },
+        bonds_pct:      { type: 'number', minimum: 0, maximum: 100, description: 'Corporate bonds %. Defaults to 15.' },
+        govt_pct:       { type: 'number', minimum: 0, maximum: 100, description: 'Government securities %. Defaults to 10.' },
+        notes:          { type: 'string' }
       }, additionalProperties: false } }
 ];
 

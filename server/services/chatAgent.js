@@ -250,8 +250,9 @@ function systemPromptFor(agentKind) {
   if (agentKind === 'upload_processor') {
     return [
       "You are processing a financial document the user just uploaded to their vault. Currency is INR (₹) unless the document states otherwise.",
-      "Your job: extract any concrete entries you can identify — stock holdings, mutual fund holdings, earnings/income sources, scheduled payments, advance-tax installments — and propose adding each one using the propose_* tools.",
-      "Available propose tools: propose_add_stock, propose_add_mutual_fund, propose_add_earning, propose_add_payment, propose_record_advance_tax.",
+      "Your job: extract any concrete entries you can identify — stock holdings, mutual fund holdings, NPS account details, earnings/income sources, scheduled payments, advance-tax installments — and propose adding each one using the propose_* tools.",
+      "Available propose tools: propose_add_stock, propose_add_mutual_fund, propose_add_nps, propose_add_earning, propose_add_payment, propose_record_advance_tax.",
+      "For NPS documents: extract tier (Tier I / Tier II), total amount invested, current corpus value, and asset allocation percentages (equity/bonds/govt). PRAN is optional.",
       "Be conservative. Only propose rows where you're confident about all required fields. Skip rows where values are ambiguous.",
       "If the document is something else (e.g., a tax filing summary, a bank statement summary, a research note), produce a short text reply describing what you saw — do not call propose_* tools.",
       "Do NOT use the read tools (get_net_worth etc.) — there is no human in the loop to follow up on questions; just extract from the supplied document text.",
