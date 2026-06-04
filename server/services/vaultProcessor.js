@@ -113,8 +113,8 @@ async function processUpload(fileId, userId) {
     let dupByText = null;
     try {
       dupByText = db.prepare(
-        `SELECT vault_file_id FROM vault_dedup_keys WHERE user_id = ? AND dedup_key = ? LIMIT 1`
-      ).get(userId, dedupKey);
+        `SELECT vault_file_id FROM vault_dedup_keys WHERE user_id = ? AND dedup_key = ? AND vault_file_id != ? LIMIT 1`
+      ).get(userId, dedupKey, fileId);
     } catch (_) { /* table may not exist on older DBs — non-fatal */ }
 
     if (dupByText) {
