@@ -94,28 +94,62 @@ async function _ingestOne(absPath) {
 }
 
 let started = false;
+let activeWatcher = null;
+let inboxRoot = null;
 
-function start() {
-  if (started) return;
-  const inboxRoot = path.join(vault.getVaultRoot(), INBOX_DIRNAME);
-  fs.mkdirSync(inboxRoot, { recursive: true });
+// Walk _inbox/ once and ingest any files we find. Acts as both the periodic
+// safety-net (for cases where chokidar silently detached over virtiofs on
+// docker bind-mounts) AND the bootstrap pickup. _ingestOne removes the
+// source file once it lands in the canonical key, so re-scans don't re-queue.
+async function _rescan() {
+  if (!inboxRoot) return;
+  let entries;
+  try { entries = fs.readdirSync(inboxRoot, { withFileTypes: true }); }
+  catch (e) { console.error('[vaultWatcher] rescan readdir failed:', e.message); return; }
+  for (const dirent of entries) {
+    if (dirent.isFile() && !dirent.name.startsWith('.')) {
+      const abs = path.join(inboxRoot, dirent.name);
+      try { await _ingestOne(abs); }
+      catch (e) { console.error('[vaultWatcher] rescan ingest:', e.message); }
+    }
+  }
+}
 
-  // chokidar handles cross-platform watching reliably (esp. on macOS where
-  // fs.watch fires inconsistent events).
+function _createWatcher() {
   const chokidar = require('chokidar');
-  const watcher = chokidar.watch(inboxRoot, {
-    ignored: /(^|[/\\])\../,   // skip dotfiles
+  const w = chokidar.watch(inboxRoot, {
+    ignored: /(^|[/\\])\../,
     persistent: true,
-    ignoreInitial: false,      // also pick up files dropped before boot
+    ignoreInitial: false,
     depth: 5,
     awaitWriteFinish: { stabilityThreshold: 1500, pollInterval: 250 }
   });
+  w.on('add', p => { _ingestOne(p).catch(e => console.error('[vaultWatcher] ingest:', e)); })
+   .on('error', async (e) => {
+     // chokidar sometimes silently stops firing 'add' after an error on
+     // virtiofs (EACCES, EBUSY). Tear it down and recreate — cheaper than
+     // letting files sit in _inbox/ unprocessed.
+     console.error('[vaultWatcher] watch error — recreating watcher:', e && e.message);
+     try { await w.close(); } catch (_) {}
+     setTimeout(() => { activeWatcher = _createWatcher(); }, 1000);
+   });
+  return w;
+}
 
-  watcher
-    .on('add', p => { _ingestOne(p).catch(e => console.error('[vaultWatcher] ingest:', e)); })
-    .on('error', e => console.error('[vaultWatcher] watch error:', e));
+function start() {
+  if (started) return;
+  inboxRoot = path.join(vault.getVaultRoot(), INBOX_DIRNAME);
+  fs.mkdirSync(inboxRoot, { recursive: true });
 
+  activeWatcher = _createWatcher();
   console.log(`[vaultWatcher] watching ${inboxRoot}`);
+
+  // Periodic safety-net rescan. Catches files chokidar missed (silent
+  // virtiofs hiccups, watcher recreate race, file dropped during restart).
+  // _ingestOne is idempotent because it deletes the inbox copy after
+  // saving to the canonical key.
+  setInterval(() => { _rescan().catch(e => console.error('[vaultWatcher] periodic rescan:', e.message)); }, 60_000);
+
   started = true;
 }
 
