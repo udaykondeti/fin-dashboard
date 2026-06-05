@@ -77,23 +77,25 @@ app.use(cors((req, callback) => {
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
-// Caching policy — split by resource type:
-//   - API routes + HTML: never cache (live financial data must always be fresh)
-//   - Static assets (JS, CSS, images, fonts): cache for 1 day so repeat visits
-//     don't re-download Chart.js (~220 KB) on every page load.
-// The SPA catch-all at the bottom of this file also forces no-cache on
-// index.html itself, so the app shell always stays current.
+// Caching policy — disabled across the board. Browser, Cloudflare edge,
+// and any intermediary proxy must revalidate every response. Trade-off:
+// repeat visits re-download static assets (~250 KB). Worth it while we're
+// hunting consistency bugs and serving live financial data — turn the
+// cleaner static-asset caching back on once the deploy / data layer is
+// stable.
 app.use((req, res, next) => {
-  const isApi = req.path.startsWith('/api/');
-  const isHtml = req.path === '/' || req.path.endsWith('.html') || !req.path.includes('.');
-  if (isApi || isHtml) {
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-  } else {
-    // Static assets — safe to cache for 1 day (JS/CSS/images/fonts)
-    res.setHeader('Cache-Control', 'public, max-age=86400');
-  }
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  // Cloudflare-specific: stops the edge from caching even on 200 OK with no
+  // Cache-Control opinion from origin. CDN-Cache-Control overrides
+  // Cache-Control just for Cloudflare; Surrogate-Control is the widely-
+  // honoured reverse-proxy equivalent.
+  res.setHeader('CDN-Cache-Control',  'no-store');
+  res.setHeader('Surrogate-Control', 'no-store');
+  // Ensures cached responses don't get re-served when Authorization or
+  // Origin changes (different user, different browser).
+  res.setHeader('Vary', 'Authorization, Cookie, Origin');
   next();
 });
 

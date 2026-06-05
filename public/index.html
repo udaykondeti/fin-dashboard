@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Belt + braces with the server-side headers in server/index.js. Some
+     mobile browsers (Safari iOS) honour these even when the HTTP header is
+     present. Forces a fresh fetch on every navigation/refresh. -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, private, max-age=0">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>FinDash — Personal Finance Dashboard</title>
 <meta name="description" content="FinDash — secure personal finance dashboard for tracking investments, net worth, liabilities, earnings, and vault documents.">
 <meta name="robots" content="noindex, nofollow">
