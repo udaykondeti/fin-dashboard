@@ -323,7 +323,7 @@ router.get('/processing-status', (req, res) => {
 
   // Recent files with their processing state
   const recentFiles = db.prepare(
-    `SELECT id, original_filename, category, subcategory, financial_year, processed_at, processing_error, agent_thread_id, created_at
+    `SELECT id, original_filename, category, subcategory, financial_year, processed_at, processing_error, agent_thread_id, upload_date
      FROM vault_files WHERE user_id = ? ORDER BY id DESC LIMIT 20`
   ).all(userId);
 
