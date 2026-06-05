@@ -35,9 +35,18 @@ fi
 echo "[2/4] Pulling latest from origin/${BRANCH}..."
 git -C "$SRC_DIR" fetch --quiet origin "$BRANCH"
 git -C "$SRC_DIR" checkout --quiet "$BRANCH"
+OLD_SHA=$(git -C "$SRC_DIR" rev-parse HEAD)
 git -C "$SRC_DIR" pull --quiet --ff-only origin "$BRANCH"
 HEAD_SHA=$(git -C "$SRC_DIR" rev-parse --short HEAD)
 echo "  HEAD is now ${HEAD_SHA}"
+
+# If this script itself changed in the pull, re-exec the new version so the
+# rest of the deploy runs with the updated script (avoids stale-bash-buffer issues).
+NEW_SHA=$(git -C "$SRC_DIR" rev-parse HEAD)
+if [ "$OLD_SHA" != "$NEW_SHA" ] && git -C "$SRC_DIR" diff --name-only "$OLD_SHA" "$NEW_SHA" | grep -q "^scripts/update.sh$"; then
+  echo "  update.sh changed — re-executing new version..."
+  exec bash "${SRC_DIR}/scripts/update.sh"
+fi
 
 # ── Rsync into APP_DIR (excluding .git, node_modules, data, .env) ────────────
 echo "[3/4] Rsyncing files to ${APP_DIR}..."
