@@ -215,6 +215,13 @@ app.listen(PORT, () => {
   } catch (e) {
     console.error('[startup] vaultWatcher failed to start:', e.message);
   }
+
+  // Daily net-worth report to Slack (no-op when SLACK_WEBHOOK_URL is unset).
+  try {
+    require('./services/dailyReport').startScheduler();
+  } catch (e) {
+    console.error('[startup] dailyReport failed to start:', e.message);
+  }
 });
 
 module.exports = app;
