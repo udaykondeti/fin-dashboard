@@ -3382,21 +3382,10 @@ async function srConfirm() {
 
   var catLabel = VAULT_CATS[serverFile.category] ? VAULT_CATS[serverFile.category].label : serverFile.category;
   var subcatLabel = VAULT_SUBCAT_LABELS[serverFile.subcategory] || serverFile.subcategory;
-  showToast('✅ ' + newFile.name + ' uploaded to ' + catLabel + '/' + subcatLabel, 'success');
+  showToast('✅ ' + newFile.name + ' uploaded to ' + catLabel + '/' + subcatLabel + ' — analyzing…', 'success');
   startVaultStatusPoll();
+  startFileProcessingPoll(serverFile.id, newFile.name);
 
-  // Auto-process kicks off server-side; surface a hint and let user
-  // jump to the Agent page where proposals will appear.
-  try {
-    showToast('📄 Processing ' + newFile.name + '... Tap to review →', 'info');
-    var _t = document.querySelector('.toast');
-    if (_t) {
-      _t.style.cursor = 'pointer';
-      _t.onclick = function(){ if (typeof navigateTo === 'function') navigateTo('agent'); };
-    }
-  } catch (_e) {}
-
-  document.getElementById('vaultNotice').style.display = 'block';
   srIndex++;
   srShowStep();
 }
@@ -5562,7 +5551,8 @@ async function agentOnAttach(e) {
       showToast((data && data.error) || ('Upload failed: HTTP ' + resp.status), 'error');
       return;
     }
-    showToast('Uploaded "' + file.name + '" — the agent will read it and propose updates.', 'success');
+    showToast('Uploaded "' + file.name + '" — analyzing automatically…', 'success');
+    if (data && data.file && data.file.id) startFileProcessingPoll(data.file.id, file.name);
   } catch (err) {
     showToast('Upload error: ' + err.message, 'error');
   } finally {
@@ -6166,6 +6156,38 @@ function reloadAllDashboardData() {
              'loadNetworth','loadEarnings','loadPayments','loadTax','loadSavings',
              'loadInsurance','loadNPS','loadProperties','loadTransactions'];
   fns.forEach(function(fn) { try { if (typeof window[fn] === 'function') window[fn](); } catch(_) {} });
+}
+
+// Poll until a specific vault file finishes processing, then update the dashboard.
+var _filePolls = {};
+function startFileProcessingPoll(fileId, fileName) {
+  if (_filePolls[fileId]) return;
+  var startedAt = Date.now();
+  var pollId = setInterval(async function() {
+    if (Date.now() - startedAt > 120000) {
+      clearInterval(pollId);
+      delete _filePolls[fileId];
+      return;
+    }
+    try {
+      var r = await apiFetch('/api/vault/processing-status');
+      if (!r || !Array.isArray(r.recentFiles)) return;
+      var f = r.recentFiles.find(function(x) { return x.id === fileId; });
+      if (!f) return;
+      if (f.processed_at || f.processing_error) {
+        clearInterval(pollId);
+        delete _filePolls[fileId];
+        loadVaultFilesFromServer();
+        if (f.processing_error) {
+          showToast('⚠ ' + fileName + ' — ' + f.processing_error, 'error');
+        } else {
+          showToast('✅ ' + fileName + ' analyzed — dashboard updated!', 'success');
+          reloadAllDashboardData();
+        }
+      }
+    } catch (_) {}
+  }, 4000);
+  _filePolls[fileId] = pollId;
 }
 
 // Auto-start vault polling when the vault page tab is active

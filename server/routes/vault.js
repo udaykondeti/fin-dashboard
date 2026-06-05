@@ -122,6 +122,12 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     return res.status(500).json({ error: 'Database error', message: err.message });
   }
 
+  // Slack notification for upload
+  try {
+    const slack = require('../services/slack');
+    slack.notify(`📁 Vault upload: *${filename}* (${cat}${subcat ? '/' + subcat : ''}, ${fy}) — analyzing now…`).catch(() => {});
+  } catch (_) {}
+
   // Fire-and-forget: process with Ollama
   try {
     const vaultProcessor = require('../services/vaultProcessor');

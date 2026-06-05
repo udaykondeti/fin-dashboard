@@ -387,12 +387,15 @@ async function streamMessage({ threadId, userId, content, forceProvider = null }
   if (!t) throw new Error(`Thread ${threadId} not found for user ${userId}`);
   if (!isAgentConfigured()) throw new Error('No agent provider configured. Set OLLAMA_BASE_URL or ANTHROPIC_API_KEY.');
 
-  const userMsgId = Number(insertMessage.run(threadId, 'user', content, null, 'final').lastInsertRowid);
-  emit('thread_meta', { user_message_id: userMsgId });
-
-  const msgCountRow = db.prepare("SELECT COUNT(*) AS n FROM agent_messages WHERE thread_id = ? AND role = 'user'").get(threadId);
-  if (msgCountRow.n === 1) updateThreadTitle.run(content.slice(0, 40).trim() || 'New chat', threadId, userId);
-  else updateThreadTouch.run(threadId, userId);
+  if (content != null) {
+    const userMsgId = Number(insertMessage.run(threadId, 'user', content, null, 'final').lastInsertRowid);
+    emit('thread_meta', { user_message_id: userMsgId });
+    const msgCountRow = db.prepare("SELECT COUNT(*) AS n FROM agent_messages WHERE thread_id = ? AND role = 'user'").get(threadId);
+    if (msgCountRow.n === 1) updateThreadTitle.run(content.slice(0, 40).trim() || 'New chat', threadId, userId);
+    else updateThreadTouch.run(threadId, userId);
+  } else {
+    updateThreadTouch.run(threadId, userId);
+  }
 
   const routed = routeProvider.routeForMessage({
     content,
@@ -693,7 +696,7 @@ async function streamMessageOpenAI({ thread: t, userId, content, model, baseUrl,
 function auditAndCost({ userId, threadId, model, content, text, totalIn, totalOut, t0, error }) {
   const prices = PRICE_TABLE[model] || { input: 0, output: 0 };
   const cost = (totalIn / 1_000_000) * prices.input + (totalOut / 1_000_000) * prices.output;
-  insertCall.run(userId, model, content.slice(0, 200), (text || '').slice(0, 200),
+  insertCall.run(userId, model, (content || '').slice(0, 200), (text || '').slice(0, 200),
     totalIn, totalOut, cost, Date.now() - t0, error, threadId);
   return cost;
 }
