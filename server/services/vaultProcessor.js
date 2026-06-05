@@ -16,10 +16,12 @@
 //      constraint silently discards cross-document duplicates at insert time.
 
 const crypto      = require('crypto');
+const jwt         = require('jsonwebtoken');
 const db          = require('../db/database');
 const localVault  = require('./localVault');
 const textExtract = require('./textExtract');
 const chatAgent   = require('./chatAgent');
+const slack       = require('./slack');
 
 const PENDING_THREAD_KIND  = 'upload_processor';
 const PENDING_THREAD_TITLE = '📥 Pending uploads';
@@ -159,12 +161,52 @@ async function processUpload(fileId, userId) {
     `The database will silently ignore any source_ref it has already seen for this user.\n` +
     `\n--- DOCUMENT TEXT ---\n${extracted.text}\n--- END ---`;
 
+  const port    = process.env.PORT || 3001;
+  const secret  = process.env.JWT_SECRET || 'dev-secret-insecure';
+  const selfTok = jwt.sign({ id: userId, email: '' }, secret, { expiresIn: '10m' });
+
+  let msgContent   = userMessage;
+  let appliedCount = 0;
+
   try {
-    await chatAgent.streamMessage(
-      { threadId, userId, content: userMessage },
-      () => {}  // no-op emit — no SSE needed here
-    );
+    // Auto-confirm loop: stream → capture proposal → confirm → repeat (up to 10 rounds)
+    for (let round = 0; round < 10; round++) {
+      let proposal = null;
+      await chatAgent.streamMessage(
+        { threadId, userId, content: msgContent },
+        (ev, data) => { if (ev === 'proposal') proposal = data; }
+      );
+      if (!proposal) break;  // agent finished with no more proposals
+
+      try {
+        const r = await fetch(`http://127.0.0.1:${port}/api/chat/threads/${threadId}/confirm`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${selfTok}` },
+          body: JSON.stringify({
+            tool_use_id: proposal.tool_use_id,
+            message_id:  proposal.message_id,
+            decision:    'confirm',
+            mutation:    proposal.mutation
+          })
+        });
+        const res = await r.json().catch(() => ({}));
+        if (res.applied) appliedCount++;
+        else console.warn('[vaultProcessor] confirm returned applied=false:', res.error);
+      } catch (confirmErr) {
+        console.error('[vaultProcessor] auto-confirm error:', confirmErr.message);
+      }
+
+      msgContent = null;  // continue thread without inserting another user message
+    }
+
     db.prepare('UPDATE vault_files SET processed_at = CURRENT_TIMESTAMP WHERE id = ?').run(fileId);
+    console.log(`[vaultProcessor] ${file.original_filename}: ${appliedCount} entr${appliedCount === 1 ? 'y' : 'ies'} applied automatically`);
+
+    // Slack notification
+    const slackMsg = appliedCount > 0
+      ? `✅ *${file.original_filename}* — ${appliedCount} entr${appliedCount === 1 ? 'y' : 'ies'} added to your dashboard automatically.`
+      : `📄 *${file.original_filename}* processed — no new entries detected.`;
+    slack.notify(slackMsg).catch(() => {});
 
     // Move the file under <userId>/processed/<rest> so the inbox stays tidy.
     try {
@@ -190,6 +232,7 @@ async function processUpload(fileId, userId) {
       .run(`Agent processing failed: ${e.message}`, fileId);
     db.prepare(`INSERT INTO agent_messages (thread_id, role, content, status) VALUES (?, 'assistant', ?, 'final')`)
       .run(threadId, `Couldn't process "${file.original_filename}": ${e.message}`);
+    slack.notify(`⚠️ Failed to process *${file.original_filename}*: ${e.message}`).catch(() => {});
   }
 }
 
