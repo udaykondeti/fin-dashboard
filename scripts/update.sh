@@ -27,7 +27,7 @@ elif [ -d "${SRC_DIR}/.git" ]; then
 else
   echo "[1/4] No git checkout found — cloning ${REPO_URL} into ${SRC_DIR}"
   sudo mkdir -p "$(dirname "$SRC_DIR")"
-  sudo chown -R "$USER":"$USER" "$(dirname "$SRC_DIR")"
+  sudo chown -R "$USER":"$(id -gn)" "$(dirname "$SRC_DIR")"
   git clone --branch "$BRANCH" "$REPO_URL" "$SRC_DIR"
 fi
 
@@ -48,7 +48,7 @@ sudo rsync -a \
   --exclude='data' \
   --exclude='.env' \
   "${SRC_DIR}/" "${APP_DIR}/"
-sudo chown -R "$USER":"$USER" "$APP_DIR"
+sudo chown -R "$USER":"$(id -gn)" "$APP_DIR"
 echo "  Files synced."
 
 cd "$APP_DIR"
