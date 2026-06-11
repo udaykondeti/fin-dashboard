@@ -150,6 +150,17 @@ const gmailRoutes = require('./routes/gmail');
 app.get('/api/gmail/callback', gmailRoutes.oauthCallback);
 app.use('/api/gmail', authMiddleware, gmailRoutes);
 
+// FileVault sync — external Mac mini app posts processed transactions here.
+// The router uses express.raw() internally so the HMAC signature can be
+// verified against the unmodified request body, which is why we don't apply
+// the global JSON parser to this prefix. The /webhook path is intentionally
+// unauthenticated (signature-based); /events stays behind authMiddleware.
+const filevaultSyncRoutes = require('./routes/filevaultSync');
+app.use('/api/filevault', (req, res, next) => {
+  if (req.path === '/webhook') return next();
+  return authMiddleware(req, res, next);
+}, filevaultSyncRoutes);
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'fin.kirakon.com', timestamp: new Date().toISOString() });
