@@ -612,6 +612,24 @@ function runMigrations() {
       `);
     } },
     { id: 35, name: 'vault_files.agent_thread_id', run: () => addColumnIfMissing('vault_files', 'agent_thread_id', 'ALTER TABLE vault_files ADD COLUMN agent_thread_id INTEGER') },
+    { id: 36, name: 'create_filevault_events', run: () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS filevault_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          event_id        TEXT NOT NULL UNIQUE,
+          source_file     TEXT,
+          payload_json    TEXT,
+          received_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+          processed_at    DATETIME,
+          items_total     INTEGER DEFAULT 0,
+          items_applied   INTEGER DEFAULT 0,
+          items_duplicate INTEGER DEFAULT 0,
+          items_error     INTEGER DEFAULT 0,
+          error_message   TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_filevault_events_received ON filevault_events(received_at);
+      `);
+    } },
   ];
 
   const appliedIds = new Set(
