@@ -161,6 +161,32 @@ app.use('/api/filevault', (req, res, next) => {
   return authMiddleware(req, res, next);
 }, filevaultSyncRoutes);
 
+// AI chat proxy — forwards to LiteLLM gateway on localhost:4000
+app.post('/api/ai/chat', authMiddleware, async (req, res) => {
+  const { messages } = req.body;
+  if (!Array.isArray(messages) || !messages.length) {
+    return res.status(400).json({ error: 'messages required' });
+  }
+  try {
+    const r = await fetch('http://localhost:4000/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.AI_GATEWAY_KEY || 'sk-kirakon'}`,
+      },
+      body: JSON.stringify({ model: 'agent', messages, max_tokens: 1024 }),
+    });
+    if (!r.ok) {
+      const t = await r.text();
+      return res.status(502).json({ error: `AI gateway: ${t}` });
+    }
+    const d = await r.json();
+    res.json({ message: d.choices[0].message.content });
+  } catch (err) {
+    res.status(503).json({ error: `AI unavailable: ${err.message}` });
+  }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'fin.kirakon.com', timestamp: new Date().toISOString() });
