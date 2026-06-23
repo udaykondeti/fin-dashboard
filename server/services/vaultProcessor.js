@@ -109,28 +109,32 @@ async function processUpload(fileId, userId) {
   try { db.prepare('UPDATE vault_files SET agent_thread_id = ? WHERE id = ?').run(threadId, fileId); } catch (_) {}
 
   // ── Dedup level 2: extracted text hash ──────────────────────────────────
+  // Use INSERT OR IGNORE as the dedup operation itself. Whichever upload wins
+  // the race writes the row and gets to continue; subsequent uploads with the
+  // same text see changes=0 and bail out. Prior version did SELECT-then-INSERT,
+  // which let two concurrent identical uploads both pass the SELECT and run
+  // the agent loop in parallel, duplicating every row.
   if (extracted.text.length >= 50) {
     const textHash = crypto.createHash('sha256').update(extracted.text.trim()).digest('hex');
     const dedupKey = `text:${textHash}`;
-    let dupByText = null;
+    let wonRace = true;
     try {
-      dupByText = db.prepare(
-        `SELECT vault_file_id FROM vault_dedup_keys WHERE user_id = ? AND dedup_key = ? AND vault_file_id != ? LIMIT 1`
-      ).get(userId, dedupKey, fileId);
-    } catch (_) { /* table may not exist on older DBs — non-fatal */ }
-
-    if (dupByText) {
-      db.prepare('UPDATE vault_files SET processed_at = CURRENT_TIMESTAMP, processing_error = ? WHERE id = ?')
-        .run(`Duplicate content of vault file #${dupByText.vault_file_id} — same extracted text`, fileId);
-      console.log(`[vaultProcessor] file ${fileId} content matches already-processed #${dupByText.vault_file_id} — skipped`);
-      return;
-    }
-    // Register so future files with identical content are skipped.
-    try {
-      db.prepare(
+      const ins = db.prepare(
         `INSERT OR IGNORE INTO vault_dedup_keys (user_id, dedup_key, vault_file_id) VALUES (?, ?, ?)`
       ).run(userId, dedupKey, fileId);
-    } catch (_) {}
+      wonRace = ins.changes > 0;
+    } catch (_) { /* table may not exist on older DBs — fall through */ }
+
+    if (!wonRace) {
+      const dup = db.prepare(
+        `SELECT vault_file_id FROM vault_dedup_keys WHERE user_id = ? AND dedup_key = ? LIMIT 1`
+      ).get(userId, dedupKey);
+      const refId = dup ? dup.vault_file_id : '?';
+      db.prepare('UPDATE vault_files SET processed_at = CURRENT_TIMESTAMP, processing_error = ? WHERE id = ?')
+        .run(`Duplicate content of vault file #${refId} — same extracted text`, fileId);
+      console.log(`[vaultProcessor] file ${fileId} content matches already-processed #${refId} — skipped`);
+      return;
+    }
   }
 
   // Short / unsupported — write a status note and stop
@@ -165,8 +169,10 @@ async function processUpload(fileId, userId) {
   const secret  = process.env.JWT_SECRET || 'dev-secret-insecure';
   const selfTok = jwt.sign({ id: userId, email: '' }, secret, { expiresIn: '10m' });
 
-  let msgContent   = userMessage;
-  let appliedCount = 0;
+  let msgContent     = userMessage;
+  let appliedCount   = 0;
+  let proposalCount  = 0;
+  const confirmErrors = [];  // surfaced via processing_error if all confirms fail
 
   try {
     // Auto-confirm loop: stream → capture proposal → confirm → repeat (up to 10 rounds)
@@ -177,6 +183,7 @@ async function processUpload(fileId, userId) {
         (ev, data) => { if (ev === 'proposal') proposal = data; }
       );
       if (!proposal) break;  // agent finished with no more proposals
+      proposalCount++;
 
       try {
         const r = await fetch(`http://127.0.0.1:${port}/api/chat/threads/${threadId}/confirm`, {
@@ -190,25 +197,32 @@ async function processUpload(fileId, userId) {
           })
         });
         const res = await r.json().catch(() => ({}));
-        if (res.applied) appliedCount++;
-        else console.warn('[vaultProcessor] confirm returned applied=false:', res.error);
+        if (res.applied) {
+          appliedCount++;
+        } else {
+          const why = `HTTP ${r.status}${res.error ? ' — ' + res.error : ''}`;
+          confirmErrors.push(why);
+          console.warn('[vaultProcessor] confirm returned applied=false:', why);
+        }
       } catch (confirmErr) {
+        confirmErrors.push(confirmErr.message);
         console.error('[vaultProcessor] auto-confirm error:', confirmErr.message);
       }
 
       msgContent = null;  // continue thread without inserting another user message
     }
 
-    db.prepare('UPDATE vault_files SET processed_at = CURRENT_TIMESTAMP WHERE id = ?').run(fileId);
-    console.log(`[vaultProcessor] ${file.original_filename}: ${appliedCount} entr${appliedCount === 1 ? 'y' : 'ies'} applied automatically`);
+    // Move file BEFORE flipping processed_at so a failed move leaves the row
+    // pending — reprocess will pick it up cleanly. The old order set processed_at
+    // first; if the rename then failed, the file sat in the original location
+    // forever, marked done, with no way to retry.
+    let processingError = null;
+    if (proposalCount > 0 && appliedCount === 0) {
+      processingError = `Agent proposed ${proposalCount} change(s) but none could be applied: ${confirmErrors.slice(0, 3).join('; ')}`;
+    } else if (confirmErrors.length > 0) {
+      processingError = `${appliedCount} of ${proposalCount} change(s) applied; failures: ${confirmErrors.slice(0, 3).join('; ')}`;
+    }
 
-    // Slack notification
-    const slackMsg = appliedCount > 0
-      ? `✅ *${file.original_filename}* — ${appliedCount} entr${appliedCount === 1 ? 'y' : 'ies'} added to your dashboard automatically.`
-      : `📄 *${file.original_filename}* processed — no new entries detected.`;
-    slack.notify(slackMsg).catch(() => {});
-
-    // Move the file under <userId>/processed/<rest> so the inbox stays tidy.
     try {
       const parts = localKey.split('/');
       let rest = parts.slice(1).join('/');
@@ -224,9 +238,23 @@ async function processUpload(fileId, userId) {
         }
       }
     } catch (mvErr) {
+      // Surface in processing_error so the file shows a warning pill, but still
+      // mark processed_at — the agent work already ran, we don't want to redo it.
+      const moveMsg = `Move to processed/ failed: ${mvErr.message}`;
+      processingError = processingError ? `${processingError}; ${moveMsg}` : moveMsg;
       console.error('[vaultProcessor] move-to-processed failed:', mvErr.message);
-      // Non-fatal: the row is already marked processed; file stays in place.
     }
+
+    db.prepare('UPDATE vault_files SET processed_at = CURRENT_TIMESTAMP, processing_error = ? WHERE id = ?')
+      .run(processingError, fileId);
+    console.log(`[vaultProcessor] ${file.original_filename}: ${appliedCount}/${proposalCount} applied${processingError ? ' (with errors)' : ''}`);
+
+    const slackMsg = processingError
+      ? `⚠️ *${file.original_filename}* — ${appliedCount}/${proposalCount} applied. ${processingError}`
+      : (appliedCount > 0
+          ? `✅ *${file.original_filename}* — ${appliedCount} entr${appliedCount === 1 ? 'y' : 'ies'} added to your dashboard automatically.`
+          : `📄 *${file.original_filename}* processed — no new entries detected.`);
+    slack.notify(slackMsg).catch(() => {});
   } catch (e) {
     db.prepare('UPDATE vault_files SET processed_at = CURRENT_TIMESTAMP, processing_error = ? WHERE id = ?')
       .run(`Agent processing failed: ${e.message}`, fileId);

@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../db/database');
 const authMiddleware = require('../middleware/auth');
 const { assertProfileOwnership } = require('../middleware/profileGuard');
+const { assertNoDuplicate } = require('../middleware/dedup');
 
 router.use(authMiddleware);
 
@@ -171,6 +172,7 @@ router.post('/', (req, res) => {
   const { source_name, source_type, amount, frequency, share_percentage, profile_id, financial_year, notes, tds_rate, actual_received } = req.body;
   if (!source_name || !amount) return res.status(400).json({ error: 'source_name and amount required' });
   if (!assertProfileOwnership(req, res, profile_id)) return;
+  if (!assertNoDuplicate(req, res, 'earnings', [source_name], `Earning "${source_name}"`)) return;
   const r = db.prepare(
     'INSERT INTO earnings (user_id, profile_id, source_name, source_type, amount, frequency, share_percentage, financial_year, notes, tds_rate, actual_received) VALUES (?,?,?,?,?,?,?,?,?,?,?)'
   ).run(

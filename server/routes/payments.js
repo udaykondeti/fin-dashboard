@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../db/database');
 const authMiddleware = require('../middleware/auth');
 const { assertProfileOwnership } = require('../middleware/profileGuard');
+const { assertNoDuplicate } = require('../middleware/dedup');
 
 router.use(authMiddleware);
 
@@ -19,6 +20,7 @@ router.post('/', (req, res) => {
   const { name, amount, frequency, category, next_due_date, auto_debit, profile_id, notes } = req.body;
   if (!name || !amount) return res.status(400).json({ error: 'Name and amount are required' });
   if (!assertProfileOwnership(req, res, profile_id)) return;
+  if (!assertNoDuplicate(req, res, 'scheduled_payments', [name], `Payment "${name}"`)) return;
   const r = db.prepare('INSERT INTO scheduled_payments (user_id, profile_id, name, amount, frequency, category, next_due_date, auto_debit, notes) VALUES (?,?,?,?,?,?,?,?,?)').run(req.user.id, profile_id || null, name, amount, frequency || 'Monthly', category || 'Other', next_due_date || null, auto_debit ? 1 : 0, notes || null);
   res.json({ id: r.lastInsertRowid });
 });

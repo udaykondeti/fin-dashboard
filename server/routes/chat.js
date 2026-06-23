@@ -119,11 +119,15 @@ router.post('/threads/:id/confirm', async (req, res) => {
   // Server-side dedup against rapid double-clicks: if a tool_result row
   // for THIS tool_use_id already exists in the thread, the previous
   // confirm already dispatched. Bail early so we don't insert the same
-  // stock/loan/payment a second time.
-  const alreadyResolved = msgs.some(m =>
-    m.role === 'tool' && typeof m.content === 'string' &&
-    m.content.indexOf('"tool_use_id":"' + tool_use_id + '"') !== -1
-  );
+  // stock/loan/payment a second time. We parse the JSON instead of substring-
+  // matching: short ids prefix-match longer ones (e.g. "tu_a" matched
+  // "tu_abc" with the old indexOf check), causing real Confirm clicks to
+  // think the proposal was already applied and the mutation to skip.
+  const alreadyResolved = msgs.some(m => {
+    if (m.role !== 'tool' || typeof m.content !== 'string') return false;
+    try { return JSON.parse(m.content).tool_use_id === tool_use_id; }
+    catch (_) { return false; }
+  });
   if (alreadyResolved) return res.json({ ok: true, applied: false, error: 'Already resolved' });
 
   if (decision === 'reject') {

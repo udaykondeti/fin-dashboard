@@ -643,8 +643,18 @@ async function streamMessageOpenAI({ thread: t, userId, content, model, baseUrl,
 
     const finalToolUses = toolCalls.filter(Boolean).map(tc => {
       let input = {};
-      try { input = tc.arguments_buf ? JSON.parse(tc.arguments_buf) : {}; } catch (_) { /* keep {} */ }
-      return { id: tc.id, name: tc.name, input };
+      let parseError = null;
+      try {
+        input = tc.arguments_buf ? JSON.parse(tc.arguments_buf) : {};
+      } catch (e) {
+        parseError = e.message;
+        // Local models (qwen2.5 especially) occasionally truncate or emit
+        // stray tokens at the end of tool_call arguments. Surface the failure
+        // loudly so it shows up in `docker logs` rather than silently producing
+        // an empty-args propose_*() that fails validation with no breadcrumb.
+        console.error(`[chatAgent] tool_call ${tc.id} (${tc.name}) arguments JSON.parse failed: ${e.message}; raw buffer (first 500 chars): ${(tc.arguments_buf || '').slice(0, 500)}`);
+      }
+      return { id: tc.id, name: tc.name, input, parseError };
     });
 
     if (finishReason !== 'tool_calls' || finalToolUses.length === 0) {

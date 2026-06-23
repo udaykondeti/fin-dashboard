@@ -77,23 +77,25 @@ app.use(cors((req, callback) => {
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
-// Caching policy — split by resource type:
-//   - API routes + HTML: never cache (live financial data must always be fresh)
-//   - Static assets (JS, CSS, images, fonts): cache for 1 day so repeat visits
-//     don't re-download Chart.js (~220 KB) on every page load.
-// The SPA catch-all at the bottom of this file also forces no-cache on
-// index.html itself, so the app shell always stays current.
+// Caching policy — disabled across the board. Browser, Cloudflare edge,
+// and any intermediary proxy must revalidate every response. Trade-off:
+// repeat visits re-download static assets (~250 KB). Worth it while we're
+// hunting consistency bugs and serving live financial data — turn the
+// cleaner static-asset caching back on once the deploy / data layer is
+// stable.
 app.use((req, res, next) => {
-  const isApi = req.path.startsWith('/api/');
-  const isHtml = req.path === '/' || req.path.endsWith('.html') || !req.path.includes('.');
-  if (isApi || isHtml) {
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-  } else {
-    // Static assets — safe to cache for 1 day (JS/CSS/images/fonts)
-    res.setHeader('Cache-Control', 'public, max-age=86400');
-  }
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  // Cloudflare-specific: stops the edge from caching even on 200 OK with no
+  // Cache-Control opinion from origin. CDN-Cache-Control overrides
+  // Cache-Control just for Cloudflare; Surrogate-Control is the widely-
+  // honoured reverse-proxy equivalent.
+  res.setHeader('CDN-Cache-Control',  'no-store');
+  res.setHeader('Surrogate-Control', 'no-store');
+  // Ensures cached responses don't get re-served when Authorization or
+  // Origin changes (different user, different browser).
+  res.setHeader('Vary', 'Authorization, Cookie, Origin');
   next();
 });
 
@@ -147,6 +149,43 @@ const gmailRoutes = require('./routes/gmail');
 // auth-protected /api/gmail sub-tree so Express matches it first.
 app.get('/api/gmail/callback', gmailRoutes.oauthCallback);
 app.use('/api/gmail', authMiddleware, gmailRoutes);
+
+// FileVault sync — external Mac mini app posts processed transactions here.
+// The router uses express.raw() internally so the HMAC signature can be
+// verified against the unmodified request body, which is why we don't apply
+// the global JSON parser to this prefix. The /webhook path is intentionally
+// unauthenticated (signature-based); /events stays behind authMiddleware.
+const filevaultSyncRoutes = require('./routes/filevaultSync');
+app.use('/api/filevault', (req, res, next) => {
+  if (req.path === '/webhook') return next();
+  return authMiddleware(req, res, next);
+}, filevaultSyncRoutes);
+
+// AI chat proxy — forwards to LiteLLM gateway on localhost:4000
+app.post('/api/ai/chat', authMiddleware, async (req, res) => {
+  const { messages } = req.body;
+  if (!Array.isArray(messages) || !messages.length) {
+    return res.status(400).json({ error: 'messages required' });
+  }
+  try {
+    const r = await fetch('http://localhost:4000/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.AI_GATEWAY_KEY || 'sk-kirakon'}`,
+      },
+      body: JSON.stringify({ model: 'agent', messages, max_tokens: 1024 }),
+    });
+    if (!r.ok) {
+      const t = await r.text();
+      return res.status(502).json({ error: `AI gateway: ${t}` });
+    }
+    const d = await r.json();
+    res.json({ message: d.choices[0].message.content });
+  } catch (err) {
+    res.status(503).json({ error: `AI unavailable: ${err.message}` });
+  }
+});
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

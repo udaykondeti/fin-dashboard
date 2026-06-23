@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db/database');
 const authMiddleware = require('../middleware/auth');
+const { assertNoDuplicate } = require('../middleware/dedup');
 const { getPrice: fetchYahooPrice, getIndianStockPrice, getUsdInrRate } = require('../services/priceService');
 const { getNavByCode } = require('../services/amfiNav');
 
@@ -74,6 +75,8 @@ router.post('/stocks', (req, res) => {
     if (!symbol || !company_name || !quantity || !avg_buy_price) {
       return res.status(400).json({ error: 'symbol, company_name, quantity, and avg_buy_price are required' });
     }
+
+    if (!assertNoDuplicate(req, res, 'stocks', [symbol], `Stock ${symbol.toUpperCase()}`)) return;
 
     const result = db.prepare(`
       INSERT INTO stocks (user_id, symbol, exchange, company_name, quantity, avg_buy_price, notes)
@@ -193,6 +196,8 @@ router.post('/mutual-funds', (req, res) => {
     if (!fund_name || !units || !avg_nav) {
       return res.status(400).json({ error: 'fund_name, units, and avg_nav are required' });
     }
+
+    if (!assertNoDuplicate(req, res, 'mutual_funds', [fund_name], `MF "${fund_name}"`)) return;
 
     const result = db.prepare(`
       INSERT INTO mutual_funds (user_id, fund_name, folio_number, units, avg_nav, fund_type, sip_amount, sip_date, notes)
@@ -406,6 +411,8 @@ router.post('/us-stocks', (req, res) => {
     if (!symbol || !company_name || !quantity || !avg_buy_price_usd) {
       return res.status(400).json({ error: 'symbol, company_name, quantity, and avg_buy_price_usd are required' });
     }
+
+    if (!assertNoDuplicate(req, res, 'us_stocks', [symbol], `US Stock ${symbol.toUpperCase()}`)) return;
 
     const result = db.prepare(`
       INSERT INTO us_stocks (user_id, symbol, company_name, quantity, avg_buy_price_usd, notes)
