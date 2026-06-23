@@ -1455,6 +1455,7 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
 
     <div class="tab-bar" style="margin-bottom:20px">
       <button class="tab-btn active" onclick="switchITTab('payments',this)">&#x1F4B3; Advance Tax Payments</button>
+      <button class="tab-btn" onclick="switchITTab('itr',this)">&#x1F4D1; ITR Filing</button>
       <button class="tab-btn" onclick="switchITTab('categories',this)">&#x1F4CA; Tax-Saving Categories</button>
       <button class="tab-btn" onclick="switchITTab('strategies',this)">&#x1F4A1; Strategies</button>
       <button class="tab-btn" onclick="switchITTab('slabs',this)">&#x1F4CB; Tax Slabs</button>
@@ -1478,6 +1479,63 @@ body{background:var(--cream);color:var(--text-primary);overflow-x:hidden}
         <strong style="color:var(--accent-blue)">Advance Tax Due Dates (FY 2026-27)</strong><br><br>
         15 Jun — 15% &nbsp;|&nbsp; 15 Sep — 45% cumulative &nbsp;|&nbsp; 15 Dec — 75% cumulative &nbsp;|&nbsp; 15 Mar — 100%<br>
         Interest u/s 234B &amp; 234C applies if payments are missed or delayed.
+      </div>
+    </div>
+
+    <!-- ITR Filing tab -->
+    <div class="tab-content" id="it-tab-itr">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap">
+        <div style="font-size:13px;color:var(--text-secondary)">Financial Year</div>
+        <select id="itrFySelect" onchange="loadITRSummary()" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);padding:6px 10px;border-radius:6px;font-size:13px">
+          <option value="2025-26">FY 2025-26 (AY 2026-27)</option>
+          <option value="2024-25">FY 2024-25 (AY 2025-26)</option>
+          <option value="2023-24">FY 2023-24 (AY 2024-25)</option>
+        </select>
+        <div id="itrLoadingNote" style="font-size:12px;color:var(--text-secondary);display:none">Computing…</div>
+      </div>
+
+      <!-- Regime comparison bar -->
+      <div id="itrRegimeBar" style="display:none;padding:12px 16px;border-radius:10px;margin-bottom:18px;font-size:13px"></div>
+
+      <div id="itrGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px"></div>
+
+      <!-- Document checklist -->
+      <div style="margin-top:24px">
+        <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:12px">&#x1F4CB; ITR Documents Checklist</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px">
+          <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--text-secondary);line-height:1.8">
+            <div style="font-weight:700;color:var(--accent-blue);margin-bottom:6px">&#x1F4CB; Income Documents</div>
+            <div>&#x2022; Form 16 (from employer)</div>
+            <div>&#x2022; Form 26AS / AIS (income tax portal)</div>
+            <div>&#x2022; Bank interest certificate / FD TDS certificate</div>
+            <div>&#x2022; Capital gains statement (Zerodha / CAMS)</div>
+            <div>&#x2022; Dividend warrants / statements</div>
+          </div>
+          <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--text-secondary);line-height:1.8">
+            <div style="font-weight:700;color:var(--accent-gold);margin-bottom:6px">&#x1F4B0; 80C Deduction Proofs</div>
+            <div>&#x2022; ELSS mutual fund statement</div>
+            <div>&#x2022; LIC / life insurance premium receipt</div>
+            <div>&#x2022; PPF passbook / statement</div>
+            <div>&#x2022; NPS Tier-I contribution statement</div>
+            <div>&#x2022; Home loan principal statement</div>
+          </div>
+          <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--text-secondary);line-height:1.8">
+            <div style="font-weight:700;color:var(--accent-green);margin-bottom:6px">&#x1F3E5; 80D &amp; Other Deductions</div>
+            <div>&#x2022; Health insurance premium receipt (80D)</div>
+            <div>&#x2022; Preventive health checkup receipt (80D)</div>
+            <div>&#x2022; Home loan interest certificate (Sec 24b)</div>
+            <div>&#x2022; Donation receipts with 80G number</div>
+            <div>&#x2022; HRA — rent receipts + landlord PAN</div>
+          </div>
+          <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--text-secondary);line-height:1.8">
+            <div style="font-weight:700;color:var(--text-primary);margin-bottom:6px">&#x1F4C5; Filing Deadlines</div>
+            <div>&#x2022; ITR-1/2/4 (no audit): <strong style="color:var(--accent-gold)">31 July 2026</strong></div>
+            <div>&#x2022; ITR-3 (audit required): 31 Oct 2026</div>
+            <div>&#x2022; Belated return: 31 Dec 2026</div>
+            <div>&#x2022; Interest u/s 234A: 1%/month on tax due</div>
+            <div>&#x2022; Late fee u/s 234F: ₹5,000 (₹1,000 if income &lt;5L)</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -5215,6 +5273,111 @@ function switchITTab(tab, btn) {
   var el = document.getElementById('it-tab-'+tab);
   if (el) el.classList.add('active');
   if (tab==='categories') renderITCategories();
+  if (tab==='itr') loadITRSummary();
+}
+
+// ─── ITR FILING SUMMARY ───────────────────────────────────────────────────────
+var _itrCache = {};
+async function loadITRSummary() {
+  var fy = (document.getElementById('itrFySelect') || {}).value || '2025-26';
+  if (_itrCache[fy]) { renderITRSummary(_itrCache[fy]); return; }
+  var note = document.getElementById('itrLoadingNote');
+  if (note) note.style.display = '';
+  try {
+    var data = await apiFetch('/api/tax/itr-summary?fy=' + encodeURIComponent(fy));
+    if (data && data.fy) { _itrCache[fy] = data; renderITRSummary(data); }
+  } catch(e) { showToast('Could not load ITR summary', 'error'); }
+  finally { if (note) note.style.display = 'none'; }
+}
+
+function renderITRSummary(d) {
+  var INR = function(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); };
+  var pct = function(n, total) { return total > 0 ? ' <span style="font-size:11px;color:var(--text-secondary)">(' + ((n/total)*100).toFixed(1) + '%)</span>' : ''; };
+
+  // Regime recommendation bar
+  var bar = document.getElementById('itrRegimeBar');
+  if (bar) {
+    var isNew = d.tax.better_regime === 'new';
+    bar.style.display = '';
+    bar.style.background = isNew ? 'rgba(59,130,246,.08)' : 'rgba(198,134,66,.08)';
+    bar.style.border = '1px solid ' + (isNew ? 'rgba(59,130,246,.25)' : 'rgba(198,134,66,.25)');
+    bar.innerHTML = '<strong style="color:' + (isNew ? 'var(--accent-blue)' : 'var(--accent-gold)') + '">' +
+      (isNew ? '&#x2714; New Tax Regime is better for you' : '&#x2714; Old Tax Regime is better for you') +
+      '</strong> &nbsp;|&nbsp; New: <strong>' + INR(d.tax.liability_new) + '</strong> &nbsp; Old: <strong>' + INR(d.tax.liability_old) + '</strong>' +
+      ' &nbsp;|&nbsp; Savings by choosing ' + (isNew ? 'New' : 'Old') + ': <strong>' + INR(Math.abs(d.tax.liability_new - d.tax.liability_old)) + '</strong>';
+  }
+
+  var grid = document.getElementById('itrGrid');
+  if (!grid) return;
+
+  var rows = function(items) {
+    return items.map(function(r) {
+      return '<tr><td style="padding:5px 0;color:var(--text-secondary);font-size:12px">' + r[0] + '</td>' +
+        '<td style="padding:5px 0;text-align:right;font-weight:' + (r[2]||'400') + ';color:' + (r[3]||'var(--text-primary)') + ';font-size:12px">' + r[1] + '</td></tr>';
+    }).join('');
+  };
+
+  var card = function(title, color, tableRows, note) {
+    return '<div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px">' +
+      '<div style="font-size:13px;font-weight:700;color:' + color + ';margin-bottom:10px">' + title + '</div>' +
+      '<table style="width:100%;border-collapse:collapse">' + tableRows + '</table>' +
+      (note ? '<div style="margin-top:8px;font-size:11px;color:var(--text-secondary)">' + note + '</div>' : '') +
+      '</div>';
+  };
+
+  var income = d.income;
+  var ded = d.deductions;
+  var tax = d.tax;
+
+  var incomeRows = [];
+  if (income.salary > 0) incomeRows.push(['Salary / Pension', INR(income.salary)]);
+  if (income.other > 0)  incomeRows.push(['Business / Other', INR(income.other)]);
+  if (income.rental_gross > 0) incomeRows.push([
+    'Rental income (gross)', INR(income.rental_gross),
+  ], ['&nbsp;&nbsp;Less: 30% Sec 24(a) deduction', '− ' + INR(income.rental_deduction), '400', 'var(--text-secondary)'],
+     ['House Property (net)', INR(income.rental_net)]);
+  if (income.fd_interest > 0) incomeRows.push(['FD Interest (approx.)', INR(income.fd_interest)]);
+  if (income.savings_interest > 0) incomeRows.push(['Savings A/c Interest', INR(income.savings_interest)]);
+  incomeRows.push(['<strong>Gross Total Income</strong>', '<strong>' + INR(income.gross_total) + '</strong>', '700', 'var(--accent-green)']);
+
+  var dedRows = [];
+  dedRows.push(['Std Deduction (New Regime)', '− ' + INR(ded.std_deduction_new), '400', 'var(--text-secondary)']);
+  dedRows.push(['Std Deduction (Old Regime)', '− ' + INR(ded.std_deduction_old), '400', 'var(--text-secondary)']);
+  var c80 = ded.sec80C;
+  if (c80.total > 0) {
+    dedRows.push(['80C — ELSS', INR(c80.elss)]);
+    if (c80.life_insurance > 0) dedRows.push(['80C — Life Insurance', INR(c80.life_insurance)]);
+    if (c80.nps_tier1 > 0)      dedRows.push(['80C — NPS Tier-I', INR(c80.nps_tier1)]);
+    dedRows.push(['<strong>80C Total</strong> (limit ₹1,50,000)', '<strong>' + INR(c80.allowed) + '</strong>', '700', c80.total > 150000 ? 'var(--accent-gold)' : 'var(--text-primary)']);
+    if (c80.total > 150000) dedRows.push(['&nbsp;&nbsp;(₹' + (c80.total - 150000).toLocaleString('en-IN') + ' over limit, not deductible)', '', '400', 'var(--text-secondary)']);
+  }
+  if (ded.sec80CCD1B > 0) dedRows.push(['80CCD(1B) — NPS Additional', INR(ded.sec80CCD1B)]);
+  if (ded.sec80D.total > 0) dedRows.push(['80D — Health Insurance', INR(ded.sec80D.allowed) + (ded.sec80D.total > 25000 ? ' <span style="font-size:11px;color:var(--accent-gold)">(limit)</span>' : '')]);
+  if (ded.sec24b.interest > 0) dedRows.push(['Sec 24(b) — Home Loan Interest', INR(ded.sec24b.allowed) + (ded.sec24b.interest > 200000 ? ' <span style="font-size:11px;color:var(--accent-gold)">(limit)</span>' : '')]);
+  if (ded.sec80TTA > 0) dedRows.push(['80TTA — Savings Interest', INR(ded.sec80TTA)]);
+  dedRows.push(['<strong>Total Deductions (Old Regime)</strong>', '<strong>− ' + INR(ded.total_old_regime) + '</strong>', '700', 'var(--accent-gold)']);
+
+  var taxRows = [];
+  taxRows.push(['Taxable Income (New Regime)', INR(tax.taxable_new)]);
+  taxRows.push(['Tax Liability — New Regime', INR(tax.liability_new), '700', tax.better_regime==='new' ? 'var(--accent-blue)' : 'var(--text-primary)']);
+  taxRows.push(['Taxable Income (Old Regime)', INR(tax.taxable_old)]);
+  taxRows.push(['Tax Liability — Old Regime', INR(tax.liability_old), '700', tax.better_regime==='old' ? 'var(--accent-gold)' : 'var(--text-primary)']);
+  taxRows.push(['TDS Deducted', '− ' + INR(tax.tds_deducted), '400', 'var(--accent-green)']);
+  taxRows.push(['Advance Tax Paid', '− ' + INR(tax.advance_tax_paid), '400', 'var(--accent-green)']);
+  taxRows.push(['Total Credits', '− ' + INR(tax.total_credits), '700', 'var(--accent-green)']);
+  if (tax.balance_due > 0) {
+    taxRows.push(['<strong>Balance Tax Payable</strong>', '<strong>' + INR(tax.balance_due) + '</strong>', '700', 'var(--accent-red)']);
+  } else {
+    taxRows.push(['<strong>Estimated Refund</strong>', '<strong>' + INR(tax.refund_due) + '</strong>', '700', 'var(--accent-green)']);
+  }
+
+  grid.innerHTML =
+    card('&#x1F4B5; Income — FY ' + d.fy + ' (AY ' + d.ay + ')', 'var(--accent-green)', rows(incomeRows),
+      'Rental and FD interest are estimates. Capital gains not included — add manually.') +
+    card('&#x1F4CA; Deductions (Old Regime)', 'var(--accent-gold)', rows(dedRows),
+      'Only deductions computable from your dashboard data are shown. Add PPF, NSC, tuition fee receipts in vault.') +
+    card('&#x2696; Tax Computation &amp; Balance', 'var(--accent-blue)', rows(taxRows),
+      'Recommended: ' + (tax.better_regime === 'new' ? 'New' : 'Old') + ' Tax Regime. Consult CA for precise liability.');
 }
 
 function renderITCategories() {

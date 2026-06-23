@@ -16,12 +16,17 @@ const CATEGORY_RULES = [
   {
     category: 'tax',
     subcategory: 'tds',
-    keywords: ['tds', 'form 16', 'form 26as', 'tax deducted', 'tds certificate', '26as']
+    keywords: ['tds', 'form 16', 'form 26as', 'tax deducted', 'tds certificate', '26as', 'form16', 'form 16a', 'form 16b']
   },
   {
     category: 'tax',
     subcategory: 'itr',
-    keywords: ['itr', 'income tax return', 'tax filing', 'acknowledgement', 'itr-1', 'itr-2', 'itr-3', 'itr-4']
+    keywords: ['itr', 'income tax return', 'tax filing', 'acknowledgement', 'itr-1', 'itr-2', 'itr-3', 'itr-4', 'ais', 'annual information statement', 'form 26as']
+  },
+  {
+    category: 'tax',
+    subcategory: 'capital-gains',
+    keywords: ['capital gains', 'stcg', 'ltcg', 'short term capital', 'long term capital', 'section 112a', '111a', 'schedule cg']
   },
   {
     category: 'tax',
@@ -52,12 +57,22 @@ const CATEGORY_RULES = [
     subcategory: 'sip',
     keywords: ['sip', 'systematic investment', 'mutual fund', 'mf statement', 'cams', 'karvy', 'kfintech', 'folio', 'nav', 'redemption', 'switch']
   },
+  {
+    category: 'mutual-funds',
+    subcategory: 'capital-gains',
+    keywords: ['capital gains statement', 'p&l statement', 'profit and loss statement', 'realized gains', 'realised gains', 'cg statement']
+  },
 
   // ── FIXED DEPOSITS ────────────────────────────────────────────────────
   {
     category: 'fixed-deposits',
     subcategory: 'fd',
     keywords: ['fd receipt', 'fixed deposit', 'fd certificate', 'renewal', 'term deposit', 'fdr']
+  },
+  {
+    category: 'fixed-deposits',
+    subcategory: 'tax-saver-fd',
+    keywords: ['tax saver fd', '5 year fd', '80c fd', 'tax saving fd', 'tax saving fixed deposit']
   },
   {
     category: 'fixed-deposits',
@@ -111,11 +126,38 @@ const CATEGORY_RULES = [
     keywords: ['us stocks', 'nasdaq', 'nyse', '1099', 'foreign stocks', 'drivewealth', 'ibkr', 'interactive brokers', 'indmoney', 'vested', 'us equity']
   },
 
+  // ── 80C SAVINGS INSTRUMENTS ───────────────────────────────────────────
+  {
+    category: 'tax',
+    subcategory: '80c-ppf',
+    keywords: ['ppf', 'public provident fund', 'ppf statement', 'ppf passbook', 'ppf account']
+  },
+  {
+    category: 'tax',
+    subcategory: '80c-nsc',
+    keywords: ['nsc', 'national savings certificate', 'nsc certificate']
+  },
+  {
+    category: 'tax',
+    subcategory: '80c-sukanya',
+    keywords: ['sukanya', 'sukanya samriddhi', 'ssys', 'ssy account']
+  },
+  {
+    category: 'tax',
+    subcategory: '80c-scss',
+    keywords: ['scss', 'senior citizen savings scheme', 'senior savings scheme']
+  },
+
   // ── RECEIPTS ──────────────────────────────────────────────────────────
   {
     category: 'receipts',
     subcategory: 'medical',
     keywords: ['medical', 'hospital', 'pharmacy', 'doctor', 'prescription', 'clinic', 'pathology', 'diagnostic', 'lab report']
+  },
+  {
+    category: 'receipts',
+    subcategory: 'preventive-health',
+    keywords: ['preventive health', 'preventive checkup', 'health checkup', 'annual health checkup', 'master health checkup', '80d checkup']
   },
   {
     category: 'receipts',
@@ -126,6 +168,11 @@ const CATEGORY_RULES = [
     category: 'receipts',
     subcategory: 'rent',
     keywords: ['rent receipt', 'house rent', 'hra', 'rental receipt', 'rent agreement', 'lease agreement']
+  },
+  {
+    category: 'receipts',
+    subcategory: 'tuition',
+    keywords: ['tuition fees', 'school fees', 'college fees', 'education fees', 'fee receipt']
   }
 ];
 
