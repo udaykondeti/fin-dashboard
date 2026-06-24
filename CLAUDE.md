@@ -27,10 +27,19 @@ npm start        # node server/index.js
 
 The app listens on `PORT` (default 3001) and serves both the API and the static frontend from the same Express process. There is no build step, no test suite, and no linter configured.
 
-Deployment scripts (run on EC2 from `/var/www/fin-dashboard`):
-- `bash scripts/ec2-first-time-setup.sh` — provisions the box
-- `bash scripts/deploy.sh` — installs Node 20, PM2, Nginx, Certbot, then starts via `ecosystem.config.js`
-- `bash scripts/update.sh` — sync + `npm install --production` + `pm2 restart fin-dashboard`
+**Deployment: Mac Mini** — all apps run on Mac Mini (EC2 decommissioned).
+- Host: `100.85.165.105`, SSH port `2323`, user `kiran`
+- Repo path: `/Users/kiran/repos/fin-dashboard`
+- Port: `3001`, PM2 name: `fin-dashboard`
+- Pippy auto-deploys on every push to `main` via webhook → SSH → `npm install --production && pm2 restart fin-dashboard`
+- Nginx at `/opt/homebrew/etc/nginx/servers/kirakon.conf` routes `fin.kirakon.com` → `localhost:3001`
+
+Manual update:
+```bash
+ssh kiran@100.85.165.105 -p 2323
+cd /Users/kiran/repos/fin-dashboard
+git pull origin main && npm install --production && pm2 restart fin-dashboard
+```
 
 Default seeded admin (created automatically on first DB init): `kondetiudaykiran@gmail.com` / `Admin@123`.
 
