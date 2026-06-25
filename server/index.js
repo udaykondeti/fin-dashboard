@@ -181,7 +181,9 @@ app.post('/api/ai/chat', authMiddleware, async (req, res) => {
       return res.status(502).json({ error: `AI gateway: ${t}` });
     }
     const d = await r.json();
-    res.json({ message: d.choices[0].message.content });
+    const content = d?.choices?.[0]?.message?.content;
+    if (!content) return res.status(502).json({ error: `AI gateway returned no content: ${JSON.stringify(d).slice(0, 200)}` });
+    res.json({ message: content });
   } catch (err) {
     res.status(503).json({ error: `AI unavailable: ${err.message}` });
   }
