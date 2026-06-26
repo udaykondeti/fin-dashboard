@@ -23,8 +23,8 @@
 <meta name="twitter:title" content="FinDash — Personal Finance Dashboard">
 <meta name="twitter:description" content="Track net worth, investments, and liabilities in one place.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/design/kirakon.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" defer></script>
 <style>
 /* ──────────────────────────────────────────────────────────────────────
@@ -6694,6 +6694,37 @@ function startFileProcessingPoll(fileId, fileName) {
       </div>
     </div>
   </div>
+
+<script>
+/* Kirakon Design System runtime */
+window.KDS = (function() {
+  (function init() {
+    var saved = localStorage.getItem('kds-theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', saved);
+    var btn = document.getElementById('kds-theme-btn');
+    if (btn) btn.textContent = saved === 'dark' ? '☀' : '☾';
+  })();
+  function toggleTheme() {
+    var cur = document.documentElement.getAttribute('data-theme');
+    var next = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('kds-theme', next);
+    var btn = document.getElementById('kds-theme-btn');
+    if (btn) btn.textContent = next === 'dark' ? '☀' : '☾';
+  }
+  function pctColor(pct, warn, crit) {
+    warn = warn || 80; crit = crit || 92;
+    return pct >= crit ? 'var(--red)' : pct >= warn ? 'var(--amber)' : 'var(--green)';
+  }
+  document.querySelectorAll('.kds-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      tab.closest('.kds-tabs').querySelectorAll('.kds-tab').forEach(function(t){ t.classList.remove('active'); });
+      tab.classList.add('active');
+    });
+  });
+  return { toggleTheme: toggleTheme, pctColor: pctColor };
+})();
+</script>
 
 </body>
 </html>
