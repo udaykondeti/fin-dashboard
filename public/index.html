@@ -297,6 +297,10 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 }
 
 .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+/* Half-width variant for rows that only ever hold 2 cards (hand-loan row) —
+   stops the grid from leaving two visible empty cells just to fill the row. */
+.summary-grid--half{grid-template-columns:repeat(2,minmax(0,1fr));max-width:calc(50% + 8px)}
+@media (max-width: 800px){.summary-grid--half{max-width:100%}}
 .summary-card{background:var(--espresso);color:var(--cream);border-radius:var(--radius);padding:18px 22px;position:relative;overflow:hidden;box-shadow:var(--shadow-card);transition:box-shadow 220ms var(--ease-out),transform 220ms var(--ease-out)}
 @media(hover:hover)and(pointer:fine){.summary-card:hover{box-shadow:0 8px 28px rgba(44,26,14,.22);transform:translateY(-2px)}}
 .summary-card-value.animated{animation:countUp 220ms var(--ease-out) both}
@@ -1059,8 +1063,9 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 
       <!-- Hand-loan visibility: amounts already roll into Total Assets
            (receivables) and Total Liabilities, but surface them on their
-           own cards so the user sees the magnitude at a glance. -->
-      <div class="summary-grid" style="margin-top:14px">
+           own cards so the user sees the magnitude at a glance.
+           Two-column row by design — no placeholder cards needed. -->
+      <div class="summary-grid summary-grid--half" style="margin-top:14px">
         <div class="summary-card green">
           <div class="summary-card-label">Money Lent (Receivable)</div>
           <div class="summary-card-value green" id="moneyLent">--</div>
@@ -1071,8 +1076,6 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
           <div class="summary-card-value red" id="moneyBorrowed">--</div>
           <div class="summary-card-sub">Active hand loans you took</div>
         </div>
-        <div class="summary-card" style="background:transparent;border:1px dashed var(--border)"></div>
-        <div class="summary-card" style="background:transparent;border:1px dashed var(--border)"></div>
       </div>
 
       <!-- Cash flow row — gross income, post-TDS net, scheduled outflows,
@@ -2398,9 +2401,23 @@ async function apiFetch(url){
   var token=localStorage.getItem('fin_token');
   try{
     var res=await fetch(url,{headers:{'Authorization':'Bearer '+token}});
+    if (res.status === 401) { handleAuthExpired(); return null; }
     if(res.ok)return await res.json();
   }catch(e){console.warn('apiFetch error for '+url+':',e);}
   return null;
+}
+
+// Called whenever any auth-bearing request comes back 401. Causes are
+// usually: token expired (7d), or server's JWT_SECRET changed (happens on
+// every restart in dev mode — see server/config.js). Clear the stale token,
+// show one toast, and force the user back to the login screen.
+var _authExpiredHandled = false;
+function handleAuthExpired() {
+  if (_authExpiredHandled) return;
+  _authExpiredHandled = true;
+  try { localStorage.removeItem('fin_token'); } catch (_) {}
+  try { showToast('Session expired — please sign in again.', 'error'); } catch (_) {}
+  setTimeout(function(){ location.reload(); }, 900);
 }
 
 // Normalize API snake_case → frontend camelCase
@@ -3140,11 +3157,54 @@ function renderDashboardCharts(){
   var t=calcTotals();
   renderActivity();
   if(charts.alloc)charts.alloc.destroy();
-  charts.alloc=new Chart(document.getElementById('allocChart').getContext('2d'),{
-    type:'doughnut',
-    data:{labels:['Indian Stocks','Mutual Funds','FD/RD','US Stocks','Savings','NPS','Properties','Receivables'],datasets:[{data:[Math.round(t.stocksVal),Math.round(t.mfVal),Math.round(t.fdVal),Math.round(t.usVal),Math.round(t.savingsVal),Math.round(t.npsVal),Math.round(t.propVal),Math.round(t.receivables)],backgroundColor:['#2E7D32','#1565C0','#C68642','#6B3F1F','#5C7F4E','#A0522D','#8B4513','#94a3b8'],borderColor:'#FDF6EC',borderWidth:3}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{...CDEF.plugins,legend:{position:'bottom',labels:{color:'#6B5B4E',font:{size:11,weight:'600'},padding:12}}}}
-  });
+  // Drop zero-value slices so the donut + legend don't render dead segments
+  // (previous version always showed all 8 buckets even when half were empty).
+  var ALLOC = [
+    { label:'Indian Stocks', value: Math.round(t.stocksVal),   color:'#2E7D32' },
+    { label:'Mutual Funds',  value: Math.round(t.mfVal),       color:'#1565C0' },
+    { label:'FD/RD',         value: Math.round(t.fdVal),       color:'#C68642' },
+    { label:'US Stocks',     value: Math.round(t.usVal),       color:'#6B3F1F' },
+    { label:'Savings',       value: Math.round(t.savingsVal),  color:'#5C7F4E' },
+    { label:'NPS',           value: Math.round(t.npsVal),      color:'#A0522D' },
+    { label:'Properties',    value: Math.round(t.propVal),     color:'#8B4513' },
+    { label:'Receivables',   value: Math.round(t.receivables), color:'#94a3b8' }
+  ].filter(function(s){ return s.value > 0; });
+
+  var allocCanvas = document.getElementById('allocChart');
+  if (ALLOC.length === 0) {
+    renderChartEmptyState('allocChart', 'Add an investment to see your allocation.');
+  } else {
+    var allocTotal = ALLOC.reduce(function(s,x){ return s + x.value; }, 0);
+    charts.alloc = new Chart(allocCanvas.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels:   ALLOC.map(function(s){ return s.label; }),
+        datasets: [{
+          data:            ALLOC.map(function(s){ return s.value; }),
+          backgroundColor: ALLOC.map(function(s){ return s.color; }),
+          borderColor:     'var(--bg-primary, #FDF6EC)',
+          borderWidth:     2,
+          hoverOffset:     6,
+          spacing:         1
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        cutout: '72%',
+        plugins: {
+          ...CDEF.plugins,
+          tooltip: { callbacks: { label: function(ctx){
+            var pct = ((ctx.parsed / allocTotal) * 100).toFixed(1);
+            return ctx.label + ': ₹' + ctx.parsed.toLocaleString('en-IN') + ' (' + pct + '%)';
+          }}},
+          legend: {
+            position: 'right',
+            labels: { color: 'var(--text-secondary, #6B5B4E)', font:{size:12, weight:'500'}, padding:14, boxWidth:12, boxHeight:12, usePointStyle:true }
+          }
+        }
+      }
+    });
+  }
   // Real trend from networth_snapshots. The previous version fabricated a
   // linear interpolation from `netWorth * 0.72` to today, which displayed as
   // a perfectly straight line that didn't reflect anything real.
