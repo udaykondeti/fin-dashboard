@@ -44,6 +44,13 @@
   --amber: #f59e0b; --amber-bg: rgba(245,158,11,0.1); --amber-border: rgba(245,158,11,0.25);
   --red: #ef4444; --red-bg: rgba(239,68,68,0.1); --red-border: rgba(239,68,68,0.25);
   --blue: #3b82f6; --blue-bg: rgba(59,130,246,0.1); --blue-border: rgba(59,130,246,0.25);
+  /* ── FileVault card/tile hover design system ── */
+  --fv-teal:       #5eead4;
+  --fv-teal-dim:   rgba(94,234,212,0.12);
+  --fv-border-hi:  rgba(94,234,212,0.25);
+  --fv-glow-teal:  0 0 32px rgba(94,234,212,0.2);
+  --fv-shadow:     0 8px 32px rgba(0,0,0,0.45);
+  --fv-dur:        0.22s;
   --purple: #a78bfa; --sky: #38bdf8;
   --mono: 'JetBrains Mono', monospace;
   --sans: 'Inter', system-ui, sans-serif;
@@ -939,6 +946,279 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 .status-expired{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
 .revoke-btn{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
 .revoke-btn:hover{background:rgba(239,68,68,.2)}
+
+/* ══ FileVault card/tile hover design system ═══════════════════════════════
+   Applies a teal top-gradient reveal + lift shadow on hover to every card
+   and tile in the dashboard. All transitions use --ease-out so the
+   interaction feels instant on approach and smooth on exit.
+   The ::before pseudo-element (top gradient bar) is already set on some
+   cards (e.g. .summary-card::before uses a solid colour) — for those we
+   layer an opacity transition instead of overriding the element.
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── summary cards ── */
+/* .summary-card already has position:relative + overflow:hidden */
+/* Its ::before is a solid colour bar; we add a separate after for the teal glow */
+.summary-card::after{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:2px;
+  background:linear-gradient(90deg,transparent,var(--fv-teal),transparent);
+  opacity:0;
+  transition:opacity var(--fv-dur) var(--ease-out);
+  pointer-events:none;
+}
+@media(hover:hover)and(pointer:fine){
+  .summary-card:hover{
+    transform:translateY(-3px);
+    box-shadow:var(--fv-shadow);
+    border-color:var(--fv-border-hi);
+  }
+  .summary-card:hover::after{opacity:1}
+}
+
+/* ── chart cards ── */
+.chart-card{
+  position:relative;
+  overflow:hidden;
+  transition:transform var(--fv-dur) var(--ease-out),
+             box-shadow var(--fv-dur) var(--ease-out),
+             border-color var(--fv-dur) var(--ease-out);
+}
+.chart-card::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:2px;
+  background:linear-gradient(90deg,transparent,var(--fv-teal),transparent);
+  opacity:0;
+  transition:opacity var(--fv-dur) var(--ease-out);
+  pointer-events:none;
+}
+@media(hover:hover)and(pointer:fine){
+  .chart-card:hover{
+    transform:translateY(-3px);
+    box-shadow:var(--fv-shadow);
+    border-color:rgba(255,255,255,0.14);
+  }
+  .chart-card:hover::before{opacity:1}
+  .chart-card:hover .chart-icon,.chart-card:hover [class*="icon"]{transform:scale(1.08)}
+}
+
+/* ── fixed-deposit cards ── */
+/* .fd-card already has transition + hover; extend with teal bar */
+.fd-card{position:relative;overflow:hidden}
+.fd-card::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:2px;
+  background:linear-gradient(90deg,transparent,var(--fv-teal),transparent);
+  opacity:0;
+  transition:opacity var(--fv-dur) var(--ease-out);
+  pointer-events:none;
+}
+@media(hover:hover)and(pointer:fine){
+  .fd-card:hover{
+    transform:translateY(-3px);
+    box-shadow:var(--fv-shadow);
+  }
+  .fd-card:hover::before{opacity:1}
+}
+
+/* ── credit card cards ── */
+/* .cc-card already has overflow:hidden + transition */
+.cc-card::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:2px;
+  background:linear-gradient(90deg,transparent,var(--fv-teal),transparent);
+  opacity:0;
+  transition:opacity var(--fv-dur) var(--ease-out);
+  pointer-events:none;
+  z-index:1;
+}
+@media(hover:hover)and(pointer:fine){
+  .cc-card:hover{transform:translateY(-3px)}
+  .cc-card:hover::before{opacity:1}
+  .cc-chip{transition:transform var(--fv-dur) var(--ease-out)}
+  .cc-card:hover .cc-chip{transform:scale(1.08)}
+}
+
+/* ── loan cards ── */
+.loan-card{position:relative;overflow:hidden}
+.loan-card::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:2px;
+  background:linear-gradient(90deg,transparent,var(--fv-teal),transparent);
+  opacity:0;
+  transition:opacity var(--fv-dur) var(--ease-out);
+  pointer-events:none;
+}
+@media(hover:hover)and(pointer:fine){
+  .loan-card:hover{
+    transform:translateY(-3px);
+    box-shadow:var(--fv-shadow);
+  }
+  .loan-card:hover::before{opacity:1}
+}
+
+/* ── file vault cards ── */
+/* .file-card already has transition; add teal bar */
+.file-card{position:relative;overflow:hidden}
+.file-card::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:2px;
+  background:linear-gradient(90deg,transparent,var(--fv-teal),transparent);
+  opacity:0;
+  transition:opacity var(--fv-dur) var(--ease-out);
+  pointer-events:none;
+}
+@media(hover:hover)and(pointer:fine){
+  .file-card:hover{
+    transform:translateY(-3px);
+    box-shadow:var(--fv-shadow);
+  }
+  .file-card:hover::before{opacity:1}
+  .file-card-icon{transition:transform var(--fv-dur) var(--ease-out)}
+  .file-card:hover .file-card-icon{transform:scale(1.08)}
+}
+
+/* ── insurance cards ── */
+.ins-card{
+  position:relative;
+  overflow:hidden;
+  transition:transform var(--fv-dur) var(--ease-out),
+             box-shadow var(--fv-dur) var(--ease-out),
+             border-color var(--fv-dur) var(--ease-out);
+}
+.ins-card::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:2px;
+  background:linear-gradient(90deg,transparent,var(--fv-teal),transparent);
+  opacity:0;
+  transition:opacity var(--fv-dur) var(--ease-out);
+  pointer-events:none;
+}
+@media(hover:hover)and(pointer:fine){
+  .ins-card:hover{
+    transform:translateY(-3px);
+    box-shadow:var(--fv-shadow);
+    border-color:rgba(255,255,255,0.14);
+  }
+  .ins-card:hover::before{opacity:1}
+}
+
+/* ── NPS cards ── */
+.nps-card{
+  position:relative;
+  overflow:hidden;
+  transition:transform var(--fv-dur) var(--ease-out),
+             box-shadow var(--fv-dur) var(--ease-out),
+             border-color var(--fv-dur) var(--ease-out);
+}
+.nps-card::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:2px;
+  background:linear-gradient(90deg,transparent,var(--fv-teal),transparent);
+  opacity:0;
+  transition:opacity var(--fv-dur) var(--ease-out);
+  pointer-events:none;
+}
+@media(hover:hover)and(pointer:fine){
+  .nps-card:hover{
+    transform:translateY(-3px);
+    box-shadow:var(--fv-shadow);
+    border-color:rgba(255,255,255,0.14);
+  }
+  .nps-card:hover::before{opacity:1}
+}
+
+/* ── scheduled payment cards ── */
+.pay-card{
+  position:relative;
+  overflow:hidden;
+  transition:transform var(--fv-dur) var(--ease-out),
+             box-shadow var(--fv-dur) var(--ease-out),
+             border-color var(--fv-dur) var(--ease-out);
+}
+.pay-card::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:2px;
+  background:linear-gradient(90deg,transparent,var(--fv-teal),transparent);
+  opacity:0;
+  transition:opacity var(--fv-dur) var(--ease-out);
+  pointer-events:none;
+}
+@media(hover:hover)and(pointer:fine){
+  .pay-card:hover{
+    transform:translateY(-3px);
+    box-shadow:var(--fv-shadow);
+    border-color:rgba(255,255,255,0.14);
+  }
+  .pay-card:hover::before{opacity:1}
+}
+
+/* ── tax estimate card ── */
+.tax-estimate-card{
+  position:relative;
+  overflow:hidden;
+  transition:transform var(--fv-dur) var(--ease-out),
+             box-shadow var(--fv-dur) var(--ease-out),
+             border-color var(--fv-dur) var(--ease-out);
+}
+.tax-estimate-card::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:2px;
+  background:linear-gradient(90deg,transparent,var(--fv-teal),transparent);
+  opacity:0;
+  transition:opacity var(--fv-dur) var(--ease-out);
+  pointer-events:none;
+}
+@media(hover:hover)and(pointer:fine){
+  .tax-estimate-card:hover{
+    transform:translateY(-3px);
+    box-shadow:var(--fv-shadow);
+    border-color:rgba(255,255,255,0.14);
+  }
+  .tax-estimate-card:hover::before{opacity:1}
+}
+
+/* Icon scale on hover — generic selector for icons inside any hovered card */
+@media(hover:hover)and(pointer:fine){
+  .ins-card:hover .ins-type-badge,
+  .nps-card:hover .nps-tier,
+  .pay-card:hover .pay-cat-chip{transform:scale(1.05)}
+  .ins-type-badge,.nps-tier,.pay-cat-chip{transition:transform var(--fv-dur) var(--ease-out)}
+}
+
+/* Reduced motion — disable all card hover transforms/transitions */
+@media(prefers-reduced-motion:reduce){
+  .summary-card,.chart-card,.fd-card,.cc-card,.loan-card,
+  .file-card,.ins-card,.nps-card,.pay-card,.tax-estimate-card{
+    transition:none!important;
+  }
+  .summary-card::after,.chart-card::before,.fd-card::before,
+  .cc-card::before,.loan-card::before,.file-card::before,
+  .ins-card::before,.nps-card::before,.pay-card::before,
+  .tax-estimate-card::before{
+    display:none!important;
+  }
+}
 
 </style>
 </head>
