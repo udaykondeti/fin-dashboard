@@ -31,12 +31,32 @@ const SQL_HALLUCINATION_PATTERNS = [
   /SQLITE_ERROR[^\n]{0,200}/gi,
   /Traceback \(most recent call last\):[\s\S]{0,400}/g
 ];
+// Placeholder patterns the model sometimes emits instead of calling a tool.
+// Word-boundary-anchored so we don't false-positive on real dollar amounts
+// like "$1,234". Each match gets replaced with [missing] AND logged so we
+// can see when the local model is misbehaving.
+const PLACEHOLDER_PATTERNS = [
+  /\$\s*[XYZWNK]\b/g,            // $X, $Y, $Z, $W, $N, $K
+  /₹\s*[XYZWNK]\b/g,             // ₹X etc.
+  /\[\s*(?:amount|value|number|total|placeholder|tbd|fill in)\s*\]/gi,
+  /<\s*(?:amount|value|number|total|placeholder|tbd)\s*>/gi,
+  /\bwill update with actual (?:numbers|values|figures)\b/gi
+];
 function scrubAssistantText(s) {
   if (typeof s !== 'string' || !s) return s == null ? '' : String(s);
   try {
     let out = s;
     for (const re of SQL_HALLUCINATION_PATTERNS) {
       out = out.replace(re, '[internal database detail suppressed]');
+    }
+    let placeholderHit = false;
+    for (const re of PLACEHOLDER_PATTERNS) {
+      out = out.replace(re, (m) => { placeholderHit = true; return '[missing]'; });
+    }
+    if (placeholderHit) {
+      // Surface in the process log so we can spot bad model output without
+      // the user having to screenshot it. Tail with `pm2 logs fin-dashboard`.
+      console.warn('[chatAgent] placeholder text scrubbed from assistant reply — model likely skipped a tool call');
     }
     return out;
   } catch (err) {
@@ -241,6 +261,9 @@ function systemPromptFor(agentKind) {
       "  • If you do not have data the user is asking about and no tool can fetch it, say plainly: \"I don't have access to that.\"",
       "  • If a tool returns an error, summarise the error in one short sentence — do NOT echo internal SQL or stack traces (no \"no such column: ...\", no \"SELECT ...\").",
       "  • Never invent column names, schemas, or fake query results.",
+      "  • ABSOLUTELY NEVER use placeholder values like $X, $Y, ₹X, [amount], <value>, TBD, or 'will update with actual numbers'. If you don't have the number, CALL the relevant tool. If a tool truly has no data, say so plainly — but never emit a fake-looking template. A response with placeholders is treated as a bug and will be replaced.",
+      "  • Currency: amounts come from tools as numbers in INR rupees. Format with the ₹ symbol and Indian thousands grouping (e.g. ₹12,45,000). Never use $ for INR figures.",
+      "  • When summarising portfolio / net worth, prefer get_net_worth first (returns a single rolled-up snapshot), then drill down into query_holdings only if the user asked for the breakdown.",
       "",
       "When the user asks you to make a change to their data, use a propose_* tool. NEVER claim a change has been made until the user confirms the proposal — the system will execute the mutation only after explicit user approval.",
       "Be concise. Bullet lists for >2 items.",
