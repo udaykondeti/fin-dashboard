@@ -73,6 +73,9 @@ app.use(cors((req, callback) => {
   });
 }));
 
+// Slack slash command — raw body required for HMAC; mount before global body parsers
+app.use('/slack', require('./routes/slack'));
+
 // Body parsing middleware
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
