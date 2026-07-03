@@ -134,6 +134,20 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 .demo-banner .demo-dot{width:8px;height:8px;border-radius:50%;background:var(--caramel);flex-shrink:0;box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent)}
 .demo-banner .demo-close{margin-left:auto;background:none;border:none;color:var(--caramel);font-size:18px;line-height:1;cursor:pointer;padding:2px 8px;border-radius:6px}
 .demo-banner .demo-close:hover{background:color-mix(in srgb, var(--accent) 18%, transparent)}
+/* Gmail connection banner — accent tone by default; amber "warn" variant when
+   credentials are present but broken and need re-authing. */
+.gmail-banner{display:flex;align-items:center;gap:12px;background:color-mix(in srgb, var(--accent) 10%, transparent);border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);color:var(--text-primary);padding:11px 14px;border-radius:10px;margin:0 0 18px;font-size:13px}
+.gmail-banner .gmail-banner-ic{font-size:18px;line-height:1;flex-shrink:0}
+.gmail-banner .gmail-banner-text{display:flex;flex-direction:column;gap:1px;min-width:0}
+.gmail-banner .gmail-banner-text strong{color:var(--caramel)}
+.gmail-banner .gmail-banner-text span{color:var(--text-secondary)}
+.gmail-banner .gmail-banner-btn{margin-left:auto;flex-shrink:0;background:var(--accent);color:var(--accent-contrast);border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.2px;transition:filter 150ms var(--ease-out),transform 120ms var(--ease-out)}
+.gmail-banner .gmail-banner-btn:hover{filter:brightness(1.07);transform:translateY(-1px)}
+.gmail-banner .demo-close{background:none;border:none;color:var(--caramel);font-size:18px;line-height:1;cursor:pointer;padding:2px 8px;border-radius:6px}
+.gmail-banner .demo-close:hover{background:color-mix(in srgb, var(--accent) 18%, transparent)}
+.gmail-banner.warn{background:var(--amber-bg);border-color:var(--amber-border)}
+.gmail-banner.warn .gmail-banner-text strong,.gmail-banner.warn .demo-close{color:var(--amber)}
+.gmail-banner.warn .gmail-banner-btn{background:var(--amber)}
 .agent-shell{display:grid;grid-template-columns:260px 1fr;gap:0;height:calc(100dvh - var(--nav-height) - 56px);min-height:480px;max-height:calc(100dvh - var(--nav-height) - 56px);border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--bg-primary);box-shadow:0 4px 24px -8px rgba(60,40,20,.12);animation:agentShellIn 320ms var(--ease-out) both}
 @keyframes agentShellIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes fadeInUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
@@ -1259,6 +1273,18 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
       <strong>Demo mode</strong>
       <span>Server isn't reachable or you signed in without a real account — the figures shown are sample data and changes won't persist.</span>
       <button type="button" class="demo-close" onclick="dismissDemoBanner()" aria-label="Dismiss">×</button>
+    </div>
+
+    <!-- Gmail connection status — shown when the inbox isn't linked, or when
+         stored credentials have gone stale (revoked / OAuth client deleted). -->
+    <div id="gmailBanner" class="gmail-banner" style="display:none">
+      <span class="gmail-banner-ic">&#x2709;</span>
+      <div class="gmail-banner-text">
+        <strong id="gmailBannerTitle">Gmail not connected</strong>
+        <span id="gmailBannerMsg">Link your inbox to auto-import bills, statements and receipts.</span>
+      </div>
+      <button type="button" class="gmail-banner-btn" id="gmailBannerBtn" onclick="connectGmail()">Connect Gmail</button>
+      <button type="button" class="demo-close" onclick="dismissGmailBanner()" aria-label="Dismiss">×</button>
     </div>
 
     <!-- DASHBOARD PAGE -->
@@ -5483,15 +5509,88 @@ openModal = function(id, arg) {
 
 // Load profiles on init
 document.addEventListener('DOMContentLoaded', function(){
-  if (localStorage.getItem('fin_token')) loadProfiles();
+  if (localStorage.getItem('fin_token')) { loadProfiles(); refreshGmailBanner(); }
+  handleGmailCallbackParams();
 });
 // Also hook into existing tryLogin success flow — load profiles after login
 var _origTryLogin = tryLogin;
 tryLogin = async function(email, password) {
   var result = await _origTryLogin(email, password);
-  if (result) await loadProfiles();
+  if (result) { await loadProfiles(); refreshGmailBanner(); }
   return result;
 };
+
+// ─── Gmail connection banner ────────────────────────────────────────────────
+// Polls /api/gmail/status and shows a banner when the inbox isn't linked, or
+// when the stored credentials have gone stale (revoked, or the Google OAuth
+// client was deleted → the "deleted_client" error you'd otherwise only see as
+// a raw Google page). Silent when Gmail is unconfigured or working fine.
+var _gmailBannerDismissed = false;
+async function refreshGmailBanner() {
+  var banner = document.getElementById('gmailBanner');
+  if (!banner) return;
+  // Skip in demo mode — nothing to connect against.
+  if (typeof isDemoMode === 'function' && isDemoMode()) { banner.style.display = 'none'; return; }
+
+  var status = await apiFetch('/api/gmail/status');
+  if (!status || !status.configured) { banner.style.display = 'none'; return; }
+  if (status.connected && status.valid) { banner.style.display = 'none'; return; }
+  if (_gmailBannerDismissed) { banner.style.display = 'none'; return; }
+
+  var title = document.getElementById('gmailBannerTitle');
+  var msg   = document.getElementById('gmailBannerMsg');
+  var btn   = document.getElementById('gmailBannerBtn');
+  if (status.connected && !status.valid) {
+    // Linked once, but the credentials no longer work.
+    banner.classList.add('warn');
+    title.textContent = 'Gmail credentials invalid';
+    msg.textContent   = 'Your inbox link stopped working (access was revoked or the sign-in was reset). Reconnect to resume bill imports.';
+    btn.textContent   = 'Reconnect Gmail';
+  } else {
+    banner.classList.remove('warn');
+    title.textContent = 'Gmail not connected';
+    msg.textContent   = 'Link your inbox to auto-import bills, statements and receipts.';
+    btn.textContent   = 'Connect Gmail';
+  }
+  banner.style.display = 'flex';
+}
+
+async function connectGmail() {
+  var btn = document.getElementById('gmailBannerBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Opening Google…'; }
+  // The SPA authenticates with a Bearer token, so we can't just navigate to
+  // /api/gmail/connect (a redirect can't carry the header). Fetch the consent
+  // URL with the token, then send the browser there.
+  var data = await apiFetch('/api/gmail/auth-url');
+  if (data && data.url) {
+    window.location.href = data.url;
+  } else {
+    showToast('Could not start Gmail connection. Check GMAIL_CLIENT_ID is set on the server.', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Connect Gmail'; }
+  }
+}
+
+function dismissGmailBanner() {
+  _gmailBannerDismissed = true;
+  var banner = document.getElementById('gmailBanner');
+  if (banner) banner.style.display = 'none';
+}
+
+// After Google redirects back to /#settings?gmailConnected=1 (or ?gmailError=…),
+// surface a toast and refresh the banner state.
+function handleGmailCallbackParams() {
+  var hash = window.location.hash || '';
+  var qIdx = hash.indexOf('?');
+  if (qIdx === -1) return;
+  var params = new URLSearchParams(hash.slice(qIdx + 1));
+  if (params.get('gmailConnected')) {
+    showToast('Gmail connected — bill imports are active.', 'success');
+    _gmailBannerDismissed = false;
+    setTimeout(refreshGmailBanner, 500);
+  } else if (params.get('gmailError')) {
+    showToast('Gmail connection failed: ' + params.get('gmailError'), 'error');
+  }
+}
 
 // ─── PROPERTIES MODULE ──────────────────────────────────────────────────────
 var propertiesData = [];

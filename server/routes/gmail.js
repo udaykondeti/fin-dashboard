@@ -23,14 +23,36 @@ function requireGmailConfig(res) {
 }
 
 // ─── GET /api/gmail/status ────────────────────────────────────────────────
-router.get('/status', (req, res) => {
+// Reports three distinct states so the UI can show the right banner:
+//   configured=false            → Gmail integration not set up (no client id)
+//   connected=false             → set up, but this user hasn't linked an inbox
+//   connected=true, valid=false → linked, but the stored credentials are broken
+//                                 (revoked / deleted_client) → needs reconnect
+//   connected=true, valid=true  → all good, no banner
+router.get('/status', async (req, res) => {
   const configured = gmail.isGmailConfigured();
-  const tokens     = configured ? gmail.getTokens(req.user.id) : null;
+  if (!configured) {
+    return res.json({ configured: false, connected: false, valid: false });
+  }
+  const check  = await gmail.checkCredentials(req.user.id);
+  const tokens = gmail.getTokens(req.user.id);
   res.json({
-    configured,
-    connected: !!tokens,
+    configured: true,
+    connected: !!check.connected,
+    valid: check.connected ? check.valid !== false : false,
+    reason: check.reason || null,
     connectedAt: tokens?.updated_at || null
   });
+});
+
+// ─── GET /api/gmail/auth-url ──────────────────────────────────────────────
+// Returns the Google consent URL as JSON so the SPA (which authenticates with
+// a Bearer token, not a cookie) can navigate to it. A plain redirect from
+// /connect can't carry the Authorization header, so the button fetches this
+// with the token, then sets window.location to the returned url.
+router.get('/auth-url', (req, res) => {
+  if (!requireGmailConfig(res)) return;
+  res.json({ url: gmail.getAuthUrl(req.user.id) });
 });
 
 // ─── GET /api/gmail/connect ───────────────────────────────────────────────

@@ -66,6 +66,41 @@ function revokeTokens(userId) {
   db.prepare('DELETE FROM gmail_tokens WHERE user_id = ?').run(userId);
 }
 
+/**
+ * Best-effort validity check of a user's stored Gmail tokens. Returns:
+ *   { connected: false }                      — no tokens saved
+ *   { connected: true, valid: true }          — token usable (refreshed if needed)
+ *   { connected: true, valid: false, reason } — refresh failed: the refresh
+ *       token was revoked, the OAuth client was deleted (deleted_client), the
+ *       consent was withdrawn, etc.
+ * Lets the UI distinguish "never connected" from "connected but broken" without
+ * a full message-list call. Note: a still-valid (unexpired) access token is
+ * accepted without contacting Google, so a client deletion surfaces on the next
+ * hourly expiry rather than instantly — good enough for a status banner.
+ */
+async function checkCredentials(userId) {
+  const row = getTokens(userId);
+  if (!row) return { connected: false };
+
+  const client = getOAuth2Client();
+  client.setCredentials({
+    access_token:  row.access_token,
+    refresh_token: row.refresh_token,
+    expiry_date:   row.expiry_date
+  });
+  client.on('tokens', (t) => saveTokens(userId, t));
+
+  try {
+    // Refreshes when the access token is expired; validates the refresh token
+    // and the OAuth client itself against Google.
+    await client.getAccessToken();
+    return { connected: true, valid: true };
+  } catch (err) {
+    const reason = err?.response?.data?.error || err?.message || 'unknown';
+    return { connected: true, valid: false, reason };
+  }
+}
+
 /** Returns an authenticated Gmail API client for the given user. */
 async function getGmailClient(userId) {
   const row = getTokens(userId);
@@ -145,5 +180,6 @@ module.exports = {
   handleCallback,
   getTokens,
   revokeTokens,
+  checkCredentials,
   fetchEmails
 };
