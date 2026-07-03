@@ -23,45 +23,33 @@
 <meta name="twitter:title" content="FinDash — Personal Finance Dashboard">
 <meta name="twitter:description" content="Track net worth, investments, and liabilities in one place.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/design/kirakon.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" defer></script>
 <style>
 /* ──────────────────────────────────────────────────────────────────────
-   Coffee-theme palette ported from coffee.kirakon.com.
-   Existing JS templates throughout this file reference --accent-gold,
-   --accent-green, etc. — those names are kept; only the values change,
-   plus new --cream / --espresso / --caramel / --mocha tokens are added
-   for places that need explicit coffee browns.
+   Kirakon Design Language v1 — canonical tokens (light + dark) live in
+   /design/kirakon.css. This block only maps the app's legacy names
+   (coffee palette, FileVault --fv-*, --accent-gold, …) onto them so the
+   existing component CSS and JS templates keep working unchanged.
 ─────────────────────────────────────────────────────────────────────── */
 :root {
-  /* ── Kirakon Design System tokens ── */
-  --bg: #09090b; --bg2: #18181b; --bg3: #27272a;
-  --border: #3f3f46; --border-subtle: #2a2a30;
-  --text: #fafafa; --text-dim: #a1a1aa; --text-subtle: #71717a;
-  --chip-bg: #27272a; --chip-border: #3f3f46;
-  --green: #22c55e; --green-bg: rgba(34,197,94,0.1); --green-border: rgba(34,197,94,0.25);
-  --amber: #f59e0b; --amber-bg: rgba(245,158,11,0.1); --amber-border: rgba(245,158,11,0.25);
-  --red: #ef4444; --red-bg: rgba(239,68,68,0.1); --red-border: rgba(239,68,68,0.25);
-  --blue: #3b82f6; --blue-bg: rgba(59,130,246,0.1); --blue-border: rgba(59,130,246,0.25);
-  /* ── FileVault card/tile hover design system ── */
-  --fv-teal:       #5eead4;
-  --fv-teal-dim:   rgba(94,234,212,0.12);
-  --fv-border-hi:  rgba(94,234,212,0.25);
-  --fv-glow-teal:  0 0 32px rgba(94,234,212,0.2);
-  --fv-shadow:     0 8px 32px rgba(0,0,0,0.45);
-  --fv-dur:        0.22s;
-  --purple: #a78bfa; --sky: #38bdf8;
-  --mono: 'JetBrains Mono', monospace;
-  --sans: 'Inter', system-ui, sans-serif;
-  --radius: 14px;
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --shadow: 0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.2);
+  --chip-bg: var(--bg3); --chip-border: var(--border);
+  --sky: var(--blue);
 
-  /* Coffee-name aliases — remapped to KDS tokens */
+  /* ── FileVault card/tile hover aliases ── */
+  --fv-teal:       var(--accent);
+  --fv-teal-dim:   var(--accent-dim);
+  --fv-border-hi:  var(--border-hi);
+  --fv-glow-teal:  var(--glow-accent);
+  --fv-shadow:     var(--shadow-hover);
+  --fv-dur:        var(--dur);
+
+  /* Coffee-name aliases — remapped to canonical tokens. --caramel was the
+     de-facto brand accent; it now resolves to Kirakon Teal (--accent). */
   --espresso:   var(--bg2);
   --mocha:      var(--text);
-  --caramel:    var(--amber);
+  --caramel:    var(--accent);
   --latte:      var(--border);
   --cream:      var(--bg3);
   --foam:       var(--bg3);
@@ -79,54 +67,13 @@
   --accent-red:    var(--red);
   --accent-blue:   var(--blue);
   --login-bg:      var(--bg);
-  --login-accent:  var(--blue);
+  --login-accent:  var(--accent);
   --nav-height: 56px;
   --shadow-card: var(--shadow);
-  --shadow-lift: 0 4px 24px rgba(0,0,0,0.35);
+  --shadow-lift: var(--shadow-hover);
 
-  /* Easing curves */
-  --ease-out:    cubic-bezier(0.23, 1, 0.32, 1);
+  /* Easing curves not in the shared file */
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-
-  /* ── SystemPulse design tokens ── */
-  --bg: #09090b; --bg2: #18181b; --bg3: #27272a;
-  --border-subtle: #2a2a30;
-  --text: #fafafa; --text-dim: #a1a1aa; --text-subtle: #71717a;
-  --chip-bg: #27272a; --chip-border: #3f3f46;
-  --green: #22c55e; --green-bg: rgba(34,197,94,0.1); --green-border: rgba(34,197,94,0.25);
-  --amber: #f59e0b; --amber-bg: rgba(245,158,11,0.1); --amber-border: rgba(245,158,11,0.25);
-  --red: #ef4444; --red-bg: rgba(239,68,68,0.1); --red-border: rgba(239,68,68,0.25);
-  --blue: #3b82f6; --blue-bg: rgba(59,130,246,0.1); --blue-border: rgba(59,130,246,0.25);
-  --purple: #a78bfa; --sky: #38bdf8;
-  --mono: 'JetBrains Mono', monospace;
-  --sans: 'Inter', system-ui, sans-serif;
-  --radius: 14px;
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --shadow: 0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.2);
-}
-
-[data-theme="light"] {
-  --bg: #e8edf2; --bg2: #ffffff; --bg3: #f1f5f9;
-  --border: #d1d9e0; --border-subtle: #e2e8f0;
-  --text: #0f172a; --text-dim: #475569; --text-subtle: #64748b;
-  --chip-bg: #ffffff; --chip-border: #d1d9e0;
-  --green: #16a34a; --green-bg: #f0fdf4; --green-border: #bbf7d0;
-  --amber: #d97706; --amber-bg: #fffbeb; --amber-border: #fde68a;
-  --red: #dc2626; --red-bg: #fef2f2; --red-border: #fecaca;
-  --blue: #2563eb; --blue-bg: #eff6ff; --blue-border: #bfdbfe;
-  --purple: #7c3aed; --sky: #0284c7;
-}
-
-[data-theme="light"] {
-  --bg: #e8edf2; --bg2: #ffffff; --bg3: #f1f5f9;
-  --border: #d1d9e0; --border-subtle: #e2e8f0;
-  --text: #0f172a; --text-dim: #475569; --text-subtle: #64748b;
-  --chip-bg: #ffffff; --chip-border: #d1d9e0;
-  --green: #16a34a; --green-bg: #f0fdf4; --green-border: #bbf7d0;
-  --amber: #d97706; --amber-bg: #fffbeb; --amber-border: #fde68a;
-  --red: #dc2626; --red-bg: #fef2f2; --red-border: #fecaca;
-  --blue: #2563eb; --blue-bg: #eff6ff; --blue-border: #bfdbfe;
-  --purple: #7c3aed; --sky: #0284c7;
 }
 
 [data-theme="light"] {
@@ -158,7 +105,7 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 .form-group{margin-bottom:16px}
 .form-group label{display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
 .form-group input{width:100%;padding:10px 14px;border:1.5px solid var(--latte);border-radius:8px;font-size:14px;color:var(--espresso);font-family:inherit;transition:border-color 150ms var(--ease-out),box-shadow 150ms var(--ease-out)}
-.form-group input:focus{outline:none;border-color:var(--login-accent);box-shadow:0 0 0 3px rgba(198,134,66,.15)}
+.form-group input:focus{outline:none;border-color:var(--login-accent);box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent)}
 .login-btn{width:100%;padding:12px;background:#1c1917;color:#b45309;font-size:15px;font-weight:700;border:none;border-radius:8px;cursor:pointer;margin-top:8px;letter-spacing:.3px;transition:opacity 150ms var(--ease-out), transform 120ms var(--ease-out)}
 .login-btn:hover{opacity:.88}
 .login-btn:active{transform:scale(0.97)}
@@ -175,7 +122,7 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 .nav-tab{padding:6px 10px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;font-family:inherit;color:rgba(253,246,236,.7);border:none;background:none;white-space:nowrap;transition:background 130ms var(--ease-out), color 130ms var(--ease-out), transform 100ms var(--ease-out)}
 .nav-tab:hover{background:rgba(253,246,236,.08);color:var(--cream)}
 .nav-tab:active{transform:scale(0.94)}
-.nav-tab.active{background:rgba(198,134,66,.18);color:var(--caramel)}
+.nav-tab.active{background:color-mix(in srgb, var(--accent) 18%, transparent);color:var(--caramel)}
 .topnav-right{display:flex;align-items:center;gap:8px;flex-shrink:0;justify-content:flex-end}
 .user-name{font-size:13px;color:rgba(253,246,236,.7);white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}
 .logout-btn{padding:5px 10px;background:rgba(253,246,236,.06);color:rgba(253,246,236,.85);border:1px solid rgba(253,246,236,.25);border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;transition:background 130ms var(--ease-out), color 130ms var(--ease-out), transform 100ms var(--ease-out)}
@@ -190,11 +137,11 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 .main-content{margin-top:var(--nav-height);padding:24px;min-height:calc(100vh - var(--nav-height));max-width:1400px;width:100%;margin-left:auto;margin-right:auto}
 .page{display:none}
 .page.active{display:block;animation:pageIn 180ms var(--ease-out) both}
-.demo-banner{display:flex;align-items:center;gap:10px;background:rgba(198,134,66,.10);border:1px solid rgba(198,134,66,.35);color:var(--text-primary);padding:10px 14px;border-radius:10px;margin:0 0 18px;font-size:13px}
+.demo-banner{display:flex;align-items:center;gap:10px;background:color-mix(in srgb, var(--accent) 10%, transparent);border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);color:var(--text-primary);padding:10px 14px;border-radius:10px;margin:0 0 18px;font-size:13px}
 .demo-banner strong{color:var(--caramel)}
-.demo-banner .demo-dot{width:8px;height:8px;border-radius:50%;background:var(--caramel);flex-shrink:0;box-shadow:0 0 0 3px rgba(198,134,66,.18)}
+.demo-banner .demo-dot{width:8px;height:8px;border-radius:50%;background:var(--caramel);flex-shrink:0;box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent)}
 .demo-banner .demo-close{margin-left:auto;background:none;border:none;color:var(--caramel);font-size:18px;line-height:1;cursor:pointer;padding:2px 8px;border-radius:6px}
-.demo-banner .demo-close:hover{background:rgba(198,134,66,.18)}
+.demo-banner .demo-close:hover{background:color-mix(in srgb, var(--accent) 18%, transparent)}
 .agent-shell{display:grid;grid-template-columns:260px 1fr;gap:0;height:calc(100dvh - var(--nav-height) - 56px);min-height:480px;max-height:calc(100dvh - var(--nav-height) - 56px);border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--bg-primary);box-shadow:0 4px 24px -8px rgba(60,40,20,.12);animation:agentShellIn 320ms var(--ease-out) both}
 @keyframes agentShellIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes fadeInUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
@@ -207,13 +154,13 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 .agent-shell.has-artifact{grid-template-columns:260px 1fr minmax(360px, 480px)}
 .agent-sidebar{border-right:1px solid var(--border);background:var(--bg-secondary);display:flex;flex-direction:column;min-height:0}
 .agent-new-btn{margin:14px;padding:10px 12px;background:var(--caramel);color:var(--cream);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;font-family:inherit;transition:filter 160ms var(--ease-out), transform 140ms var(--ease-out), box-shadow 160ms var(--ease-out);box-shadow:0 1px 0 rgba(0,0,0,.04)}
-.agent-new-btn:hover{filter:brightness(1.07);box-shadow:0 6px 16px -6px rgba(198,134,66,.55);transform:translateY(-1px)}
+.agent-new-btn:hover{filter:brightness(1.07);box-shadow:0 6px 16px -6px color-mix(in srgb, var(--accent) 55%, transparent);transform:translateY(-1px)}
 .agent-new-btn:active{transform:scale(0.97) translateY(0)}
 .agent-thread-list{flex:1;overflow-y:auto;padding:0 8px 14px;min-height:0}
 .agent-thread{padding:10px 12px;margin-bottom:4px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--text-primary);border:1px solid transparent;display:flex;align-items:center;justify-content:space-between;gap:8px;transition:background 180ms var(--ease-out), border-color 180ms var(--ease-out), transform 140ms var(--ease-out)}
-.agent-thread:hover{background:rgba(198,134,66,.08);transform:translateX(2px)}
-.agent-thread.active{background:rgba(198,134,66,.18);border-color:rgba(198,134,66,.35)}
-.agent-thread.pinned{background:rgba(198,134,66,.05);font-weight:600}
+.agent-thread:hover{background:color-mix(in srgb, var(--accent) 8%, transparent);transform:translateX(2px)}
+.agent-thread.active{background:color-mix(in srgb, var(--accent) 18%, transparent);border-color:color-mix(in srgb, var(--accent) 35%, transparent)}
+.agent-thread.pinned{background:color-mix(in srgb, var(--accent) 5%, transparent);font-weight:600}
 .agent-thread.pinned .title::before{content:""}
 .agent-thread-divider{height:1px;background:var(--border);margin:8px 4px}
 .agent-thread-badge{font-size:10px;font-weight:700;background:var(--caramel);color:var(--cream);padding:2px 7px;border-radius:10px;min-width:18px;text-align:center}
@@ -231,11 +178,11 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 .agent-messages{flex:1 1 0;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:14px;min-height:0;scroll-behavior:smooth}
 .agent-msg{max-width:78%;padding:10px 14px;border-radius:14px;font-size:14px;line-height:1.55;word-wrap:break-word;white-space:pre-wrap;animation:agentMsgIn 260ms var(--ease-out) both}
 @keyframes agentMsgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.agent-msg.user{align-self:flex-end;background:linear-gradient(135deg,rgba(198,134,66,.16),rgba(198,134,66,.10));border:1px solid rgba(198,134,66,.32);color:var(--text-primary);box-shadow:0 1px 2px rgba(198,134,66,.10)}
+.agent-msg.user{align-self:flex-end;background:linear-gradient(135deg,color-mix(in srgb, var(--accent) 16%, transparent),color-mix(in srgb, var(--accent) 10%, transparent));border:1px solid color-mix(in srgb, var(--accent) 32%, transparent);color:var(--text-primary);box-shadow:0 1px 2px color-mix(in srgb, var(--accent) 10%, transparent)}
 .agent-msg.assistant{align-self:flex-start;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);box-shadow:0 1px 2px rgba(0,0,0,.03)}
 .agent-msg .interrupted{color:var(--text-secondary);font-style:italic;font-size:12px;margin-top:6px}
 .agent-tool-chip{align-self:flex-start;background:rgba(0,0,0,.03);border:1px dashed var(--border);color:var(--text-secondary);font-size:11px;padding:4px 10px;border-radius:14px;cursor:pointer;animation:agentMsgIn 260ms var(--ease-out) both;transition:background 160ms var(--ease-out), color 160ms var(--ease-out)}
-.agent-tool-chip:hover{background:rgba(198,134,66,.08);color:var(--text-primary)}
+.agent-tool-chip:hover{background:color-mix(in srgb, var(--accent) 8%, transparent);color:var(--text-primary)}
 .agent-typing{align-self:flex-start;display:inline-flex;gap:4px;padding:10px 14px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:14px;animation:agentMsgIn 200ms var(--ease-out) both}
 .agent-typing span{width:6px;height:6px;border-radius:50%;background:var(--caramel);opacity:.4;animation:agentTypingDot 1.1s infinite ease-in-out}
 .agent-typing span:nth-child(2){animation-delay:.15s}
@@ -243,7 +190,7 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 @keyframes agentTypingDot{0%,80%,100%{transform:scale(.7);opacity:.35}40%{transform:scale(1.1);opacity:1}}
 .agent-tool-chip pre{display:none;white-space:pre-wrap;font-size:11px;margin-top:8px;background:rgba(0,0,0,.05);padding:8px;border-radius:6px;color:var(--text-primary)}
 .agent-tool-chip.open pre{display:block}
-.agent-proposal{align-self:flex-start;border:1px solid var(--caramel);background:rgba(198,134,66,.06);border-radius:12px;padding:12px 14px;max-width:78%;font-size:13px}
+.agent-proposal{align-self:flex-start;border:1px solid var(--caramel);background:color-mix(in srgb, var(--accent) 6%, transparent);border-radius:12px;padding:12px 14px;max-width:78%;font-size:13px}
 .agent-proposal .summary{font-weight:600;color:var(--text-primary);margin-bottom:8px}
 .agent-proposal .actions{display:flex;gap:8px}
 .agent-proposal button{padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid transparent}
@@ -257,22 +204,22 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 .agent-proposal .confirm:disabled{opacity:.5;cursor:not-allowed}
 .agent-input-row{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--border);background:var(--bg-primary);flex-shrink:0;align-items:flex-end}
 .agent-input-row textarea{flex:1;resize:none;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-family:inherit;font-size:13px;line-height:1.5;max-height:160px;transition:border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out)}
-.agent-input-row textarea:focus{outline:none;border-color:rgba(198,134,66,.55);box-shadow:0 0 0 3px rgba(198,134,66,.15)}
+.agent-input-row textarea:focus{outline:none;border-color:color-mix(in srgb, var(--accent) 55%, transparent);box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent)}
 .agent-input-row button{padding:0 20px;height:40px;background:var(--caramel);color:var(--cream);border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;min-width:84px;transition:filter 160ms var(--ease-out), transform 140ms var(--ease-out), box-shadow 160ms var(--ease-out);box-shadow:0 1px 0 rgba(0,0,0,.05)}
-.agent-input-row button:hover:not(:disabled){filter:brightness(1.06);box-shadow:0 6px 18px -6px rgba(198,134,66,.55);transform:translateY(-1px)}
+.agent-input-row button:hover:not(:disabled){filter:brightness(1.06);box-shadow:0 6px 18px -6px color-mix(in srgb, var(--accent) 55%, transparent);transform:translateY(-1px)}
 .agent-input-row button:active:not(:disabled){transform:scale(0.97) translateY(0)}
 .agent-input-row button:disabled{opacity:.55;cursor:not-allowed}
 .agent-attach-btn{flex:0 0 auto;width:40px;height:40px;padding:0;font-size:18px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:10px;cursor:pointer;line-height:1;transition:background 160ms var(--ease-out), border-color 160ms var(--ease-out), transform 140ms var(--ease-out)}
-.agent-attach-btn:hover:not(:disabled){background:rgba(198,134,66,.10);border-color:rgba(198,134,66,.35);transform:translateY(-1px)}
+.agent-attach-btn:hover:not(:disabled){background:color-mix(in srgb, var(--accent) 10%, transparent);border-color:color-mix(in srgb, var(--accent) 35%, transparent);transform:translateY(-1px)}
 .agent-attach-btn:active:not(:disabled){transform:scale(.95) translateY(0)}
 .agent-attach-btn:disabled{opacity:.5;cursor:not-allowed}
-.agent-pending-hint{padding:8px 16px;background:rgba(198,134,66,.10);color:var(--caramel);font-size:12px;text-align:center;border-top:1px solid var(--border)}
+.agent-pending-hint{padding:8px 16px;background:color-mix(in srgb, var(--accent) 10%, transparent);color:var(--caramel);font-size:12px;text-align:center;border-top:1px solid var(--border)}
 .agent-empty-state{display:flex;align-items:center;justify-content:center;flex:1;color:var(--text-secondary);font-size:13px;text-align:center;padding:30px}
 .agent-artifact-chip{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:6px 10px;border-radius:8px;border:1px solid var(--bdr-coffee);background:var(--cream);color:var(--mocha);font-size:12px;font-weight:600;cursor:pointer;max-width:100%;overflow:hidden}
 .agent-artifact-chip:hover{background:var(--latte)}
 .agent-artifact-chip .ico{flex-shrink:0;font-size:13px}
 .agent-artifact-chip .ti{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.agent-artifact-chip .badge{font-size:10px;padding:1px 6px;border-radius:8px;background:rgba(198,134,66,.15);color:var(--caramel);text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.agent-artifact-chip .badge{font-size:10px;padding:1px 6px;border-radius:8px;background:color-mix(in srgb, var(--accent) 15%, transparent);color:var(--caramel);text-transform:uppercase;letter-spacing:.5px;font-weight:700}
 .agent-artifact-chip.live .badge{background:rgba(34,197,94,.15);color:var(--accent-green)}
 .agent-artifact-chip.live .badge::before{content:'●';margin-right:3px;animation:artifactPulse 1.2s ease-in-out infinite}
 @keyframes artifactPulse{0%,100%{opacity:.4}50%{opacity:1}}
@@ -280,14 +227,14 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 .agent-artifact-empty{flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);font-size:13px;padding:30px;text-align:center}
 .agent-artifact-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);background:var(--bg-primary)}
 .agent-artifact-head .ttl{flex:1;font-size:13px;font-weight:700;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.agent-artifact-head .typebadge{font-size:10px;padding:2px 7px;border-radius:8px;background:rgba(198,134,66,.18);color:var(--caramel);text-transform:uppercase;font-weight:700;letter-spacing:.5px}
+.agent-artifact-head .typebadge{font-size:10px;padding:2px 7px;border-radius:8px;background:color-mix(in srgb, var(--accent) 18%, transparent);color:var(--caramel);text-transform:uppercase;font-weight:700;letter-spacing:.5px}
 .agent-artifact-head .typebadge.live{background:rgba(34,197,94,.15);color:var(--accent-green)}
 .agent-artifact-head button{background:transparent;border:1px solid var(--border);color:var(--text-secondary);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:11px;font-weight:600}
 .agent-artifact-head button:hover{background:var(--bg-secondary)}
 .agent-artifact-tabs{display:flex;gap:4px;padding:6px 10px;border-bottom:1px solid var(--border);overflow-x:auto;flex-shrink:0}
 .agent-artifact-tab{padding:5px 10px;border-radius:6px;font-size:11px;color:var(--text-secondary);background:transparent;border:1px solid transparent;cursor:pointer;white-space:nowrap;font-weight:600}
-.agent-artifact-tab:hover{background:rgba(198,134,66,.06)}
-.agent-artifact-tab.active{background:rgba(198,134,66,.14);color:var(--caramel);border-color:rgba(198,134,66,.35)}
+.agent-artifact-tab:hover{background:color-mix(in srgb, var(--accent) 6%, transparent)}
+.agent-artifact-tab.active{background:color-mix(in srgb, var(--accent) 14%, transparent);color:var(--caramel);border-color:color-mix(in srgb, var(--accent) 35%, transparent)}
 .agent-artifact-body{flex:1;overflow:auto;padding:0;background:#fff;min-width:0}
 .agent-artifact-body pre{margin:0;padding:14px 16px;font-size:12px;line-height:1.5;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;word-wrap:break-word;color:var(--text-primary)}
 .agent-artifact-body .md{padding:14px 18px;font-size:13px;line-height:1.6;color:var(--text-primary)}
@@ -389,7 +336,7 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 
 .fd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
 .fd-card{background:#fff;border:1px solid var(--latte);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow-card);transition:box-shadow 220ms var(--ease-out),transform 220ms var(--ease-out),border-color 220ms var(--ease-out)}
-@media (hover: hover) and (pointer: fine){.fd-card:hover{box-shadow:var(--shadow-lift);transform:translateY(-2px);border-color:rgba(198,134,66,.4)}}
+@media (hover: hover) and (pointer: fine){.fd-card:hover{box-shadow:var(--shadow-lift);transform:translateY(-2px);border-color:color-mix(in srgb, var(--accent) 40%, transparent)}}
 .fd-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
 .fd-bank{font-size:15px;font-weight:700;color:var(--mocha)}
 .fd-type{font-size:11px;background:#E3F2FD;color:var(--accent-blue);padding:3px 8px;border-radius:12px;border:1px solid #90CAF9;font-weight:600}
@@ -420,7 +367,7 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 
 .loan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
 .loan-card{background:#fff;border:1px solid var(--latte);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow-card);transition:box-shadow 220ms var(--ease-out),transform 220ms var(--ease-out),border-color 220ms var(--ease-out)}
-@media (hover: hover) and (pointer: fine){.loan-card:hover{box-shadow:var(--shadow-lift);transform:translateY(-2px);border-color:rgba(198,134,66,.4)}}
+@media (hover: hover) and (pointer: fine){.loan-card:hover{box-shadow:var(--shadow-lift);transform:translateY(-2px);border-color:color-mix(in srgb, var(--accent) 40%, transparent)}}
 .loan-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
 .loan-person{font-size:15px;font-weight:700;color:var(--mocha)}
 .loan-status{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;border:1px solid}
@@ -453,7 +400,7 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 .modal-form .form-row{margin-bottom:14px}
 .modal-form label{display:block;font-size:11px;font-weight:700;color:var(--text-secondary);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
 .modal-form input,.modal-form select,.modal-form textarea{width:100%;padding:10px 12px;background:var(--cream);border:1px solid var(--bdr-coffee);border-radius:8px;color:var(--text-primary);font-size:13px;outline:none;transition:border-color 150ms var(--ease-out), box-shadow 150ms var(--ease-out)}
-.modal-form input:focus,.modal-form select:focus,.modal-form textarea:focus{border-color:var(--caramel);box-shadow:0 0 0 3px rgba(198,134,66,.15)}
+.modal-form input:focus,.modal-form select:focus,.modal-form textarea:focus{border-color:var(--caramel);box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent)}
 .modal-form select option{background:#fff}
 .modal-form textarea{min-height:72px;resize:vertical}
 .modal-form .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -533,7 +480,7 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 .modal-body select:focus,
 .modal-body textarea:focus{
   border-color: var(--caramel);
-  box-shadow: 0 0 0 3px rgba(198,134,66,.15);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
 }
 .modal-body select option{ background: #fff; }
 .modal-body textarea{ min-height: 72px; resize: vertical; }
@@ -742,7 +689,7 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 
 /* Add-btn — was using opacity-only on hover; add lift to match caramel button pattern */
 .add-btn{transition:opacity 150ms var(--ease-out),transform 120ms var(--ease-out),box-shadow 180ms var(--ease-out)}
-.add-btn:hover{opacity:.9;box-shadow:0 6px 18px -6px rgba(198,134,66,.55);transform:translateY(-1px)}
+.add-btn:hover{opacity:.9;box-shadow:0 6px 18px -6px color-mix(in srgb, var(--accent) 55%, transparent);transform:translateY(-1px)}
 .add-btn:active{transform:scale(0.97) translateY(0)}
 
 /* Reduced motion — fewer animations for users who prefer it */
@@ -1646,7 +1593,7 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
       <!-- SUB-TAB: UPLOAD -->
       <div class="vault-subtab-content active" id="vault-tab-upload">
         <!-- Processing status banner — shown when uploads are being processed or proposals are ready -->
-        <div id="vaultProposalsBanner" style="display:none;margin-bottom:16px;padding:14px 18px;background:rgba(198,134,66,.12);border:1px solid rgba(198,134,66,.4);border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div id="vaultProposalsBanner" style="display:none;margin-bottom:16px;padding:14px 18px;background:color-mix(in srgb, var(--accent) 12%, transparent);border:1px solid color-mix(in srgb, var(--accent) 40%, transparent);border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:12px">
           <div style="display:flex;align-items:center;gap:10px">
             <span id="vaultBannerIcon" style="font-size:20px">⏳</span>
             <div>
@@ -1764,20 +1711,23 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
               </select>
               <label>Model
                 <select id="agentModelSelect" onchange="agentOnModelChange()">
-                  <option value="auto">&#x2728; Auto (Ollama local · Anthropic fallback)</option>
+                  <option value="auto">&#x2728; Auto (Ollama local · Anthropic/Groq fallback)</option>
                   <optgroup label="Local (Ollama)">
-                    <option value="mistral">Mistral (default)</option>
-                    <option value="qwen2.5">Qwen 2.5</option>
+                    <option value="qwen2.5:latest">Qwen 2.5 (default)</option>
+                    <option value="mistral">Mistral</option>
                   </optgroup>
                   <optgroup label="Anthropic (cloud)">
                     <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
                     <option value="claude-sonnet-4-5">Claude Sonnet 4.5</option>
                     <option value="claude-opus-4-5">Claude Opus 4.5</option>
                   </optgroup>
+                  <optgroup label="Groq (cloud)">
+                    <option value="llama-3.3-70b-versatile">Llama 3.3 70B</option>
+                  </optgroup>
                 </select>
               </label>
             </div>
-            <span id="agentRoutingBadge" style="display:none;font-size:10px;padding:3px 8px;border-radius:6px;background:rgba(198,134,66,.12);color:#6B3F1F;border:1px solid rgba(198,134,66,.25);align-self:center"></span>
+            <span id="agentRoutingBadge" style="display:none;font-size:10px;padding:3px 8px;border-radius:6px;background:var(--accent-dim);color:var(--accent-strong);border:1px solid var(--accent-border);align-self:center"></span>
             <div class="agent-thread-title" id="agentThreadTitle"></div>
           </div>
           <div class="agent-messages" id="agentMessages"></div>
@@ -2195,7 +2145,7 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
           <div style="margin-top:10px;font-size:11px;color:var(--text-secondary)">+ 4% cess. Surcharge above ₹50L. Rebate u/s 87A for income ≤ ₹5L.<br>Standard deduction: ₹50,000 for salaried.</div>
         </div>
       </div>
-      <div style="margin-top:18px;padding:14px 16px;background:rgba(198,134,66,.08);border:1px solid rgba(198,134,66,.25);border-radius:10px;font-size:12px;color:var(--text-secondary);max-width:860px">
+      <div style="margin-top:18px;padding:14px 16px;background:color-mix(in srgb, var(--accent) 8%, transparent);border:1px solid color-mix(in srgb, var(--accent) 25%, transparent);border-radius:10px;font-size:12px;color:var(--text-secondary);max-width:860px">
         <strong style="color:var(--caramel)">Tip:</strong> The estimated tax liability shown in this page uses the <em>New Tax Regime slabs</em> as the default from FY2024-25 onwards. Actual liability may differ — consult a CA for your specific deductions and surcharges.
       </div>
     </div>
@@ -3393,7 +3343,7 @@ function renderActivity(){
 var CDEF={
   plugins:{
     legend:{labels:{color:'#6B5B4E',font:{size:12,weight:'600'}}},
-    tooltip:{backgroundColor:'#2C1A0E',borderColor:'#C68642',borderWidth:1,titleColor:'#FDF6EC',bodyColor:'#E8D5B7'}
+    tooltip:{backgroundColor:'#0c1626',borderColor:'#0d9488',borderWidth:1,titleColor:'#e2e8f0',bodyColor:'#94a3b8'}
   },
   scales:{
     x:{ticks:{color:'#6B5B4E'},grid:{color:'rgba(212,184,150,.35)'}},
@@ -3454,7 +3404,7 @@ function renderDashboardCharts(){
   var ALLOC = [
     { label:'Indian Stocks', value: Math.round(t.stocksVal),   color:'#2E7D32' },
     { label:'Mutual Funds',  value: Math.round(t.mfVal),       color:'#1565C0' },
-    { label:'FD/RD',         value: Math.round(t.fdVal),       color:'#C68642' },
+    { label:'FD/RD',         value: Math.round(t.fdVal),       color:'#0d9488' },
     { label:'US Stocks',     value: Math.round(t.usVal),       color:'#6B3F1F' },
     { label:'Savings',       value: Math.round(t.savingsVal),  color:'#5C7F4E' },
     { label:'NPS',           value: Math.round(t.npsVal),      color:'#A0522D' },
@@ -3516,8 +3466,8 @@ function renderDashboardCharts(){
         datasets:[{
           label:'Net Worth',
           data: series.map(function(p){return Math.round(p.net_worth)}),
-          borderColor:'#C68642',
-          backgroundColor:'rgba(198,134,66,.10)',
+          borderColor:'#0d9488',
+          backgroundColor:'rgba(13,148,136,.10)',
           tension:.4, fill:true,
           pointBackgroundColor:'#6B3F1F', pointRadius:3
         }]
@@ -3552,7 +3502,7 @@ function renderAnalyticsCharts(){
         datasets:[{
           label:'Net Worth',
           data: series.map(function(p){return Math.round(p.net_worth)}),
-          borderColor:'#C68642', backgroundColor:'rgba(198,134,66,.12)',
+          borderColor:'#0d9488', backgroundColor:'rgba(13,148,136,.12)',
           tension:.4, fill:true, pointBackgroundColor:'#6B3F1F'
         }]
       },
@@ -3562,7 +3512,7 @@ function renderAnalyticsCharts(){
   if(charts.invBreak)charts.invBreak.destroy();
   charts.invBreak=new Chart(document.getElementById('invBreakChart').getContext('2d'),{
     type:'pie',
-    data:{labels:['Indian Stocks','Mutual Funds','FD/RD','US Stocks','Savings','NPS','Properties','Receivables'],datasets:[{data:[Math.round(t.stocksVal),Math.round(t.mfVal),Math.round(t.fdVal),Math.round(t.usVal),Math.round(t.savingsVal),Math.round(t.npsVal),Math.round(t.propVal),Math.round(t.receivables)],backgroundColor:['#2E7D32','#1565C0','#C68642','#6B3F1F','#5C7F4E','#A0522D','#8B4513','#94a3b8'],borderColor:'#FDF6EC',borderWidth:2}]},
+    data:{labels:['Indian Stocks','Mutual Funds','FD/RD','US Stocks','Savings','NPS','Properties','Receivables'],datasets:[{data:[Math.round(t.stocksVal),Math.round(t.mfVal),Math.round(t.fdVal),Math.round(t.usVal),Math.round(t.savingsVal),Math.round(t.npsVal),Math.round(t.propVal),Math.round(t.receivables)],backgroundColor:['#2E7D32','#1565C0','#0d9488','#6B3F1F','#5C7F4E','#A0522D','#8B4513','#94a3b8'],borderColor:'#FDF6EC',borderWidth:2}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{...CDEF.plugins,legend:{position:'bottom',labels:{color:'#6B5B4E',font:{size:11,weight:'600'}}}}}
   });
   if(charts.assetsLiab)charts.assetsLiab.destroy();
@@ -3787,7 +3737,7 @@ function _processingPill(f) {
   if (f.processed_at) {
     return '<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(34,197,94,.12);color:#15803d;border:1px solid rgba(34,197,94,.35)">✓ processed</span>';
   }
-  return '<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(198,134,66,.12);color:#92400e;border:1px solid rgba(198,134,66,.35)">⏳ pending</span>';
+  return '<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:color-mix(in srgb, var(--accent) 12%, transparent);color:#92400e;border:1px solid color-mix(in srgb, var(--accent) 35%, transparent)">⏳ pending</span>';
 }
 
 function renderRecentUploads() {
@@ -5920,8 +5870,8 @@ function renderITRSummary(d) {
   if (bar) {
     var isNew = d.tax.better_regime === 'new';
     bar.style.display = '';
-    bar.style.background = isNew ? 'rgba(59,130,246,.08)' : 'rgba(198,134,66,.08)';
-    bar.style.border = '1px solid ' + (isNew ? 'rgba(59,130,246,.25)' : 'rgba(198,134,66,.25)');
+    bar.style.background = isNew ? 'rgba(59,130,246,.08)' : 'color-mix(in srgb, var(--accent) 8%, transparent)';
+    bar.style.border = '1px solid ' + (isNew ? 'rgba(59,130,246,.25)' : 'color-mix(in srgb, var(--accent) 25%, transparent)');
     bar.innerHTML = '<strong style="color:' + (isNew ? 'var(--accent-blue)' : 'var(--accent-gold)') + '">' +
       (isNew ? '&#x2714; New Tax Regime is better for you' : '&#x2714; Old Tax Regime is better for you') +
       '</strong> &nbsp;|&nbsp; New: <strong>' + INR(d.tax.liability_new) + '</strong> &nbsp; Old: <strong>' + INR(d.tax.liability_old) + '</strong>' +
