@@ -5,10 +5,12 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "dev": "nodemon server/index.js"
+    "dev": "nodemon server/index.js",
+    "mcp:gmail": "node mcp/gmail-mcp.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^9.6.0",
     "chokidar": "^5.0.0",
@@ -25,7 +27,8 @@
     "pdf-parse": "1.1.1",
     "tesseract.js": "^5.1.0",
     "xlsx": "^0.18.5",
-    "xml2js": "^0.6.2"
+    "xml2js": "^0.6.2",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"

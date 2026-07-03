@@ -120,8 +120,35 @@ async function getGmailClient(userId) {
 }
 
 /**
+ * Recursively walks a Gmail message payload, collecting the best body text
+ * (text/plain preferred, HTML stripped as fallback) and any file attachments.
+ * Real-world bills nest parts (multipart/mixed → multipart/alternative → …),
+ * so a flat scan of the top level misses both nested bodies and attachments.
+ */
+function _walkPayload(node, acc) {
+  if (!node) return;
+  const { mimeType, filename, body, parts } = node;
+  if (filename && body?.attachmentId) {
+    acc.attachments.push({
+      filename,
+      mimeType: mimeType || 'application/octet-stream',
+      attachmentId: body.attachmentId,
+      size: body.size || 0,
+    });
+  } else if (mimeType === 'text/plain' && body?.data && !acc.plain) {
+    acc.plain = Buffer.from(body.data, 'base64').toString('utf8');
+  } else if (mimeType === 'text/html' && body?.data && !acc.html) {
+    acc.html = Buffer.from(body.data, 'base64').toString('utf8')
+      .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  for (const p of parts || []) _walkPayload(p, acc);
+}
+
+/**
  * Fetches emails matching a query since a given date.
- * Returns array of { id, subject, from, date, snippet, body }.
+ * Returns array of { id, subject, from, date, snippet, body, attachments }
+ * where attachments is [{ filename, mimeType, attachmentId, size }] (metadata
+ * only — call downloadAttachmentText() to pull and extract text from one).
  */
 async function fetchEmails(userId, { query = '', sinceDate = null, maxResults = 50 } = {}) {
   const gmail  = await getGmailClient(userId);
@@ -146,32 +173,65 @@ async function fetchEmails(userId, { query = '', sinceDate = null, maxResults = 
       const date    = headers.find(h => h.name === 'Date')?.value    || '';
       const snippet = detail.data.snippet || '';
 
-      // Extract body text (plain text preferred, then HTML stripped)
-      let body = '';
-      const parts = detail.data.payload?.parts || [detail.data.payload];
-      for (const part of parts) {
-        if (part?.mimeType === 'text/plain' && part.body?.data) {
-          body = Buffer.from(part.body.data, 'base64').toString('utf8');
-          break;
-        }
-      }
-      if (!body) {
-        for (const part of parts) {
-          if (part?.mimeType === 'text/html' && part.body?.data) {
-            body = Buffer.from(part.body.data, 'base64').toString('utf8')
-              .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-            break;
-          }
-        }
-      }
+      const acc = { plain: '', html: '', attachments: [] };
+      _walkPayload(detail.data.payload, acc);
+      const body = acc.plain || acc.html || '';
 
-      results.push({ id: msg.id, subject, from, date, snippet, body: body.slice(0, 3000) });
+      results.push({
+        id: msg.id, subject, from, date, snippet,
+        body: body.slice(0, 3000),
+        attachments: acc.attachments,
+      });
     } catch (e) {
       console.warn(`[gmail] could not fetch message ${msg.id}:`, e.message);
     }
   }
 
   return results;
+}
+
+/** Parse a full-format Gmail message resource into our normalized shape. */
+function _parseMessage(detail) {
+  const headers = detail.data.payload?.headers || [];
+  const subject = headers.find(h => h.name === 'Subject')?.value || '';
+  const from    = headers.find(h => h.name === 'From')?.value    || '';
+  const date    = headers.find(h => h.name === 'Date')?.value    || '';
+  const snippet = detail.data.snippet || '';
+  const acc = { plain: '', html: '', attachments: [] };
+  _walkPayload(detail.data.payload, acc);
+  return {
+    id: detail.data.id,
+    subject, from, date, snippet,
+    body: (acc.plain || acc.html || ''),
+    attachments: acc.attachments,
+  };
+}
+
+/**
+ * Fetches one message by its Gmail id (not an rfc822 Message-Id — the opaque id
+ * returned in search results). Returns the same shape as fetchEmails items,
+ * with the body NOT truncated so the caller sees the full content.
+ */
+async function getMessageById(userId, messageId) {
+  const gmail = await getGmailClient(userId);
+  const detail = await gmail.users.messages.get({ userId: 'me', id: messageId, format: 'full' });
+  return _parseMessage(detail);
+}
+
+/**
+ * Downloads one attachment and runs it through the shared text extractor
+ * (PDF, images w/ OCR, DOCX, XLSX, CSV, …). Returns { text, kind, warnings }.
+ */
+async function downloadAttachmentText(userId, { messageId, attachmentId, mimeType, filename }) {
+  const gmail = await getGmailClient(userId);
+  const res = await gmail.users.messages.attachments.get({
+    userId: 'me', messageId, id: attachmentId,
+  });
+  const data = res.data?.data;
+  if (!data) return { text: '', kind: 'unknown', warnings: ['Attachment had no data'] };
+  const buffer = Buffer.from(data, 'base64');
+  const { extractText } = require('./textExtract');
+  return extractText(buffer, mimeType, filename);
 }
 
 module.exports = {
@@ -181,5 +241,7 @@ module.exports = {
   getTokens,
   revokeTokens,
   checkCredentials,
-  fetchEmails
+  fetchEmails,
+  getMessageById,
+  downloadAttachmentText
 };
