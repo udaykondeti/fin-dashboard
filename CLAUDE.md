@@ -92,3 +92,11 @@ Environment variables (root `.env`, copied from `.env.example` on first setup):
 `JWT_SECRET` and the production secret in `ecosystem.config.js` both have insecure fallback strings. Production secrets are expected to be set via the EC2 environment, not committed.
 
 Production stack: PM2 (single instance, 512M memory cap) → Express on `localhost:3001` ← Nginx reverse proxy at `nginx/fin.kirakon.com.conf` with Let's Encrypt SSL provisioned by `deploy.sh`.
+
+## Model & token economy (standing instruction)
+
+Applies to every Claude session and agent workflow touching this repo:
+
+- Be extremely conservative with tokens. No broad re-audits or exploratory sweeps when the task is already scoped — write prescriptive agent prompts and read only the files being changed.
+- Route work by model tier: **Haiku** for mechanical checks/verification, **Sonnet** for routine implementation and styling, **Fable/Opus only where genuinely necessary** (complex new features, security-sensitive logic, hard conflict resolution).
+- Keep agent fleets small: one well-briefed agent per app/module beats parallel audit swarms. Resume interrupted workflows from cache instead of re-running completed agents.
