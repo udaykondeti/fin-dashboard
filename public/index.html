@@ -4992,6 +4992,16 @@ async function apiPut(url, data) {
   } catch(e) {}
   return null;
 }
+async function apiPatch(url, data) {
+  var token = localStorage.getItem('fin_token');
+  try {
+    var res = await fetch(url, {method:'PATCH', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body:JSON.stringify(data)});
+    if (res.ok) return await res.json();
+    var err = await res.json().catch(function(){return{}});
+    showToast(err.error || 'Update failed','error');
+  } catch(e) { showToast('Network error','error'); }
+  return null;
+}
 async function apiDel(url) {
   var token = localStorage.getItem('fin_token');
   try {
@@ -6068,6 +6078,7 @@ var agentState = {
   messages: [],          // current thread messages
   streaming: false,
   pendingProposal: null, // { tool_use_id, message_id, summary, mutation, name }
+  aborter: null,         // AbortController for the in-flight stream fetch
   evtSource: null,
   // Live artifacts (Claude.ai-style side panel). identifier -> {identifier,type,language,title,content,status,message_id}
   artifacts: {},
@@ -6175,10 +6186,11 @@ async function agentOpenThread(id) {
     var tu = lastAsst.tool_uses ? JSON.parse(lastAsst.tool_uses) : [];
     var p = tu.find(function(u){return u.name && u.name.indexOf('propose_')===0});
     if (p) {
-      // We don't have the mutation in DB; rebuild via PATCH-on-confirm flow.
       // The mutation is rebuilt server-side from the stored input on confirm
-      // (handled by the confirm endpoint via tools.buildProposal lookup).
-      agentState.pendingProposal = { tool_use_id: p.id, message_id: lastAsst.id, name: p.name, input: p.input, summary: '(restored proposal)', mutation: null };
+      // (the confirm endpoint always calls tools.buildProposal itself), so we
+      // only need a human-readable summary here — derived from the stored
+      // tool name + input rather than the old meaningless '(restored proposal)'.
+      agentState.pendingProposal = { tool_use_id: p.id, message_id: lastAsst.id, name: p.name, input: p.input, summary: agentProposalSummary(p.name, p.input), mutation: null };
     }
   }
   agentRenderMessages();
@@ -6189,7 +6201,7 @@ async function agentThreadMenu(id) {
   var name = prompt('Rename thread (or leave blank to delete):', '');
   if (name === null) return;
   if (name.trim()) {
-    await apiPut('/api/chat/threads/'+id, { title: name.trim() });
+    await apiPatch('/api/chat/threads/'+id, { title: name.trim() });
   } else {
     if (!confirm('Delete this chat?')) return;
     await apiDel('/api/chat/threads/'+id);
@@ -6204,16 +6216,23 @@ async function agentThreadMenu(id) {
 
 async function agentOnKindChange() {
   if (!agentState.activeId) return;
-  await apiPut('/api/chat/threads/'+agentState.activeId, { agent_kind: document.getElementById('agentKindSelect').value });
+  await apiPatch('/api/chat/threads/'+agentState.activeId, { agent_kind: document.getElementById('agentKindSelect').value });
 }
 async function agentOnModelChange() {
   if (!agentState.activeId) return;
-  await apiPut('/api/chat/threads/'+agentState.activeId, { model: document.getElementById('agentModelSelect').value });
+  await apiPatch('/api/chat/threads/'+agentState.activeId, { model: document.getElementById('agentModelSelect').value });
+}
+
+// True when the user hasn't scrolled up to read history — only then do we
+// force-scroll on new content, so streaming doesn't yank them to the bottom.
+function agentNearBottom(el) {
+  return (el.scrollHeight - el.scrollTop - el.clientHeight) < 80;
 }
 
 function agentRenderMessages() {
   var el = document.getElementById('agentMessages');
   if (!el) return;
+  var stick = agentNearBottom(el);
   if (!agentState.messages.length) {
     el.innerHTML = '<div class="agent-empty-state">Send your first message to start the conversation.</div>';
     return;
@@ -6223,7 +6242,21 @@ function agentRenderMessages() {
   if (agentState.pendingProposal) {
     el.insertAdjacentHTML('beforeend', agentRenderProposalCard(agentState.pendingProposal, 'pending'));
   }
-  el.scrollTop = el.scrollHeight;
+  if (stick) el.scrollTop = el.scrollHeight;
+}
+
+// Patch ONLY the live bubble's text node on stream deltas — a full innerHTML
+// rebuild per token janks long threads, wipes expanded tool-chip state, and
+// forces scroll position.
+function agentPatchStreamingText(messageId, content) {
+  var el = document.getElementById('agentMessages');
+  if (!el) return false;
+  var bubble = el.querySelector('.agent-msg.assistant[data-msg-id="'+messageId+'"] .txt');
+  if (!bubble) return false;
+  var stick = agentNearBottom(el);
+  bubble.textContent = content;
+  if (stick) el.scrollTop = el.scrollHeight;
+  return true;
 }
 
 function agentRenderOneMessage(m) {
@@ -6239,7 +6272,7 @@ function agentRenderOneMessage(m) {
       + esc(label) + '<pre>' + esc(JSON.stringify(t.result, null, 2)) + '</pre></div>';
   }
   // assistant
-  var html = '<div class="agent-msg assistant" data-msg-id="'+m.id+'">'+esc(m.content || '');
+  var html = '<div class="agent-msg assistant" data-msg-id="'+m.id+'"><span class="txt">'+esc(m.content || '')+'</span>';
   if (m.status === 'streaming' && (!m.tool_uses || m.tool_uses === 'null')) {
     html += '<div class="interrupted">(interrupted — send a new message to continue)</div>';
   }
@@ -6263,6 +6296,33 @@ function agentRenderOneMessage(m) {
   }
   html += '</div>';
   return html;
+}
+
+// Human-readable summary for a restored proposal, derived from the stored
+// tool name + input (the server only sends a summary on the live SSE event).
+function agentProposalSummary(name, input) {
+  input = input || {};
+  var inr = function(n){ return '₹' + Number(n || 0).toLocaleString('en-IN'); };
+  try {
+    switch (name) {
+      case 'propose_add_stock':
+        return 'Add stock: ' + (input.symbol || '?') + ' — ' + (input.quantity || '?') + ' shares' + (input.avg_buy_price ? ' @ ' + inr(input.avg_buy_price) : '');
+      case 'propose_add_mutual_fund':
+        return 'Add MF: ' + (input.fund_name || '?') + ' — ' + (input.units || '?') + ' units' + (input.avg_nav ? ' @ ' + inr(input.avg_nav) : '');
+      case 'propose_add_nps':
+        return 'Add NPS ' + (input.tier || '') + ' — invested ' + inr(input.total_invested) + ', current ' + inr(input.current_value);
+      case 'propose_add_earning':
+        return 'Add earning: ' + (input.source_name || '?') + ' — ' + inr(input.amount) + ' ' + String(input.frequency || '').toLowerCase();
+      case 'propose_add_payment':
+        return 'Add scheduled payment: ' + (input.name || '?') + ' — ' + inr(input.amount) + ' ' + String(input.frequency || '').toLowerCase();
+      case 'propose_record_advance_tax':
+        return 'Record advance tax: ' + (input.installment || '?') + ' for FY ' + (input.assessment_year || '?') + ' — ' + inr(input.amount);
+      case 'propose_mark_handloan_status':
+        return 'Mark hand loan #' + (input.loan_id || '?') + ' as ' + (input.status || '?');
+      default:
+        return name.replace(/^propose_/, '').replace(/_/g, ' ') + ': ' + JSON.stringify(input);
+    }
+  } catch (_) { return name + ' ' + JSON.stringify(input); }
 }
 
 function agentRenderProposalCard(p, state) {
@@ -6298,7 +6358,9 @@ function agentUpdateInputState() {
   var hint = document.getElementById('agentPendingHint');
   var blocked = agentState.streaming || !!agentState.pendingProposal || !agentState.activeId;
   input.disabled = blocked;
-  btn.disabled = blocked;
+  // While streaming the button becomes Stop and MUST stay clickable —
+  // it used to be disabled exactly when it was shown.
+  btn.disabled = blocked && !agentState.streaming;
   if (agentState.streaming) btn.textContent = 'Stop';
   else btn.textContent = 'Send';
   hint.style.display = agentState.pendingProposal ? '' : 'none';
@@ -6371,12 +6433,16 @@ async function agentOnSend(e) {
 async function agentRunStream(content) {
   var token = localStorage.getItem('fin_token');
   var url = '/api/chat/threads/'+agentState.activeId+'/stream';
+  // Real abort plumbing: Stop button / navigation cancels the fetch, which
+  // closes the SSE response and lets the server abort the upstream model call.
+  agentState.aborter = new AbortController();
   // EventSource doesn't support POST or custom headers, so we use fetch + ReadableStream parsing.
   try {
     var resp = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+token },
-      body: JSON.stringify({ content: content })
+      body: JSON.stringify({ content: content }),
+      signal: agentState.aborter.signal
     });
     if (!resp.ok) {
       var err = await resp.json().catch(function(){return{};});
@@ -6414,9 +6480,12 @@ async function agentRunStream(content) {
           agentState.lastRouting = data;
           var rb = document.getElementById('agentRoutingBadge');
           if (rb) {
-            var label = (data.provider === 'anthropic' ? '🤖 Anthropic · ' : '⚡ Groq · ') + (data.model || '');
+            var provLabel = data.provider === 'anthropic' ? '🤖 Anthropic'
+                          : data.provider === 'groq'      ? '⚡ Groq'
+                          : data.provider === 'local'     ? '🏠 Local (Ollama)'
+                          : '🤖 ' + (data.provider || '?');
             var hint  = data.reason && data.reason.indexOf('auto:') === 0 ? ' (' + data.reason.slice(5) + ')' : '';
-            rb.textContent = label + hint;
+            rb.textContent = provLabel + ' · ' + (data.model || '') + hint;
             rb.style.display = '';
           }
         } else if (name === 'assistant_start') {
@@ -6424,7 +6493,12 @@ async function agentRunStream(content) {
           agentState.messages.push(assistantMsg);
           agentRenderMessages();
         } else if (name === 'text') {
-          if (assistantMsg) { assistantMsg.content += data.delta; agentRenderMessages(); }
+          if (assistantMsg) {
+            assistantMsg.content += data.delta;
+            // Patch only the live bubble; fall back to a full render if it
+            // isn't in the DOM yet.
+            if (!agentPatchStreamingText(assistantMsg.id, assistantMsg.content)) agentRenderMessages();
+          }
         } else if (name === 'tool_use') {
           // Insert a tool chip immediately so the user sees what was called
           agentState.messages.push({ id: 'tmp_tu_'+data.id, role: 'tool', content: JSON.stringify({ tool_use_id: data.id, name: data.name, result: { running: true }, is_error: false }), status: 'final' });
@@ -6466,8 +6540,15 @@ async function agentRunStream(content) {
       }
     }
   } catch (err) {
-    showToast('Network error: '+err.message, 'error');
+    if (err && (err.name === 'AbortError' || agentState.aborter && agentState.aborter.signal.aborted)) {
+      // User pressed Stop — mark the live bubble interrupted, no error toast.
+      if (assistantMsg) assistantMsg.status = 'final';
+      showToast('Generation stopped', 'info');
+    } else {
+      showToast('Network error: '+err.message, 'error');
+    }
   } finally {
+    agentState.aborter = null;
     agentState.streaming = false;
     agentUpdateInputState();
     agentLoadThreads();  // refresh sidebar (updated_at, possibly new title)
@@ -6475,8 +6556,9 @@ async function agentRunStream(content) {
 }
 
 function agentStopStream() {
-  // Best-effort abort. We don't keep the AbortController in scope here for
-  // simplicity; closing the tab/page also terminates the read loop.
+  // Abort the SSE fetch — the server sees the disconnect and cancels the
+  // upstream model stream + tool loop.
+  if (agentState.aborter) { try { agentState.aborter.abort(); } catch (_) {} }
   agentState.streaming = false;
   agentUpdateInputState();
 }

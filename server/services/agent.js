@@ -11,7 +11,9 @@ const TASK_TYPES = [
   'suggest_tax_action',
   // Run by scripts/ollama-watcher.js every 5 minutes — summarises recent DB
   // changes into plain-English activity_log entries.
-  'summarise_db_changes'
+  'summarise_db_changes',
+  // Floating "Ask AI" panel (POST /api/ai/chat in server/index.js).
+  'quick_chat'
 ];
 
 // USD per 1M tokens. Source of truth so admin cost views stay in sync. Models
@@ -21,11 +23,29 @@ const PRICE_TABLE = {
   // Anthropic
   'claude-haiku-4-5':           { input: 1.0,  output: 5.0  },
   'claude-sonnet-4-5':          { input: 3.0,  output: 15.0 },
-  'claude-opus-4-5':            { input: 15.0, output: 75.0 },
+  'claude-opus-4-5':            { input: 5.0,  output: 25.0 },
+  // Groq
+  'llama-3.3-70b-versatile':    { input: 0.59, output: 0.79 },
   // Ollama (local) — no cost
   'mistral':                    { input: 0,    output: 0    },
   'qwen2.5':                    { input: 0,    output: 0    }
 };
+
+/**
+ * Price row for a model id. Handles Ollama-style ':tag' suffixes
+ * ('qwen2.5:latest' → 'qwen2.5'). Tagged models that aren't in the table are
+ * local Ollama models — priced at $0 rather than the Haiku fallback, so the
+ * admin cost dashboards don't show phantom spend for free local calls.
+ * Unknown untagged (cloud) models still fall back to Haiku prices so we
+ * never under-report a new paid model as free.
+ */
+function priceFor(model) {
+  if (PRICE_TABLE[model]) return PRICE_TABLE[model];
+  const base = String(model || '').split(':')[0];
+  if (PRICE_TABLE[base]) return PRICE_TABLE[base];
+  if (String(model || '').includes(':')) return { input: 0, output: 0 };
+  return PRICE_TABLE[ANTHROPIC_DEFAULT_MODEL];
+}
 
 const PROVIDERS = ['anthropic', 'ollama'];
 
@@ -60,10 +80,11 @@ function getClient() {
 
 /**
  * Returns the cost in USD for a given token count and model.
- * Unknown models fall back to Haiku 4.5 prices so we never crash on a new model.
+ * Local (tagged) models cost $0; unknown cloud models fall back to Haiku 4.5
+ * prices so we never crash on a new model. See priceFor().
  */
 function estimateCost({ tokensIn = 0, tokensOut = 0, model = ANTHROPIC_DEFAULT_MODEL } = {}) {
-  const prices = PRICE_TABLE[model] || PRICE_TABLE[ANTHROPIC_DEFAULT_MODEL];
+  const prices = priceFor(model);
   const inCost = (tokensIn / 1_000_000) * prices.input;
   const outCost = (tokensOut / 1_000_000) * prices.output;
   return inCost + outCost;
@@ -199,6 +220,7 @@ module.exports = {
   getClient,
   runTask,
   estimateCost,
+  priceFor,
   TASK_TYPES,
   PRICE_TABLE,
   PROVIDERS

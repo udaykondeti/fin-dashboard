@@ -11,9 +11,10 @@
 //   1. File hash  — SHA-256 of raw bytes. Blocks exact re-upload of the same file.
 //   2. Text hash  — SHA-256 of extracted text. Blocks same content in a different
 //      format (e.g. PDF statement + screenshot of the same statement).
-//   3. source_ref — agent prompt instructs the LLM to use a normalised transaction
-//      fingerprint as source_ref; the transactions UNIQUE(user_id, source, source_ref)
-//      constraint silently discards cross-document duplicates at insert time.
+//   3. Proposal-level — chatTools buildProposal() flags likely duplicates
+//      (existing symbol / fund / payment name) on each propose_* payload.
+//      (A source_ref-based transaction dedup would need a propose-transaction
+//      tool whose schema carries source/source_ref — not implemented.)
 
 const crypto      = require('crypto');
 const jwt         = require('jsonwebtoken');
@@ -150,9 +151,11 @@ async function processUpload(fileId, userId) {
   }
 
   // Build the synthetic user message that introduces the document to the agent.
-  // The dedup instruction tells the LLM to emit a stable source_ref per transaction
-  // so the transactions UNIQUE(user_id, source, source_ref) constraint silently
-  // rejects duplicates when the same transaction appears in two different files.
+  // NOTE: no source_ref dedup instruction here — the propose_* tool schemas
+  // (additionalProperties:false) carry no source/source_ref fields, so the
+  // model cannot comply with one. Duplicate protection happens at the
+  // proposal level (buildProposal's `duplicate` hint) and via the file/text
+  // hash checks above.
   const userMessage =
     `New vault upload to process.\n` +
     `Filename: ${file.original_filename}\n` +
@@ -160,9 +163,6 @@ async function processUpload(fileId, userId) {
     `Financial Year: ${file.financial_year}\n` +
     `Type: ${extracted.kind.toUpperCase()}\n` +
     (extracted.warnings.length ? `Warnings: ${extracted.warnings.join('; ')}\n` : '') +
-    `\nDedup rule: when proposing transactions set source="vault" and ` +
-    `source_ref=YYYYMMDD-{amount_in_paise}-{first20chars_of_description_lowercase_no_spaces}. ` +
-    `The database will silently ignore any source_ref it has already seen for this user.\n` +
     `\n--- DOCUMENT TEXT ---\n${extracted.text}\n--- END ---`;
 
   const port    = process.env.PORT || 3001;
