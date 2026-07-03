@@ -76,17 +76,9 @@
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
-[data-theme="light"] {
-  --bg: #e8edf2; --bg2: #ffffff; --bg3: #f1f5f9;
-  --border: #d1d9e0; --border-subtle: #e2e8f0;
-  --text: #0f172a; --text-dim: #475569; --text-subtle: #64748b;
-  --chip-bg: #ffffff; --chip-border: #d1d9e0;
-  --green: #16a34a; --green-bg: #f0fdf4; --green-border: #bbf7d0;
-  --amber: #d97706; --amber-bg: #fffbeb; --amber-border: #fde68a;
-  --red: #dc2626; --red-bg: #fef2f2; --red-border: #fecaca;
-  --blue: #2563eb; --blue-bg: #eff6ff; --blue-border: #bfdbfe;
-  --purple: #7c3aed; --sky: #0284c7;
-}
+/* Light theme is the canonical :root default in /design/kirakon.css — no
+   local override needed here. Dark theme is the [data-theme="dark"]
+   override, also canonical. This keeps both themes pixel-identical to pulse. */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 input,button,select,textarea{font-family:inherit;font-size:inherit}
 html,body{height:100%;font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-text-size-adjust:100%}
@@ -310,15 +302,15 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 .data-table tbody.stagger-in tr:nth-child(8){animation-delay:245ms}
 .data-table tbody.stagger-in tr:nth-child(n+9){animation-delay:280ms}
 .data-table .total-row td{font-weight:700;background:var(--latte);color:var(--espresso);border-top:1px solid var(--bdr-coffee)}
-.badge-live{background:#E8F5E9;color:var(--accent-green);font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:4px;border:1px solid #A5D6A7}
+.badge-live{background:var(--green-bg);color:var(--accent-green);font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:4px;border:1px solid var(--green-border)}
 .pl-pos{color:var(--accent-green);font-weight:600}
 .pl-neg{color:var(--accent-red);font-weight:600}
 .pl-neu{color:var(--text-secondary)}
 .action-btn{padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;border:1px solid var(--bdr-coffee);background:var(--foam);color:var(--mocha);font-weight:600;transition:background 120ms var(--ease-out), transform 100ms var(--ease-out)}
 .action-btn:hover{background:var(--latte)}
 .action-btn:active{transform:scale(0.95)}
-.action-btn.del{background:#FFEBEE;color:var(--accent-red);border-color:#EF9A9A}
-.action-btn.del:hover{background:#FFCDD2}
+.action-btn.del{background:var(--red-bg);color:var(--accent-red);border-color:var(--red-border)}
+.action-btn.del:hover{background:rgba(239,68,68,.2)}
 
 .tab-bar{display:flex;gap:0;margin-bottom:20px;border-bottom:1px solid var(--latte);padding-bottom:0}
 .tab-btn{padding:9px 16px;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;color:var(--text-secondary);margin-bottom:-2px;transition:color 150ms var(--ease-out), border-color 150ms var(--ease-out), transform 100ms var(--ease-out)}
@@ -339,7 +331,7 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 @media (hover: hover) and (pointer: fine){.fd-card:hover{box-shadow:var(--shadow-lift);transform:translateY(-2px);border-color:color-mix(in srgb, var(--accent) 40%, transparent)}}
 .fd-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
 .fd-bank{font-size:15px;font-weight:700;color:var(--mocha)}
-.fd-type{font-size:11px;background:#E3F2FD;color:var(--accent-blue);padding:3px 8px;border-radius:12px;border:1px solid #90CAF9;font-weight:600}
+.fd-type{font-size:11px;background:var(--blue-bg);color:var(--accent-blue);padding:3px 8px;border-radius:12px;border:1px solid var(--blue-border);font-weight:600}
 .fd-row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px}
 .fd-row .lbl{color:var(--text-secondary)}
 .fd-row .val{font-weight:600;color:var(--text-primary)}
@@ -353,7 +345,7 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 .cc-card::after{content:'';position:absolute;inset:0;background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.08) 50%,transparent 60%);background-size:200% 100%;opacity:0;transition:opacity 220ms var(--ease-out)}
 @media(hover:hover)and(pointer:fine){.cc-card:hover{box-shadow:0 12px 36px rgba(44,26,14,.35);transform:translateY(-3px)}.cc-card:hover::after{opacity:1;animation:cardShine .6s var(--ease-out) both}}
 .cc-card.danger-card{background:linear-gradient(135deg,#7f1d1d,#3a0a0a);border-color:#7f2a3a}
-.cc-chip{width:32px;height:24px;background:linear-gradient(135deg,#E8B854,var(--caramel));border-radius:4px;margin-bottom:14px}
+.cc-chip{width:32px;height:24px;background:linear-gradient(135deg,var(--accent-2),var(--caramel));border-radius:4px;margin-bottom:14px}
 .cc-bank{font-size:13px;color:rgba(253,246,236,.65);margin-bottom:2px}
 .cc-name{font-size:17px;font-weight:700;color:var(--cream);margin-bottom:12px}
 .cc-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
@@ -371,9 +363,9 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 .loan-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
 .loan-person{font-size:15px;font-weight:700;color:var(--mocha)}
 .loan-status{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;border:1px solid}
-.loan-status.active,.loan-status.pending{background:#FFF8E1;color:#F57C00;border-color:#FFD54F}
-.loan-status.partial{background:#E3F2FD;color:var(--accent-blue);border-color:#90CAF9}
-.loan-status.settled{background:#E8F5E9;color:var(--accent-green);border-color:#A5D6A7}
+.loan-status.active,.loan-status.pending{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-border)}
+.loan-status.partial{background:var(--blue-bg);color:var(--accent-blue);border-color:var(--blue-border)}
+.loan-status.settled{background:var(--green-bg);color:var(--accent-green);border-color:var(--green-border)}
 .loan-amount{font-size:22px;font-weight:800;color:var(--caramel);margin-bottom:10px}
 .loan-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px}
 .loan-row .lbl{color:var(--text-secondary)}
@@ -496,9 +488,9 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 
 .toast-container{position:fixed;top:76px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
 .toast{padding:12px 18px;border-radius:10px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(44,26,14,.2);animation:slideIn .28s cubic-bezier(0.23,1,0.32,1) both;min-width:220px;will-change:transform}
-.toast.success{background:#E8F5E9;color:var(--accent-green);border:1px solid #A5D6A7}
-.toast.error{background:#FFEBEE;color:var(--accent-red);border:1px solid #EF9A9A}
-.toast.info{background:#E3F2FD;color:var(--accent-blue);border:1px solid #90CAF9}
+.toast.success{background:var(--green-bg);color:var(--accent-green);border:1px solid var(--green-border)}
+.toast.error{background:var(--red-bg);color:var(--accent-red);border:1px solid var(--red-border)}
+.toast.info{background:var(--blue-bg);color:var(--accent-blue);border:1px solid var(--blue-border)}
 @keyframes slideIn{from{transform:translateX(calc(100% + 24px));opacity:0}to{transform:translateX(0);opacity:1}}
 @keyframes pageIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 @keyframes rowIn{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:translateX(0)}}
@@ -566,7 +558,7 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 .upload-zone .upload-formats{font-size:11px;color:var(--caramel);margin-top:4px;opacity:.8}
 #fileInputHidden{display:none}
 
-.vault-notice{background:#FFF8E1;border:1px solid #FFD54F;border-radius:8px;padding:12px 16px;font-size:13px;color:#F57C00;margin-bottom:18px;display:none}
+.vault-notice{background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--amber);margin-bottom:18px;display:none}
 
 .fy-selector{display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap}
 .fy-btn{padding:7px 16px;border:1px solid var(--bdr-coffee);border-radius:8px;background:#fff;color:var(--text-secondary);cursor:pointer;font-size:13px;transition:background 150ms var(--ease-out), border-color 150ms var(--ease-out), color 150ms var(--ease-out), transform 100ms var(--ease-out);font-weight:600}
@@ -610,28 +602,28 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 .sr-file-info{background:var(--foam);border:1px solid var(--latte);border-radius:8px;padding:14px 16px;margin-bottom:18px}
 .sr-file-name{font-size:14px;font-weight:700;color:var(--mocha);margin-bottom:4px;word-break:break-word}
 .sr-file-size{font-size:12px;color:var(--text-secondary)}
-.sr-ai-box{background:linear-gradient(135deg,#E8F5E9,#C8E6C9);border:1px solid #A5D6A7;border-radius:8px;padding:14px 16px;margin-bottom:18px}
+.sr-ai-box{background:var(--accent-dim);border:1px solid var(--accent-border);border-radius:8px;padding:14px 16px;margin-bottom:18px}
 .sr-ai-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--accent-green);margin-bottom:10px}
 .sr-ai-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px}
 .confidence-badge{padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;border:1px solid}
-.confidence-badge.high{background:#E8F5E9;color:var(--accent-green);border-color:#A5D6A7}
-.confidence-badge.medium{background:#FFF8E1;color:#F57C00;border-color:#FFD54F}
-.confidence-badge.low{background:#FFEBEE;color:var(--accent-red);border-color:#EF9A9A}
+.confidence-badge.high{background:var(--green-bg);color:var(--accent-green);border-color:var(--green-border)}
+.confidence-badge.medium{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-border)}
+.confidence-badge.low{background:var(--red-bg);color:var(--accent-red);border-color:var(--red-border)}
 .sr-progress-outer{height:6px;background:var(--latte);border-radius:20px;overflow:hidden;margin-top:14px}
 .sr-progress-fill{height:100%;background:var(--caramel);border-radius:20px;width:0;transition:width .3s var(--ease-out)}
 .sr-step-counter{font-size:12px;color:var(--text-secondary);text-align:right;margin-bottom:12px}
 
 /* CA Access */
-.ca-link-box{background:linear-gradient(135deg,#E3F2FD,#BBDEFB);border:1px solid #90CAF9;border-radius:8px;padding:16px;margin-top:16px;word-break:break-all}
+.ca-link-box{background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:8px;padding:16px;margin-top:16px;word-break:break-all}
 .ca-link-url{font-size:12px;color:var(--accent-blue);font-family:'IBM Plex Mono',monospace;margin-bottom:12px;line-height:1.5;word-break:break-all}
 .ca-copy-btn{padding:7px 16px;background:var(--accent-blue);color:#fff;border:none;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700}
 .token-table{width:100%;border-collapse:collapse;margin-top:16px}
 .token-table th{background:var(--espresso);color:var(--caramel);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:8px 12px;text-align:left}
 .token-table td{font-size:12px;color:var(--text-primary);padding:10px 12px;border-bottom:1px solid var(--steam)}
-.status-active{background:#E8F5E9;color:var(--accent-green);border:1px solid #A5D6A7;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700}
-.status-expired{background:#FFEBEE;color:var(--accent-red);border:1px solid #EF9A9A;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700}
-.revoke-btn{padding:4px 10px;font-size:11px;background:#FFEBEE;color:var(--accent-red);border:1px solid #EF9A9A;border-radius:6px;cursor:pointer;font-weight:600}
-.revoke-btn:hover{background:#FFCDD2}
+.status-active{background:var(--green-bg);color:var(--accent-green);border:1px solid var(--green-border);padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700}
+.status-expired{background:var(--red-bg);color:var(--accent-red);border:1px solid var(--red-border);padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700}
+.revoke-btn{padding:4px 10px;font-size:11px;background:var(--red-bg);color:var(--accent-red);border:1px solid var(--red-border);border-radius:6px;cursor:pointer;font-weight:600}
+.revoke-btn:hover{background:rgba(239,68,68,.2)}
 
 @media(max-width:768px){
   .vault-browse-layout{grid-template-columns:1fr}
@@ -727,7 +719,7 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 /* Summary cards */
 .summary-card{background:var(--bg2)}
 .summary-card-label{color:var(--text-dim)}
-.summary-card-value{color:var(--amber)}
+.summary-card-value{color:var(--accent)}
 .summary-card-sub{color:var(--text-dim)}
 @media(hover:hover)and(pointer:fine){.summary-card:hover{box-shadow:0 10px 28px rgba(0,0,0,.5)}}
 
@@ -776,7 +768,7 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 /* Summary stats + activity */
 .summary-stat{background:var(--bg2);border-color:var(--border)}
 .summary-stat-value{color:var(--text)}
-.activity-item{background:var(--bg2);border-bottom-color:var(--border);border-left-color:var(--amber)}
+.activity-item{background:var(--bg2);border-bottom-color:var(--border);border-left-color:var(--accent)}
 
 /* Modal */
 .modal-overlay{background:rgba(0,0,0,.72)}
@@ -1224,6 +1216,7 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
         </div>
       </div>
       <button class="ask-ai-btn" onclick="openAiChat()" aria-label="Open AI assistant">&#x2736; Ask AI</button>
+      <button class="k-btn-icon" id="kds-theme-btn" onclick="window.KDS.toggleTheme()" aria-label="Toggle light/dark theme" style="border-radius:var(--radius-s)">☀</button>
       <span class="user-name" id="userNameDisplay">Kiran</span>
       <button class="logout-btn" onclick="logout()">Logout</button>
       <div class="hamburger" onclick="toggleMobileMenu()" id="hamburger">
@@ -3337,18 +3330,43 @@ function renderActivity(){
   });
 }
 
-// Chart.js theme — neutral slate text/grid legible on both KDS themes
-// (canvas can't resolve CSS vars, so mid-tone literals are used).
-var CDEF={
-  plugins:{
-    legend:{labels:{color:'#94a3b8',font:{size:12,weight:'600'}}},
-    tooltip:{backgroundColor:'#0c1626',borderColor:'#0d9488',borderWidth:1,titleColor:'#e2e8f0',bodyColor:'#94a3b8'}
-  },
-  scales:{
-    x:{ticks:{color:'#94a3b8'},grid:{color:'rgba(148,163,184,.22)'}},
-    y:{ticks:{color:'#94a3b8'},grid:{color:'rgba(148,163,184,.22)'}}
-  }
-};
+// Chart.js theme — canvas can't resolve CSS vars directly, so we read the
+// live custom-property values via getComputedStyle at call time (with the
+// canonical dark-theme hexes as fallback). Re-read on every render so charts
+// recolor correctly when the user flips the light/dark toggle.
+function kdsVar(name, fallback){
+  var v = getComputedStyle(document.documentElement).getPropertyValue(name);
+  v = (v || '').trim();
+  return v || fallback;
+}
+function chartPalette(){
+  return {
+    text:      kdsVar('--text-dim',    '#94a3b8'),
+    textSub:   kdsVar('--text-subtle', '#5a6b81'),
+    grid:      kdsVar('--border-subtle','rgba(148,163,184,.22)'),
+    tooltipBg: kdsVar('--bg2',         '#0c1626'),
+    tooltipTx: kdsVar('--text',        '#e2e8f0'),
+    accent:    kdsVar('--accent',      '#0d9488'),
+    accent2:   kdsVar('--accent-2',    '#7c3aed'),
+    blue:      kdsVar('--blue',        '#3b82f6'),
+    amber:     kdsVar('--amber',       '#f59e0b'),
+    red:       kdsVar('--red',         '#f43f5e'),
+    green:     kdsVar('--green',       '#16a34a')
+  };
+}
+function chartDefaults(){
+  var p = chartPalette();
+  return {
+    plugins:{
+      legend:{labels:{color:p.text,font:{size:12,weight:'600'}}},
+      tooltip:{backgroundColor:p.tooltipBg,borderColor:p.accent,borderWidth:1,titleColor:p.tooltipTx,bodyColor:p.text}
+    },
+    scales:{
+      x:{ticks:{color:p.text},grid:{color:p.grid}},
+      y:{ticks:{color:p.text},grid:{color:p.grid}}
+    }
+  };
+}
 
 function destroyCharts(){Object.values(charts).forEach(function(c){try{c.destroy()}catch(e){}});charts={}}
 
@@ -3400,15 +3418,16 @@ function renderDashboardCharts(){
   if(charts.alloc)charts.alloc.destroy();
   // Drop zero-value slices so the donut + legend don't render dead segments
   // (previous version always showed all 8 buckets even when half were empty).
+  var cp = chartPalette();
   var ALLOC = [
-    { label:'Indian Stocks', value: Math.round(t.stocksVal),   color:'#14b8a6' },
-    { label:'Mutual Funds',  value: Math.round(t.mfVal),       color:'#3b82f6' },
-    { label:'FD/RD',         value: Math.round(t.fdVal),       color:'#8b5cf6' },
-    { label:'US Stocks',     value: Math.round(t.usVal),       color:'#f59e0b' },
-    { label:'Savings',       value: Math.round(t.savingsVal),  color:'#06b6d4' },
-    { label:'NPS',           value: Math.round(t.npsVal),      color:'#f43f5e' },
-    { label:'Properties',    value: Math.round(t.propVal),     color:'#84cc16' },
-    { label:'Receivables',   value: Math.round(t.receivables), color:'#94a3b8' }
+    { label:'Indian Stocks', value: Math.round(t.stocksVal),   color: cp.accent },
+    { label:'Mutual Funds',  value: Math.round(t.mfVal),       color: cp.blue },
+    { label:'FD/RD',         value: Math.round(t.fdVal),       color: cp.accent2 },
+    { label:'US Stocks',     value: Math.round(t.usVal),       color: cp.amber },
+    { label:'Savings',       value: Math.round(t.savingsVal),  color: '#06b6d4' },
+    { label:'NPS',           value: Math.round(t.npsVal),      color: cp.red },
+    { label:'Properties',    value: Math.round(t.propVal),     color: cp.green },
+    { label:'Receivables',   value: Math.round(t.receivables), color: cp.textSub }
   ].filter(function(s){ return s.value > 0; });
 
   var allocCanvas = document.getElementById('allocChart');
@@ -3433,14 +3452,14 @@ function renderDashboardCharts(){
         responsive: true, maintainAspectRatio: false,
         cutout: '72%',
         plugins: {
-          ...CDEF.plugins,
+          ...chartDefaults().plugins,
           tooltip: { callbacks: { label: function(ctx){
             var pct = ((ctx.parsed / allocTotal) * 100).toFixed(1);
             return ctx.label + ': ₹' + ctx.parsed.toLocaleString('en-IN') + ' (' + pct + '%)';
           }}},
           legend: {
             position: 'right',
-            labels: { color: '#94a3b8', font:{size:12, weight:'500'}, padding:14, boxWidth:12, boxHeight:12, usePointStyle:true }
+            labels: { color: cp.textSub, font:{size:12, weight:'500'}, padding:14, boxWidth:12, boxHeight:12, usePointStyle:true }
           }
         }
       }
@@ -3458,6 +3477,7 @@ function renderDashboardCharts(){
         'Net worth history will appear here after a few days of activity.');
       return;
     }
+    var cpNw = chartPalette();
     charts.networth = new Chart(canvas.getContext('2d'),{
       type:'line',
       data:{
@@ -3465,21 +3485,22 @@ function renderDashboardCharts(){
         datasets:[{
           label:'Net Worth',
           data: series.map(function(p){return Math.round(p.net_worth)}),
-          borderColor:'#0d9488',
-          backgroundColor:'rgba(13,148,136,.10)',
+          borderColor: cpNw.accent,
+          backgroundColor: kdsVar('--accent-dim','rgba(13,148,136,.10)'),
           tension:.4, fill:true,
-          pointBackgroundColor:'#0d9488', pointRadius:3
+          pointBackgroundColor: cpNw.accent, pointRadius:3
         }]
       },
-      options:{responsive:true,maintainAspectRatio:false,plugins:CDEF.plugins,scales:{x:CDEF.scales.x,y:{...CDEF.scales.y,ticks:{color:'#64748b',callback:function(v){return '₹'+Math.round(v/100000)+'L'}}}}}
+      options:{responsive:true,maintainAspectRatio:false,plugins:chartDefaults().plugins,scales:{x:chartDefaults().scales.x,y:{...chartDefaults().scales.y,ticks:{color:cpNw.textSub,callback:function(v){return '₹'+Math.round(v/100000)+'L'}}}}}
     });
   });
   var invMonths=['Nov','Dec','Jan','Feb','Mar','Apr'];
   if(charts.invest)charts.invest.destroy();
+  var cpInv = chartPalette();
   charts.invest=new Chart(document.getElementById('investChart').getContext('2d'),{
     type:'bar',
-    data:{labels:invMonths,datasets:[{label:'Invested',data:[42000,55000,48000,60000,52000,58000],backgroundColor:'rgba(59,130,246,.75)',borderRadius:4},{label:'Current Value',data:[44800,59400,50160,65400,56600,63800],backgroundColor:'rgba(20,184,166,.75)',borderRadius:4}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:CDEF.plugins,scales:{x:CDEF.scales.x,y:{...CDEF.scales.y,ticks:{color:'#64748b',callback:function(v){return '₹'+Math.round(v/1000)+'K'}}}}}
+    data:{labels:invMonths,datasets:[{label:'Invested',data:[42000,55000,48000,60000,52000,58000],backgroundColor:cpInv.blue,borderRadius:4},{label:'Current Value',data:[44800,59400,50160,65400,56600,63800],backgroundColor:cpInv.accent,borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:chartDefaults().plugins,scales:{x:chartDefaults().scales.x,y:{...chartDefaults().scales.y,ticks:{color:cpInv.textSub,callback:function(v){return '₹'+Math.round(v/1000)+'K'}}}}}
   });
 }
 
@@ -3494,6 +3515,7 @@ function renderAnalyticsCharts(){
         'Net worth history will appear here after a few days of activity.');
       return;
     }
+    var cpNwG = chartPalette();
     charts.nwGrowth = new Chart(canvas.getContext('2d'),{
       type:'line',
       data:{
@@ -3501,18 +3523,19 @@ function renderAnalyticsCharts(){
         datasets:[{
           label:'Net Worth',
           data: series.map(function(p){return Math.round(p.net_worth)}),
-          borderColor:'#0d9488', backgroundColor:'rgba(13,148,136,.12)',
-          tension:.4, fill:true, pointBackgroundColor:'#0d9488'
+          borderColor: cpNwG.accent, backgroundColor: kdsVar('--accent-dim','rgba(13,148,136,.12)'),
+          tension:.4, fill:true, pointBackgroundColor: cpNwG.accent
         }]
       },
-      options:{responsive:true,maintainAspectRatio:false,plugins:CDEF.plugins,scales:{x:CDEF.scales.x,y:{...CDEF.scales.y,ticks:{color:'#64748b',callback:function(v){return '₹'+Math.round(v/100000)+'L'}}}}}
+      options:{responsive:true,maintainAspectRatio:false,plugins:chartDefaults().plugins,scales:{x:chartDefaults().scales.x,y:{...chartDefaults().scales.y,ticks:{color:cpNwG.textSub,callback:function(v){return '₹'+Math.round(v/100000)+'L'}}}}}
     });
   });
   if(charts.invBreak)charts.invBreak.destroy();
+  var cpBreak = chartPalette();
   charts.invBreak=new Chart(document.getElementById('invBreakChart').getContext('2d'),{
     type:'pie',
-    data:{labels:['Indian Stocks','Mutual Funds','FD/RD','US Stocks','Savings','NPS','Properties','Receivables'],datasets:[{data:[Math.round(t.stocksVal),Math.round(t.mfVal),Math.round(t.fdVal),Math.round(t.usVal),Math.round(t.savingsVal),Math.round(t.npsVal),Math.round(t.propVal),Math.round(t.receivables)],backgroundColor:['#14b8a6','#3b82f6','#8b5cf6','#f59e0b','#06b6d4','#f43f5e','#84cc16','#94a3b8'],borderColor:'transparent',borderWidth:2}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{...CDEF.plugins,legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:11,weight:'600'}}}}}
+    data:{labels:['Indian Stocks','Mutual Funds','FD/RD','US Stocks','Savings','NPS','Properties','Receivables'],datasets:[{data:[Math.round(t.stocksVal),Math.round(t.mfVal),Math.round(t.fdVal),Math.round(t.usVal),Math.round(t.savingsVal),Math.round(t.npsVal),Math.round(t.propVal),Math.round(t.receivables)],backgroundColor:[cpBreak.accent,cpBreak.blue,cpBreak.accent2,cpBreak.amber,'#06b6d4',cpBreak.red,cpBreak.green,cpBreak.textSub],borderColor:'transparent',borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{...chartDefaults().plugins,legend:{position:'bottom',labels:{color:cpBreak.textSub,font:{size:11,weight:'600'}}}}}
   });
   if(charts.assetsLiab)charts.assetsLiab.destroy();
   // Same treatment as the net-worth trend: pull from snapshots, show an
@@ -3525,16 +3548,17 @@ function renderAnalyticsCharts(){
         'Assets vs liabilities trend will appear here after a few days of activity.');
       return;
     }
+    var cpAL = chartPalette();
     charts.assetsLiab = new Chart(canvas.getContext('2d'),{
       type:'bar',
       data:{
         labels: series.map(function(p){return p.label}),
         datasets:[
-          {label:'Assets',     data: series.map(function(p){return Math.round(p.total_assets)}),       backgroundColor:'rgba(34,197,94,.70)', borderRadius:4},
-          {label:'Liabilities',data: series.map(function(p){return Math.round(p.total_liabilities)}), backgroundColor:'rgba(239,68,68,.70)',  borderRadius:4}
+          {label:'Assets',     data: series.map(function(p){return Math.round(p.total_assets)}),       backgroundColor: cpAL.green, borderRadius:4},
+          {label:'Liabilities',data: series.map(function(p){return Math.round(p.total_liabilities)}), backgroundColor: cpAL.red,  borderRadius:4}
         ]
       },
-      options:{responsive:true,maintainAspectRatio:false,plugins:CDEF.plugins,scales:{x:CDEF.scales.x,y:{...CDEF.scales.y,ticks:{color:'#64748b',callback:function(v){return '₹'+Math.round(v/100000)+'L'}}}}}
+      options:{responsive:true,maintainAspectRatio:false,plugins:chartDefaults().plugins,scales:{x:chartDefaults().scales.x,y:{...chartDefaults().scales.y,ticks:{color:cpAL.textSub,callback:function(v){return '₹'+Math.round(v/100000)+'L'}}}}}
     });
   });
   var performers=stocksData.map(function(s){return{symbol:s.symbol,pnlp:((s.currentPrice-s.avgPrice)/s.avgPrice)*100}}).concat(usStocksData.map(function(s){return{symbol:s.symbol+' (US)',pnlp:((s.currentPrice-s.avgPrice)/s.avgPrice)*100}})).sort(function(a,b){return b.pnlp-a.pnlp}).slice(0,5);
@@ -7320,6 +7344,16 @@ window.KDS = (function() {
     localStorage.setItem('kds-theme', next);
     var btn = document.getElementById('kds-theme-btn');
     if (btn) btn.textContent = next === 'dark' ? '☀' : '☾';
+    // Chart.js paints onto a <canvas> and can't resolve CSS vars live, so
+    // re-render whichever chart-bearing page is currently visible with
+    // freshly-read (post-toggle) theme colors.
+    var activePage = document.querySelector('.main-content > .page.active');
+    var activeId = activePage && activePage.id;
+    if (activeId === 'page-dashboard' && typeof renderDashboardCharts === 'function') {
+      renderDashboardCharts();
+    } else if (activeId === 'page-analytics' && typeof renderAnalyticsCharts === 'function') {
+      renderAnalyticsCharts();
+    }
   }
   function pctColor(pct, warn, crit) {
     warn = warn || 80; crit = crit || 92;
