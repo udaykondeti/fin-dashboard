@@ -1,69 +1,92 @@
 /*
- * Kirakon Design System
+ * Kirakon Design Language v1 — unified fleet tokens + component recipes.
  * Drop this file into any app: <link rel="stylesheet" href="/design/kirakon.css">
- * Fonts:  https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap
- * Theme:  add data-theme="dark" to <html> for dark mode (default: light)
+ * Fonts:  https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap
+ * Theme:  light is default; add data-theme="dark" to <html> for dark mode
  * Toggle: call window.KDS.toggleTheme() — persists to localStorage under 'kds-theme'
  */
 
 /* ── Tokens ──────────────────────────────────────────────────────────────── */
 :root {
-  /* Surfaces */
-  --bg:      #f5f6f8;
-  --bg2:     #ffffff;
-  --bg3:     #edf0f3;
-  --border:  #d1d9e0;
+  /* Surfaces (light) */
+  --bg:      #f5f6f8;   /* page background */
+  --bg2:     #ffffff;   /* card / surface */
+  --bg3:     #edf0f3;   /* inset surface: table header, hover rows, chips */
+  --bg4:     #e2e7ec;   /* deepest inset: pressed states, code blocks */
+  --border:         #d1d9e0;
+  --border-subtle:  #e2e8f0;
+  --border-hi:      rgba(13,148,136,0.35);   /* accent-tinted border on hover/focus */
 
-  /* Shadows */
-  --shadow:       0 1px 4px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
-  --shadow-hover: 0 8px 24px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.05);
-  --shadow-modal: 0 24px 64px rgba(0,0,0,0.14);
-
-  /* Typography */
+  /* Text hierarchy */
   --text:        #0f172a;
   --text-dim:    #475569;
   --text-subtle: #94a3b8;
 
-  /* Semantic colours */
-  --green:        #16a34a; --green-bg:  #f0fdf4;             --green-border:  #bbf7d0;
-  --amber:        #d97706; --amber-bg:  #fffbeb;             --amber-border:  #fde68a;
-  --red:          #dc2626; --red-bg:    #fef2f2;             --red-border:    #fecaca;
-  --blue:         #2563eb; --blue-bg:   #eff6ff;             --blue-border:   #bfdbfe;
-  --purple:       #7c3aed; --purple-bg: #f5f3ff;             --purple-border: #ddd6fe;
+  /* Accent (ONE accent fleet-wide: Kirakon Teal) */
+  --accent:          #0d9488;
+  --accent-strong:   #0f766e;
+  --accent-contrast: #ffffff;
+  --accent-dim:      rgba(13,148,136,0.10);
+  --accent-border:   rgba(13,148,136,0.30);
+  --accent-2:        #7c3aed;   /* secondary accent (gradients, charts only) */
+
+  /* Semantic */
+  --green: #16a34a; --green-bg: #f0fdf4; --green-border: #bbf7d0;
+  --amber: #d97706; --amber-bg: #fffbeb; --amber-border: #fde68a;
+  --red:   #dc2626; --red-bg:   #fef2f2; --red-border:   #fecaca;
+  --blue:  #2563eb; --blue-bg:  #eff6ff; --blue-border:  #bfdbfe;
+  --purple:#7c3aed; --purple-bg:#f5f3ff; --purple-border:#ddd6fe;
 
   /* Type */
-  --sans:   'Inter', system-ui, -apple-system, sans-serif;
-  --mono:   'JetBrains Mono', 'Fira Code', monospace;
+  --sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', 'Fira Code', monospace;
 
   /* Shape */
-  --radius:   14px;
-  --radius-s:  8px;
-  --radius-xs: 5px;
+  --radius:    14px;   /* cards, modals, large containers */
+  --radius-s:   8px;   /* buttons, inputs, nav items, small tiles */
+  --radius-xs:  5px;   /* badges, tiny chips */
+  --radius-pill: 999px;
+
+  /* Elevation */
+  --shadow:       0 1px 4px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-hover: 0 8px 24px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.05);
+  --shadow-modal: 0 24px 64px rgba(0,0,0,0.14);
+  --glow-accent:  0 0 32px rgba(13,148,136,0.18);
 
   /* Motion */
-  --ease: cubic-bezier(0.4, 0, 0.2, 1);
-  --dur:  0.15s;
+  --ease:        cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out:    cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur:      0.22s;
+  --dur-fast: 0.15s;
+  --dur-slow: 0.40s;
 }
 
 [data-theme="dark"] {
-  --bg:      #09090b;
-  --bg2:     #18181b;
-  --bg3:     #27272a;
-  --border:  #3f3f46;
+  --bg:  #060d17;  --bg2: #0c1626;  --bg3: #142238;  --bg4: #1c2f4d;
+  --border:        rgba(255,255,255,0.08);
+  --border-subtle: rgba(255,255,255,0.05);
+  --border-hi:     rgba(94,234,212,0.30);
+
+  --text: #e2e8f0;  --text-dim: #94a3b8;  --text-subtle: #5a6b81;
+
+  --accent:          #5eead4;
+  --accent-strong:   #99f6e4;
+  --accent-contrast: #04121f;
+  --accent-dim:      rgba(94,234,212,0.12);
+  --accent-border:   rgba(94,234,212,0.30);
+  --accent-2:        #a78bfa;
+
+  --green: #4ade80; --green-bg: rgba(74,222,128,0.10);  --green-border: rgba(74,222,128,0.25);
+  --amber: #fb923c; --amber-bg: rgba(251,146,60,0.10);  --amber-border: rgba(251,146,60,0.25);
+  --red:   #f87171; --red-bg:   rgba(248,113,113,0.10); --red-border:   rgba(248,113,113,0.25);
+  --blue:  #38bdf8; --blue-bg:  rgba(56,189,248,0.10);  --blue-border:  rgba(56,189,248,0.25);
+  --purple:#a78bfa; --purple-bg:rgba(167,139,250,0.10); --purple-border:rgba(167,139,250,0.25);
 
   --shadow:       0 1px 4px rgba(0,0,0,0.40);
-  --shadow-hover: 0 8px 24px rgba(0,0,0,0.50);
+  --shadow-hover: 0 8px 32px rgba(0,0,0,0.45);
   --shadow-modal: 0 24px 64px rgba(0,0,0,0.60);
-
-  --text:        #fafafa;
-  --text-dim:    #a1a1aa;
-  --text-subtle: #71717a;
-
-  --green:        #22c55e; --green-bg:  rgba(34,197,94,0.10);   --green-border:  rgba(34,197,94,0.25);
-  --amber:        #f59e0b; --amber-bg:  rgba(245,158,11,0.10);  --amber-border:  rgba(245,158,11,0.25);
-  --red:          #ef4444; --red-bg:    rgba(239,68,68,0.10);   --red-border:    rgba(239,68,68,0.25);
-  --blue:         #3b82f6; --blue-bg:   rgba(59,130,246,0.10);  --blue-border:   rgba(59,130,246,0.25);
-  --purple:       #a78bfa; --purple-bg: rgba(167,139,250,0.10); --purple-border: rgba(167,139,250,0.25);
+  --glow-accent:  0 0 32px rgba(94,234,212,0.20);
 }
 
 /* ── Reset ───────────────────────────────────────────────────────────────── */
@@ -76,8 +99,8 @@ button { font-family: inherit; cursor: pointer; }
 
 /* ── Layout ──────────────────────────────────────────────────────────────── */
 .kds-app      { max-width: 1440px; margin: 0 auto; padding: 0 24px 48px; }
-.kds-grid-2   { display: grid; grid-template-columns: 1fr 1fr;     gap: 16px; margin-bottom: 16px; }
-.kds-grid-3   { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.kds-grid-2   { display: grid; grid-template-columns: 1fr 1fr;     gap: 14px; margin-bottom: 14px; }
+.kds-grid-3   { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 14px; }
 .kds-row      { margin-bottom: 16px; }
 .kds-flex     { display: flex; align-items: center; gap: 10px; }
 .kds-spacer   { flex: 1; }
@@ -88,78 +111,210 @@ button { font-family: inherit; cursor: pointer; }
   padding: 20px 0 18px; border-bottom: 1px solid var(--border); margin-bottom: 24px;
 }
 .kds-logo       { display: flex; align-items: baseline; gap: 10px; }
-.kds-logo-name  { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+.kds-logo-name  { font-size: 19px; font-weight: 700; letter-spacing: -0.03em; }
 .kds-logo-sub   { font-size: 12px; color: var(--text-dim); font-family: var(--mono); letter-spacing: 0.05em; }
 .kds-header-right { display: flex; align-items: center; gap: 12px; }
 
-/* ── Card ────────────────────────────────────────────────────────────────── */
+/* ── Card (base) + signature hover: lift + shadow + accent top-bar sweep ── */
+.k-card {
+  position: relative; overflow: hidden;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  box-shadow: var(--shadow);
+  transition: transform var(--dur) var(--ease),
+              border-color var(--dur) var(--ease),
+              box-shadow var(--dur) var(--ease);
+  animation: k-rise 0.45s var(--ease) both;
+}
+.k-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--ac, var(--accent)), transparent);
+  opacity: 0; transition: opacity var(--dur) var(--ease);
+}
+.k-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); border-color: var(--border-hi); }
+.k-card:hover::before { opacity: 1; }
+.k-card.static:hover { transform: none; }
+@keyframes k-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+/* legacy alias */
 .kds-card {
   background: var(--bg2); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 18px 20px;
-  box-shadow: var(--shadow); transition: box-shadow var(--dur) var(--ease);
-  animation: kds-fade-up 0.3s ease both;
+  box-shadow: var(--shadow);
+  transition: box-shadow var(--dur) var(--ease), border-color var(--dur) var(--ease);
+  animation: k-rise 0.45s var(--ease) both;
 }
-.kds-card:hover        { box-shadow: var(--shadow-hover); }
-.kds-card-label {
-  font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--text-dim); margin-bottom: 14px;
+.kds-card:hover { box-shadow: var(--shadow-hover); border-color: var(--border-hi); }
+.kds-card-label, .k-label-eyebrow {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-subtle); margin-bottom: 14px;
 }
+
+/* ── Stat tile ───────────────────────────────────────────────────────────── */
+.k-stat { display: flex; align-items: center; gap: 14px; }
+.k-stat-icon {
+  width: 42px; height: 42px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 17px;
+  color: var(--ac, var(--accent));
+  background: color-mix(in srgb, var(--ac, var(--accent)) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ac, var(--accent)) 20%, transparent);
+  transition: transform var(--dur) var(--ease);
+}
+.k-card:hover .k-stat-icon { transform: scale(1.08); }
+.k-stat-value { font-family: var(--mono); font-size: 22px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; }
+.k-stat-label { font-size: 11.5px; color: var(--text-dim); font-weight: 500; margin-top: 3px; }
 
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
-.kds-btn {
+.k-btn, .kds-btn {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 16px; border-radius: var(--radius-s); border: 1px solid var(--border);
-  font-size: 13px; font-weight: 500; background: var(--bg2); color: var(--text);
-  transition: background var(--dur), border-color var(--dur), box-shadow var(--dur);
+  padding: 8px 16px; border-radius: var(--radius-s);
+  border: 1px solid var(--border); background: var(--bg2); color: var(--text);
+  font-family: var(--sans); font-size: 13px; font-weight: 500; cursor: pointer;
+  transition: background var(--dur-fast), border-color var(--dur-fast),
+              color var(--dur-fast), box-shadow var(--dur-fast);
 }
-.kds-btn:hover          { background: var(--bg3); box-shadow: var(--shadow); }
-.kds-btn-primary        { background: var(--blue); color: #fff; border-color: var(--blue); }
-.kds-btn-primary:hover  { opacity: 0.9; box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
-.kds-btn-danger         { background: var(--red); color: #fff; border-color: var(--red); }
-.kds-btn-icon {
-  width: 32px; height: 32px; padding: 0; border-radius: var(--radius-s);
-  font-size: 15px; display: flex; align-items: center; justify-content: center;
-  background: var(--bg2); border: 1px solid var(--border); color: var(--text-dim);
-}
-.kds-btn-icon:hover { background: var(--bg3); }
+.k-btn:hover, .kds-btn:hover { background: var(--bg3); color: var(--accent); border-color: var(--border-hi); }
+.k-btn:active, .kds-btn:active { transform: scale(0.98); }
+.k-btn:disabled, .kds-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
-/* ── Badges ──────────────────────────────────────────────────────────────── */
+.k-btn-primary, .kds-btn-primary {
+  background: var(--accent); color: var(--accent-contrast); border-color: transparent; font-weight: 600;
+}
+.k-btn-primary:hover, .kds-btn-primary:hover { background: var(--accent-strong); color: var(--accent-contrast); box-shadow: var(--glow-accent); }
+.k-btn-hero { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: var(--accent-contrast); border: none; font-weight: 600; }
+.k-btn-hero:hover { filter: brightness(1.08); }
+
+.k-btn-ghost { background: transparent; border-color: transparent; color: var(--text-dim); }
+.k-btn-ghost:hover { background: var(--accent-dim); color: var(--accent); }
+
+.k-btn-danger, .kds-btn-danger { background: var(--red); color: #fff; border-color: transparent; }
+.k-btn-danger:hover, .kds-btn-danger:hover { filter: brightness(1.1); box-shadow: 0 4px 12px var(--red-bg); }
+.k-btn-danger-soft { background: var(--red-bg); color: var(--red); border-color: var(--red-border); }
+
+.k-btn-icon, .kds-btn-icon {
+  width: 34px; height: 34px; padding: 0; justify-content: center; font-size: 13px; color: var(--text-dim);
+  display: inline-flex; align-items: center;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-s);
+  transition: color var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast);
+}
+.k-btn-icon:hover, .kds-btn-icon:hover { color: var(--accent); border-color: var(--border-hi); background: var(--bg3); }
+
+/* ── Inputs & forms ──────────────────────────────────────────────────────── */
+.k-input, .k-select, .k-textarea, .kds-input, .kds-select {
+  width: 100%; padding: 9px 12px;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-s);
+  color: var(--text); font-family: var(--sans); font-size: 13px; outline: none;
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+}
+.kds-select { width: auto; }
+.k-input::placeholder, .kds-input::placeholder { color: var(--text-subtle); }
+.k-input:focus, .k-select:focus, .k-textarea:focus, .kds-input:focus, .kds-select:focus {
+  border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.k-input.invalid { border-color: var(--red); box-shadow: 0 0 0 3px var(--red-bg); }
+.k-label { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+           text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px; }
+.k-field { margin-bottom: 14px; }
+.k-help  { font-size: 11.5px; color: var(--text-subtle); margin-top: 4px; }
+.k-error { font-size: 11.5px; color: var(--red); margin-top: 4px; }
+
+/* ── Tables ──────────────────────────────────────────────────────────────── */
+.k-table-wrap { overflow-x: auto; }
+.k-table { width: 100%; border-collapse: collapse; }
+.k-table th, .kds-table th {
+  padding: 10px 16px; text-align: left; white-space: nowrap;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--text-subtle); border-bottom: 1px solid var(--border);
+}
+.k-table td { padding: 11px 16px; font-size: 13px; border-bottom: 1px solid var(--border-subtle); }
+.k-table tbody tr { transition: background var(--dur-fast); }
+.k-table tbody tr:hover { background: var(--bg3); }
+.k-table tbody tr:last-child td { border-bottom: none; }
+.k-table .num { font-family: var(--mono); font-weight: 600; text-align: right; }
+.kds-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 11px; }
+.kds-table td { padding: 5px 8px; border-bottom: 1px solid var(--bg3); }
+.kds-table tbody tr:hover td { background: var(--bg3); }
+
+/* ── Nav item ────────────────────────────────────────────────────────────── */
+.k-nav-item {
+  display: flex; align-items: center; gap: 11px; padding: 10px 12px;
+  border-radius: var(--radius-s); color: var(--text-dim); text-decoration: none;
+  font-size: 13.5px; font-weight: 500; position: relative;
+  transition: color var(--dur), background var(--dur);
+}
+.k-nav-item:hover  { color: var(--text); background: var(--bg3); }
+.k-nav-item.active { color: var(--accent); background: var(--accent-dim); }
+.k-nav-item.active::before {
+  content: ''; position: absolute; left: 0; top: 20%; bottom: 20%; width: 3px;
+  background: var(--accent); border-radius: 0 3px 3px 0;
+}
+
+/* ── Modals ──────────────────────────────────────────────────────────────── */
+.k-modal-backdrop {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(2,8,16,0.55); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.k-modal {
+  background: var(--bg2); border: 1px solid var(--border-hi);
+  border-radius: var(--radius); box-shadow: var(--shadow-modal);
+  width: min(440px, 100%); max-height: 85vh; overflow-y: auto;
+  padding: 24px; display: flex; flex-direction: column; gap: 16px;
+  animation: k-modal-in 0.25s var(--ease) both;
+}
+@keyframes k-modal-in { from { opacity: 0; transform: translateY(14px) scale(0.97); } to { opacity: 1; transform: none; } }
+.k-modal-title   { font-size: 15px; font-weight: 600; }
+.k-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ── Badges / pills ──────────────────────────────────────────────────────── */
+.k-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 9px; border-radius: var(--radius-pill);
+  font-size: 11px; font-weight: 700; border: 1px solid transparent;
+}
+.k-badge-green,  .kds-badge-green  { background: var(--green-bg);  color: var(--green);  border-color: var(--green-border); }
+.k-badge-amber,  .kds-badge-amber  { background: var(--amber-bg);  color: var(--amber);  border-color: var(--amber-border); }
+.k-badge-red,    .kds-badge-red    { background: var(--red-bg);    color: var(--red);    border-color: var(--red-border); }
+.k-badge-blue,   .kds-badge-blue   { background: var(--blue-bg);   color: var(--blue);   border-color: var(--blue-border); }
+.k-badge-accent                    { background: var(--accent-dim); color: var(--accent); border-color: var(--accent-border); }
+.kds-badge-purple                  { background: var(--purple-bg); color: var(--purple); border-color: var(--purple-border); }
+.k-badge-gray,   .kds-badge-gray   { background: var(--bg3);       color: var(--text-dim); border-color: var(--border); }
 .kds-badge {
   display: inline-block; padding: 2px 8px; border-radius: var(--radius-xs);
   font-family: var(--mono); font-size: 10px; font-weight: 500; border: 1px solid;
 }
-.kds-badge-green  { background: var(--green-bg);  color: var(--green);  border-color: var(--green-border); }
-.kds-badge-amber  { background: var(--amber-bg);  color: var(--amber);  border-color: var(--amber-border); }
-.kds-badge-red    { background: var(--red-bg);    color: var(--red);    border-color: var(--red-border); }
-.kds-badge-blue   { background: var(--blue-bg);   color: var(--blue);   border-color: var(--blue-border); }
-.kds-badge-purple { background: var(--purple-bg); color: var(--purple); border-color: var(--purple-border); }
-.kds-badge-gray   { background: var(--bg3);       color: var(--text-dim); border-color: var(--border); }
 
 /* ── Status dot ──────────────────────────────────────────────────────────── */
-.kds-dot            { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.kds-dot, .k-dot    { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .kds-dot-green      { background: var(--green); }
 .kds-dot-amber      { background: var(--amber); }
 .kds-dot-red        { background: var(--red); }
 .kds-dot-gray       { background: var(--text-subtle); }
+.k-dot-online       { background: var(--green); box-shadow: 0 0 0 3px var(--green-bg); animation: k-pulse 2.5s ease-in-out infinite; }
+@keyframes k-pulse  { 50% { box-shadow: 0 0 0 6px transparent; } }
 
 /* ── Progress bar ────────────────────────────────────────────────────────── */
-.kds-bar-track  { height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; margin: 8px 0; }
-.kds-bar-fill   { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
-.kds-bar-green  { background: var(--green); }
-.kds-bar-amber  { background: var(--amber); }
-.kds-bar-red    { background: var(--red); }
-.kds-bar-blue   { background: var(--blue); }
+.kds-bar-track, .k-bar-track { height: 5px; background: var(--bg3); border-radius: var(--radius-pill); overflow: hidden; margin: 8px 0; }
+.kds-bar-fill, .k-bar-fill   { height: 100%; border-radius: var(--radius-pill); transition: width var(--dur-slow) var(--ease); }
+.k-bar-fill      { background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+.kds-bar-green   { background: var(--green); }
+.kds-bar-amber   { background: var(--amber); }
+.kds-bar-red     { background: var(--red); }
+.kds-bar-blue    { background: var(--blue); }
 
 /* ── Gauge (big number) ──────────────────────────────────────────────────── */
 .kds-gauge      { font-size: 46px; font-weight: 700; line-height: 1; letter-spacing: -0.02em; font-family: var(--mono); }
 .kds-gauge-unit { font-size: 16px; color: var(--text-dim); }
 .kds-gauge-sub  { font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
 
-/* ── List item (docker / pm2 style) ─────────────────────────────────────── */
+/* ── List item ───────────────────────────────────────────────────────────── */
 .kds-list-item {
   display: flex; align-items: center; gap: 10px; padding: 8px 10px;
   border-radius: var(--radius-s); border: 1px solid var(--border);
   background: var(--bg3); margin-bottom: 6px;
+  transition: background var(--dur-fast);
 }
 .kds-list-dot         { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .kds-list-dot-green   { background: var(--green); }
@@ -169,33 +324,6 @@ button { font-family: inherit; cursor: pointer; }
 .kds-list-name        { font-family: var(--mono); font-size: 12px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kds-list-meta        { font-family: var(--mono); font-size: 10px; color: var(--text-dim); }
 
-/* ── Table ───────────────────────────────────────────────────────────────── */
-.kds-table            { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 11px; }
-.kds-table th {
-  text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border);
-  font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--text-dim); font-weight: 600;
-}
-.kds-table td         { padding: 5px 8px; border-bottom: 1px solid var(--bg3); }
-.kds-table tbody tr:hover td { background: var(--bg3); }
-
-/* ── Input ───────────────────────────────────────────────────────────────── */
-.kds-input {
-  width: 100%; padding: 9px 12px; border-radius: var(--radius-s);
-  border: 1px solid var(--border); background: var(--bg2); color: var(--text);
-  font-family: var(--sans); font-size: 13px;
-  transition: border-color var(--dur), box-shadow var(--dur);
-}
-.kds-input:focus      { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-bg); }
-.kds-input::placeholder { color: var(--text-subtle); }
-
-/* ── Select ──────────────────────────────────────────────────────────────── */
-.kds-select {
-  padding: 8px 12px; border-radius: var(--radius-s);
-  border: 1px solid var(--border); background: var(--bg2); color: var(--text);
-  font-family: var(--sans); font-size: 13px;
-}
-
 /* ── Banner / alert ──────────────────────────────────────────────────────── */
 .kds-banner         { padding: 10px 14px; border-radius: 10px; font-size: 13px; border: 1px solid; margin-bottom: 14px; }
 .kds-banner-amber   { background: var(--amber-bg); border-color: var(--amber-border); color: var(--amber); }
@@ -203,14 +331,12 @@ button { font-family: inherit; cursor: pointer; }
 .kds-banner-green   { background: var(--green-bg); border-color: var(--green-border); color: var(--green); }
 .kds-banner-blue    { background: var(--blue-bg);  border-color: var(--blue-border);  color: var(--blue); }
 
-/* ── Status bar ──────────────────────────────────────────────────────────── */
+/* ── Status bar / info strip ─────────────────────────────────────────────── */
 .kds-status-bar {
   display: flex; align-items: center; gap: 10px;
   padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border);
   background: var(--bg2); margin-bottom: 14px; font-size: 13px; box-shadow: var(--shadow);
 }
-
-/* ── Info strip ──────────────────────────────────────────────────────────── */
 .kds-info-strip {
   display: flex; gap: 20px; flex-wrap: wrap; padding: 10px 16px;
   border-radius: 10px; border: 1px solid var(--border); background: var(--bg2);
@@ -224,22 +350,46 @@ button { font-family: inherit; cursor: pointer; }
 .kds-tab {
   padding: 8px 16px; font-size: 13px; font-weight: 500; border: none;
   background: none; color: var(--text-dim); border-bottom: 2px solid transparent;
-  margin-bottom: -1px; transition: color var(--dur), border-color var(--dur);
+  margin-bottom: -1px; transition: color var(--dur-fast), border-color var(--dur-fast);
 }
 .kds-tab:hover      { color: var(--text); }
-.kds-tab.active     { color: var(--blue); border-bottom-color: var(--blue); }
+.kds-tab.active     { color: var(--accent); border-bottom-color: var(--accent); }
 
-/* ── Divider ─────────────────────────────────────────────────────────────── */
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+.k-empty {
+  grid-column: 1 / -1; text-align: center; padding: 48px 20px;
+  color: var(--text-subtle); font-size: 13px;
+}
+.k-empty i, .k-empty svg { font-size: 36px; display: block; margin: 0 auto 10px; opacity: 0.4; }
+
+/* ── Toasts ──────────────────────────────────────────────────────────────── */
+.k-toast {
+  position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+  padding: 12px 18px; border-radius: 10px; max-width: 320px;
+  background: var(--bg2); border: 1px solid var(--border); border-left-width: 3px;
+  color: var(--text); font-size: 13px; box-shadow: var(--shadow-modal);
+  transform: translateY(12px); opacity: 0; pointer-events: none;
+  transition: transform 0.3s var(--ease), opacity 0.3s;
+}
+.k-toast.show    { transform: translateY(0); opacity: 1; }
+.k-toast.success { border-left-color: var(--green); }
+.k-toast.warn    { border-left-color: var(--amber); }
+.k-toast.error   { border-left-color: var(--red); }
+
+/* ── Skeleton ────────────────────────────────────────────────────────────── */
+.k-skeleton {
+  background: linear-gradient(90deg, var(--bg3) 25%, var(--bg4) 50%, var(--bg3) 75%);
+  background-size: 200% 100%; animation: k-shimmer 1.5s infinite; border-radius: var(--radius-s);
+}
+@keyframes k-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* ── Divider / footer / utility ──────────────────────────────────────────── */
 .kds-divider        { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
-
-/* ── Footer ──────────────────────────────────────────────────────────────── */
 .kds-footer {
   margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border);
   display: flex; justify-content: space-between; align-items: center;
 }
 .kds-footer p       { font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
-
-/* ── Utility ─────────────────────────────────────────────────────────────── */
 .kds-mono           { font-family: var(--mono); }
 .kds-text-dim       { color: var(--text-dim); }
 .kds-text-subtle    { color: var(--text-subtle); }
@@ -248,13 +398,29 @@ button { font-family: inherit; cursor: pointer; }
 .kds-text-red       { color: var(--red); }
 .kds-text-blue      { color: var(--blue); }
 
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: var(--radius-pill); }
+
+/* ── Focus visibility ────────────────────────────────────────────────────── */
+:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-dim); border-radius: 4px; }
+
 /* ── Animation ───────────────────────────────────────────────────────────── */
 @keyframes kds-fade-up {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: none; }
 }
 
+/* ── Reduced motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
 /* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .kds-grid-3       { grid-template-columns: 1fr 1fr; }
+}
 @media (max-width: 768px) {
   .kds-app          { padding: 0 16px 32px; }
   .kds-grid-2,

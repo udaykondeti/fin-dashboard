@@ -2,6 +2,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const db = require('../db/database');
 const tools = require('./chatTools');
 const routeProvider = require('./routeProvider');
+const { priceFor } = require('./agent');
 
 // ─────────────────────────── Live artifacts ─────────────────────────────────
 const ARTIFACT_INSTRUCTIONS = [
@@ -185,15 +186,14 @@ function persistArtifacts(threadId, messageId, artifacts) {
   }
 }
 
-// USD per 1M tokens.
-const PRICE_TABLE = {
-  'claude-haiku-4-5':        { input: 1.0,  output: 5.0  },
-  'claude-sonnet-4-5':       { input: 3.0,  output: 15.0 },
-  'claude-opus-4-5':         { input: 15.0, output: 75.0 },
-  'mistral':                 { input: 0,    output: 0    },
-  'qwen2.5':                 { input: 0,    output: 0    }
-};
+// Pricing lives in services/agent.js (priceFor) — single source of truth
+// shared with runTask() so admin cost views stay consistent.
 const DEFAULT_MODEL = 'auto';
+
+// Chat turns can emit full artifacts (HTML/SVG/markdown reports) per the
+// system prompt — 1024 tokens truncated them mid-stream. Configurable so
+// slow local models can be capped lower.
+const CHAT_MAX_TOKENS = Number(process.env.CHAT_MAX_TOKENS) || 4096;
 
 function hasAnthropic() { return !!process.env.ANTHROPIC_API_KEY; }
 function hasLocal()     { return !!process.env.OLLAMA_BASE_URL; }
@@ -304,9 +304,18 @@ function rowsToMessages(rows) {
       const resultStr = typeof parsed.result === 'string'
         ? parsed.result
         : JSON.stringify(parsed.result);
-      out.push({ role: 'user', content: [
-        { type: 'tool_result', tool_use_id: parsed.tool_use_id, content: resultStr, is_error: !!parsed.is_error }
-      ]});
+      const block = { type: 'tool_result', tool_use_id: parsed.tool_use_id, content: resultStr, is_error: !!parsed.is_error };
+      // Anthropic requires ALL tool_result blocks for a turn to arrive in the
+      // single user message immediately following the assistant's tool_use
+      // message — merge consecutive tool rows instead of emitting one user
+      // message each, which the API rejects for multi-tool turns.
+      const prev = out[out.length - 1];
+      if (prev && prev.role === 'user' && Array.isArray(prev.content) &&
+          prev.content.length && prev.content[0].type === 'tool_result') {
+        prev.content.push(block);
+      } else {
+        out.push({ role: 'user', content: [block] });
+      }
     }
   }
   return out;
@@ -341,7 +350,7 @@ async function sendMessage({ threadId, userId, content }) {
     try {
       resp = await client.messages.create({
         model: t.model,
-        max_tokens: 1024,
+        max_tokens: CHAT_MAX_TOKENS,
         system: systemPromptFor(t.agent_kind),
         tools: tools.TOOLS,
         messages
@@ -395,6 +404,39 @@ function recordToolResult({ threadId, userId, message_id, tool_use_id, result, i
   if (!t) throw new Error(`Thread ${threadId} not found`);
   insertMessage.run(threadId, 'tool',
     JSON.stringify({ tool_use_id, name: 'proposal_result', result, is_error: !!is_error }), null, 'final');
+
+  // A single model turn can carry SEVERAL tool_use blocks (the upload
+  // processor is explicitly prompted to propose each extracted entry), but
+  // only the first proposal is surfaced and confirmed. Once this message
+  // flips to 'final' it gets replayed to the provider, and both Anthropic
+  // and the OpenAI-compat APIs reject a turn whose tool_use ids lack
+  // matching tool_results — permanently wedging the thread with a 400.
+  // Backfill synthetic "deferred" results for every other tool_use on this
+  // message so the history stays valid; the model can re-propose them on
+  // the next turn.
+  try {
+    const asst = db.prepare('SELECT tool_uses FROM agent_messages WHERE id = ? AND thread_id = ?')
+      .get(message_id, threadId);
+    const uses = asst && asst.tool_uses ? JSON.parse(asst.tool_uses) : [];
+    if (uses.length > 1) {
+      const resolved = new Set();
+      for (const m of listMessages.all(threadId)) {
+        if (m.role !== 'tool') continue;
+        try { resolved.add(JSON.parse(m.content).tool_use_id); } catch (_) { /* ignore */ }
+      }
+      for (const u of uses) {
+        if (resolved.has(u.id)) continue;
+        insertMessage.run(threadId, 'tool', JSON.stringify({
+          tool_use_id: u.id, name: u.name,
+          result: { deferred: true, note: 'Not executed — only one proposal is processed per turn. Propose again if still needed.' },
+          is_error: false
+        }), null, 'final');
+      }
+    }
+  } catch (e) {
+    console.error('[chatAgent] deferred tool_result backfill failed:', e.message);
+  }
+
   updateMessageStatus.run('final', null, null, message_id);
   updateThreadTouch.run(threadId, userId);
 }
@@ -405,7 +447,7 @@ function recordToolResult({ threadId, userId, message_id, tool_use_id, result, i
 //   - explicit thread.model wins; forceProvider overrides everything.
 // When Anthropic is chosen but throws before streaming (e.g. 402 credit
 // exhaustion), falls back to local Ollama if OLLAMA_BASE_URL is set.
-async function streamMessage({ threadId, userId, content, forceProvider = null }, emit) {
+async function streamMessage({ threadId, userId, content, forceProvider = null, signal = null }, emit) {
   const t = getThread.get(threadId, userId);
   if (!t) throw new Error(`Thread ${threadId} not found for user ${userId}`);
   if (!isAgentConfigured()) throw new Error('No agent provider configured. Set OLLAMA_BASE_URL or ANTHROPIC_API_KEY.');
@@ -429,31 +471,32 @@ async function streamMessage({ threadId, userId, content, forceProvider = null }
 
   if (routed.provider === 'groq') {
     return streamMessageOpenAI({ thread: t, userId, content, model: routed.model,
-      baseUrl: GROQ_BASE, apiKey: process.env.GROQ_API_KEY, providerLabel: 'groq' }, emit);
+      baseUrl: GROQ_BASE, apiKey: process.env.GROQ_API_KEY, providerLabel: 'groq', signal }, emit);
   }
   if (routed.provider === 'local') {
     return streamMessageOpenAI({ thread: t, userId, content, model: routed.model,
-      baseUrl: process.env.OLLAMA_BASE_URL, apiKey: null, providerLabel: 'local' }, emit);
+      baseUrl: process.env.OLLAMA_BASE_URL, apiKey: null, providerLabel: 'local', signal }, emit);
   }
   // Anthropic path: fall back to local Ollama on error (e.g. credit exhaustion)
   // if local is configured and no content has streamed yet.
   if (hasLocal()) {
     try {
-      return await streamMessageAnthropic({ thread: t, userId, content, model: routed.model }, emit);
+      return await streamMessageAnthropic({ thread: t, userId, content, model: routed.model, signal }, emit);
     } catch (err) {
+      if (signal && signal.aborted) return;  // client went away — don't retry on a dead response
       console.warn(`[chatAgent] Anthropic failed (${err.message}) — falling back to local Ollama`);
       const fallbackModel = process.env.OLLAMA_MODEL || 'qwen2.5:latest';
       emit('routing', { provider: 'local', model: fallbackModel, reason: 'fallback:anthropic-error' });
       return streamMessageOpenAI({ thread: t, userId, content, model: fallbackModel,
-        baseUrl: process.env.OLLAMA_BASE_URL, apiKey: null, providerLabel: 'local' }, emit);
+        baseUrl: process.env.OLLAMA_BASE_URL, apiKey: null, providerLabel: 'local', signal }, emit);
     }
   }
-  return streamMessageAnthropic({ thread: t, userId, content, model: routed.model }, emit);
+  return streamMessageAnthropic({ thread: t, userId, content, model: routed.model, signal }, emit);
 }
 
 // ────────────────────────────────── Anthropic streaming path ──────────────
 
-async function streamMessageAnthropic({ thread: t, userId, content, model }, emit) {
+async function streamMessageAnthropic({ thread: t, userId, content, model, signal = null }, emit) {
   const client = getAnthropicClient();
   let totalIn = 0, totalOut = 0;
   const t0 = Date.now();
@@ -462,36 +505,53 @@ async function streamMessageAnthropic({ thread: t, userId, content, model }, emi
   for (let iter = 0; iter < 8; iter++) {
     const messages = rowsToMessages(listMessages.all(threadId));
     const stream = client.messages.stream({
-      model, max_tokens: 1024,
+      model, max_tokens: CHAT_MAX_TOKENS,
       system: systemPromptFor(t.agent_kind),
       tools: tools.TOOLS, messages
-    });
+    }, signal ? { signal } : undefined);
 
     let asstId = null;
     const toolUses = [];
     const parser = new ArtifactStreamParser(emit);
+    let final;
 
-    for await (const event of stream) {
-      if (event.type === 'content_block_start') {
-        if (event.content_block.type === 'text' && asstId == null) {
-          asstId = Number(insertMessage.run(threadId, 'assistant', '', null, 'streaming').lastInsertRowid);
-          emit('assistant_start', { message_id: asstId });
-        }
-        if (event.content_block.type === 'tool_use') {
-          toolUses.push({ id: event.content_block.id, name: event.content_block.name, input_buf: '' });
-        }
-      } else if (event.type === 'content_block_delta') {
-        if (event.delta.type === 'text_delta') {
-          parser.feed(event.delta.text);
-        } else if (event.delta.type === 'input_json_delta') {
-          toolUses[toolUses.length - 1].input_buf += event.delta.partial_json;
+    try {
+      for await (const event of stream) {
+        if (event.type === 'content_block_start') {
+          if (event.content_block.type === 'text' && asstId == null) {
+            asstId = Number(insertMessage.run(threadId, 'assistant', '', null, 'streaming').lastInsertRowid);
+            emit('assistant_start', { message_id: asstId });
+          }
+          if (event.content_block.type === 'tool_use') {
+            toolUses.push({ id: event.content_block.id, name: event.content_block.name, input_buf: '' });
+          }
+        } else if (event.type === 'content_block_delta') {
+          if (event.delta.type === 'text_delta') {
+            parser.feed(event.delta.text);
+          } else if (event.delta.type === 'input_json_delta') {
+            toolUses[toolUses.length - 1].input_buf += event.delta.partial_json;
+          }
         }
       }
+      parser.flush();
+      final = await stream.finalMessage();
+    } catch (err) {
+      // Client disconnected mid-generation (tab closed / Stop pressed):
+      // persist whatever streamed as a final text-only message so the
+      // thread replays cleanly, audit the partial usage, and stop the loop.
+      if (signal && signal.aborted) {
+        parser.flush();
+        if (asstId != null) {
+          updateMessageStatus.run('final', parser.cleanText, null, asstId);
+          persistArtifacts(threadId, asstId, parser.artifacts);
+        }
+        auditAndCost({ userId, threadId, model, content, text: parser.cleanText, totalIn, totalOut, t0, error: 'client_aborted' });
+        return;
+      }
+      throw err;
     }
-    parser.flush();
     const textBuf = parser.cleanText;
 
-    const final = await stream.finalMessage();
     totalIn  += final.usage?.input_tokens  || 0;
     totalOut += final.usage?.output_tokens || 0;
 
@@ -509,19 +569,34 @@ async function streamMessageAnthropic({ thread: t, userId, content, model }, emi
 
     const proposals = finalToolUses.filter(u => tools.TOOL_KIND[u.name] === 'propose');
     if (proposals.length > 0) {
+      const first = proposals[0];
+      let payload = null;
+      try { payload = tools.buildProposal(first.name, first.input, { userId }); }
+      catch (e) {
+        // Invalid proposal input (missing required field etc.) — feed the
+        // error back as an is_error tool_result so the model can retry on
+        // the next loop iteration instead of killing the whole turn.
+        if (asstId == null) asstId = Number(insertMessage.run(threadId, 'assistant', textBuf, JSON.stringify(finalToolUses), 'final').lastInsertRowid);
+        else updateMessageStatus.run('final', textBuf, JSON.stringify(finalToolUses), asstId);
+        persistArtifacts(threadId, asstId, parser.artifacts);
+        for (const u of finalToolUses) {
+          const errMsg = u.id === first.id ? e.message : 'Skipped — sibling proposal failed validation. Propose again if still needed.';
+          insertMessage.run(threadId, 'tool',
+            JSON.stringify({ tool_use_id: u.id, name: u.name, result: { error: errMsg }, is_error: true }), null, 'final');
+          emit('tool_result', { tool_use_id: u.id, status: 'error', result: { error: errMsg } });
+        }
+        continue;
+      }
       if (asstId == null) {
         asstId = Number(insertMessage.run(threadId, 'assistant', textBuf, JSON.stringify(finalToolUses), 'streaming').lastInsertRowid);
       } else {
         updateMessageStatus.run('streaming', textBuf, JSON.stringify(finalToolUses), asstId);
       }
       persistArtifacts(threadId, asstId, parser.artifacts);
-      const first = proposals[0];
-      let payload;
-      try { payload = tools.buildProposal(first.name, first.input, { userId }); }
-      catch (e) { emit('error', { message: e.message }); return; }
       emit('proposal', {
         tool_use_id: first.id, name: first.name, input: first.input,
-        message_id: asstId, summary: payload.summary, mutation: payload.mutation
+        message_id: asstId, summary: payload.summary, mutation: payload.mutation,
+        duplicate: payload.duplicate || null
       });
       auditAndCost({ userId, threadId, model, content, text: textBuf, totalIn, totalOut, t0, error: null });
       return;
@@ -539,6 +614,7 @@ async function streamMessageAnthropic({ thread: t, userId, content, model }, emi
         JSON.stringify({ tool_use_id: u.id, name: u.name, result, is_error: isError }), null, 'final');
       emit('tool_result', { tool_use_id: u.id, status: isError ? 'error' : 'ok', result });
     }
+    if (signal && signal.aborted) return;
   }
 
   emit('error', { message: 'Tool loop did not converge in 8 iterations' });
@@ -581,7 +657,7 @@ function rowsToMessagesGroq(rows) {
   return out;
 }
 
-async function streamMessageOpenAI({ thread: t, userId, content, model, baseUrl, apiKey, providerLabel }, emit) {
+async function streamMessageOpenAI({ thread: t, userId, content, model, baseUrl, apiKey, providerLabel, signal = null }, emit) {
   if (!baseUrl) throw new Error(`${providerLabel}: base URL not set`);
   const threadId = t.id;
   let totalIn = 0, totalOut = 0;
@@ -594,16 +670,23 @@ async function streamMessageOpenAI({ thread: t, userId, content, model, baseUrl,
     const headers = { 'Content-Type': 'application/json' };
     if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
 
-    const resp = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        model, max_tokens: 1024, temperature: 0.2,
-        messages: fullMessages,
-        tools: toolsToOpenAI(tools.TOOLS),
-        stream: true
-      })
-    });
+    let resp;
+    try {
+      resp = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers,
+        signal: signal || undefined,
+        body: JSON.stringify({
+          model, max_tokens: CHAT_MAX_TOKENS, temperature: 0.2,
+          messages: fullMessages,
+          tools: toolsToOpenAI(tools.TOOLS),
+          stream: true
+        })
+      });
+    } catch (err) {
+      if (signal && signal.aborted) return;
+      throw err;
+    }
     if (!resp.ok) {
       const body = await resp.text().catch(() => '');
       emit('error', { message: `${providerLabel} HTTP ${resp.status}: ${body.slice(0, 300)}` });
@@ -621,7 +704,23 @@ async function streamMessageOpenAI({ thread: t, userId, content, model, baseUrl,
     const decoder = new TextDecoder();
     let buffer = '';
     while (true) {
-      const { done, value } = await reader.read();
+      let done, value;
+      try {
+        ({ done, value } = await reader.read());
+      } catch (err) {
+        // Client disconnected mid-generation — persist what streamed as a
+        // final text-only message so the thread replays cleanly, then stop.
+        if (signal && signal.aborted) {
+          parser.flush();
+          if (asstId != null) {
+            updateMessageStatus.run('final', parser.cleanText, null, asstId);
+            persistArtifacts(threadId, asstId, parser.artifacts);
+          }
+          auditAndCost({ userId, threadId, model, content, text: parser.cleanText, totalIn, totalOut, t0, error: 'client_aborted' });
+          return;
+        }
+        throw err;
+      }
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const events = buffer.split('\n\n');
@@ -689,21 +788,41 @@ async function streamMessageOpenAI({ thread: t, userId, content, model, baseUrl,
       return;
     }
 
-    const proposals = finalToolUses.filter(u => tools.TOOL_KIND[u.name] === 'propose');
+    // Never dispatch a tool call whose argument JSON failed to parse —
+    // propose_* with {} used to throw in buildProposal and kill the whole
+    // stream on a single truncated buffer from qwen2.5. Parse failures are
+    // fed back as is_error tool_results so the model can re-emit the call.
+    const proposals = finalToolUses.filter(u => !u.parseError && tools.TOOL_KIND[u.name] === 'propose');
     if (proposals.length > 0) {
+      const first = proposals[0];
+      let payload = null;
+      try { payload = tools.buildProposal(first.name, first.input, { userId }); }
+      catch (e) {
+        // Invalid proposal input — feed the error back as an is_error
+        // tool_result and let the loop continue instead of terminating.
+        if (asstId == null) asstId = Number(insertMessage.run(threadId, 'assistant', textBuf, JSON.stringify(finalToolUses), 'final').lastInsertRowid);
+        else updateMessageStatus.run('final', textBuf, JSON.stringify(finalToolUses), asstId);
+        persistArtifacts(threadId, asstId, parser.artifacts);
+        for (const u of finalToolUses) {
+          const errMsg = u.parseError
+            ? `Tool arguments were not valid JSON: ${u.parseError}. Re-emit the call with complete JSON.`
+            : (u.id === first.id ? e.message : 'Skipped — sibling proposal failed validation. Propose again if still needed.');
+          insertMessage.run(threadId, 'tool',
+            JSON.stringify({ tool_use_id: u.id, name: u.name, result: { error: errMsg }, is_error: true }), null, 'final');
+          emit('tool_result', { tool_use_id: u.id, status: 'error', result: { error: errMsg } });
+        }
+        continue;
+      }
       if (asstId == null) {
         asstId = Number(insertMessage.run(threadId, 'assistant', textBuf, JSON.stringify(finalToolUses), 'streaming').lastInsertRowid);
       } else {
         updateMessageStatus.run('streaming', textBuf, JSON.stringify(finalToolUses), asstId);
       }
       persistArtifacts(threadId, asstId, parser.artifacts);
-      const first = proposals[0];
-      let payload;
-      try { payload = tools.buildProposal(first.name, first.input, { userId }); }
-      catch (e) { emit('error', { message: e.message }); return; }
       emit('proposal', {
         tool_use_id: first.id, name: first.name, input: first.input,
-        message_id: asstId, summary: payload.summary, mutation: payload.mutation
+        message_id: asstId, summary: payload.summary, mutation: payload.mutation,
+        duplicate: payload.duplicate || null
       });
       auditAndCost({ userId, threadId, model, content, text: textBuf, totalIn, totalOut, t0, error: null });
       return;
@@ -715,19 +834,25 @@ async function streamMessageOpenAI({ thread: t, userId, content, model, baseUrl,
     for (const u of finalToolUses) {
       emit('tool_use', { id: u.id, name: u.name, input: u.input });
       let result, isError = false;
-      try { result = await tools.runReadTool(u.name, u.input, { userId }); }
-      catch (e) { result = { error: e.message }; isError = true; }
+      if (u.parseError) {
+        result = { error: `Tool arguments were not valid JSON: ${u.parseError}. Re-emit the call with complete JSON.` };
+        isError = true;
+      } else {
+        try { result = await tools.runReadTool(u.name, u.input, { userId }); }
+        catch (e) { result = { error: e.message }; isError = true; }
+      }
       insertMessage.run(threadId, 'tool',
         JSON.stringify({ tool_use_id: u.id, name: u.name, result, is_error: isError }), null, 'final');
       emit('tool_result', { tool_use_id: u.id, status: isError ? 'error' : 'ok', result });
     }
+    if (signal && signal.aborted) return;
   }
 
   emit('error', { message: 'Tool loop did not converge in 8 iterations' });
 }
 
 function auditAndCost({ userId, threadId, model, content, text, totalIn, totalOut, t0, error }) {
-  const prices = PRICE_TABLE[model] || { input: 0, output: 0 };
+  const prices = priceFor(model);
   const cost = (totalIn / 1_000_000) * prices.input + (totalOut / 1_000_000) * prices.output;
   insertCall.run(userId, model, (content || '').slice(0, 200), (text || '').slice(0, 200),
     totalIn, totalOut, cost, Date.now() - t0, error, threadId);

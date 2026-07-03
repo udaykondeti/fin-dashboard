@@ -145,6 +145,9 @@ const requireAdmin = require('./middleware/requireAdmin');
 app.get('/api/vault/ca/:token', vaultRoutes.caAccess);
 app.use('/api/vault', authMiddleware, vaultRoutes);
 app.use('/api/admin', authMiddleware, requireAdmin, adminRoutes);
+// Slack notification admin test surface (GET /slack/status, POST /slack/test)
+// — documented in CLAUDE.md but previously never mounted.
+app.use('/api/notifications', authMiddleware, requireAdmin, require('./routes/notifications'));
 
 const gmailRoutes = require('./routes/gmail');
 // The OAuth callback is public — Google redirects the browser here and
@@ -164,29 +167,35 @@ app.use('/api/filevault', (req, res, next) => {
   return authMiddleware(req, res, next);
 }, filevaultSyncRoutes);
 
-// AI chat proxy — forwards to LiteLLM gateway on localhost:4000
+// AI quick-chat (floating "Ask AI" panel). Previously proxied to a LiteLLM
+// gateway (decommissioned 2026-06-25) with a hardcoded fallback bearer key —
+// now runs through services/agent.js (local Ollama primary, Anthropic
+// fallback) so every call is audited in agent_calls, and 503s cleanly when
+// no provider is configured (same graceful-degradation pattern as requireS3).
+const agentService = require('./services/agent');
 app.post('/api/ai/chat', authMiddleware, async (req, res) => {
   const { messages } = req.body;
   if (!Array.isArray(messages) || !messages.length) {
     return res.status(400).json({ error: 'messages required' });
   }
+  if (!agentService.isAgentConfigured()) {
+    return res.status(503).json({ error: 'AI is not configured: set OLLAMA_BASE_URL or ANTHROPIC_API_KEY' });
+  }
+  const system = messages.filter(m => m && m.role === 'system')
+    .map(m => String(m.content || '')).join('\n')
+    || 'You are a helpful financial assistant.';
+  const convo = messages.filter(m => m && m.role !== 'system')
+    .map(m => `${m.role === 'assistant' ? 'Assistant' : 'User'}: ${String(m.content || '')}`)
+    .join('\n\n');
   try {
-    const r = await fetch('http://localhost:4000/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.AI_GATEWAY_KEY || 'sk-kirakon'}`,
-      },
-      body: JSON.stringify({ model: 'agent', messages, max_tokens: 1024 }),
+    const r = await agentService.runTask({
+      userId: req.user.id,
+      taskType: 'quick_chat',
+      systemPrompt: system,
+      userInput: convo,
+      maxTokens: 1024
     });
-    if (!r.ok) {
-      const t = await r.text();
-      return res.status(502).json({ error: `AI gateway: ${t}` });
-    }
-    const d = await r.json();
-    const content = d?.choices?.[0]?.message?.content;
-    if (!content) return res.status(502).json({ error: `AI gateway returned no content: ${JSON.stringify(d).slice(0, 200)}` });
-    res.json({ message: content });
+    res.json({ message: r.output });
   } catch (err) {
     res.status(503).json({ error: `AI unavailable: ${err.message}` });
   }
@@ -207,7 +216,7 @@ app.get('/api/health/config', (req, res) => {
     local: !!process.env.OLLAMA_BASE_URL,
     local_model: process.env.OLLAMA_MODEL || null,
     s3: {
-      bucket: !!process.env.S3_BUCKET,
+      bucket: !!process.env.S3_BUCKET_NAME,
       access_key: !!process.env.AWS_ACCESS_KEY_ID,
       secret_key: !!process.env.AWS_SECRET_ACCESS_KEY
     },

@@ -29,8 +29,10 @@ router.get('/threads/:id', (req, res) => {
   });
 });
 
-// PATCH /api/chat/threads/:id
-router.patch('/threads/:id', (req, res) => {
+// PATCH /api/chat/threads/:id (PUT accepted as an alias — the v1 frontend's
+// generic apiPut helper sends PUT and used to silently 404, so model picker,
+// agent-kind switch and thread rename were all no-ops).
+function updateThreadHandler(req, res) {
   const id = Number(req.params.id);
   const thread = chatAgent._getThread(id, req.user.id);
   if (!thread) return res.status(404).json({ error: 'Thread not found' });
@@ -38,7 +40,9 @@ router.patch('/threads/:id', (req, res) => {
   if (title != null && (typeof title !== 'string' || title.length > 200)) return res.status(400).json({ error: 'title must be a string ≤ 200 chars' });
   chatAgent._updateThread(id, req.user.id, { title, agent_kind, model });
   res.json({ ok: true });
-});
+}
+router.patch('/threads/:id', updateThreadHandler);
+router.put('/threads/:id', updateThreadHandler);
 
 // DELETE /api/chat/threads — bulk-clear all threads for the current user.
 // Returns the count deleted. agent_messages / agent_artifacts cascade
@@ -77,17 +81,28 @@ router.post('/threads/:id/stream', async (req, res) => {
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders?.();
 
+  // Abort upstream model streams when the client goes away (tab closed,
+  // Stop button, navigation) — otherwise the tool loop keeps burning tokens
+  // and writing rows into a dead response for up to 8 iterations.
+  const aborter = new AbortController();
+  let clientGone = false;
+  res.on('close', () => {
+    clientGone = true;
+    aborter.abort();
+  });
+
   const emit = (event, data) => {
+    if (clientGone || res.writableEnded) return;
     res.write(`event: ${event}\n`);
     res.write(`data: ${JSON.stringify(data)}\n\n`);
   };
 
   try {
-    await chatAgent.streamMessage({ threadId: id, userId: req.user.id, content, forceProvider }, emit);
+    await chatAgent.streamMessage({ threadId: id, userId: req.user.id, content, forceProvider, signal: aborter.signal }, emit);
   } catch (e) {
     emit('error', { message: e.message });
   } finally {
-    res.end();
+    if (!res.writableEnded) res.end();
   }
 });
 
@@ -136,21 +151,26 @@ router.post('/threads/:id/confirm', async (req, res) => {
     return res.json({ ok: true, applied: false });
   }
 
-  // Confirm path: dispatch the stored mutation by invoking the matching
-  // route handler in-process. We use a small request-scoped fetch against
-  // our own server (auth header reused from this request) for simplicity
-  // and to keep route logic the single source of truth.
-  // Rebuild the mutation from the stored proposal input if the client
-  // lost it (e.g., after a reload restored a pending-proposal thread).
-  var effMutation = mutation;
-  if (!effMutation || !effMutation.method || !effMutation.path) {
-    var tools = require('../services/chatTools');
-    var stored = tu.find(function(u){ return u.id === tool_use_id; });
-    if (!stored) return res.status(400).json({ error: 'mutation missing and tool_use not found' });
-    try {
-      var rebuilt = tools.buildProposal(stored.name, stored.input, { userId: req.user.id });
-      effMutation = rebuilt.mutation;
-    } catch (e) { return res.status(400).json({ error: 'Could not rebuild mutation: ' + e.message }); }
+  // Confirm path: dispatch the mutation by invoking the matching route
+  // handler in-process. We use a small request-scoped fetch against our own
+  // server (auth header reused from this request) for simplicity and to keep
+  // route logic the single source of truth.
+  //
+  // SECURITY: the client-supplied `mutation` body field is IGNORED. The
+  // mutation is ALWAYS rebuilt server-side from the stored tool_use input —
+  // trusting the client here would let a tampered request execute a change
+  // different from the approved summary, or smuggle a path like
+  // '@evil.example/x' that reparses as a foreign host and forwards the
+  // caller's JWT off-box.
+  const tools = require('../services/chatTools');
+  const stored = tu.find(u => u.id === tool_use_id);
+  if (!stored) return res.status(400).json({ error: 'tool_use not found on message' });
+  let effMutation;
+  try {
+    effMutation = tools.buildProposal(stored.name, stored.input, { userId: req.user.id }).mutation;
+  } catch (e) { return res.status(400).json({ error: 'Could not rebuild mutation: ' + e.message }); }
+  if (!effMutation || typeof effMutation.path !== 'string' || !effMutation.path.startsWith('/api/')) {
+    return res.status(400).json({ error: 'Invalid mutation path' });
   }
   let result, isError = false;
   try {
