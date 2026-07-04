@@ -75,7 +75,8 @@ router.post('/login', loginLimiter, async (req, res) => {
         email: user.email,
         name: user.name,
         created_at: user.created_at,
-        is_admin: !!user.is_admin
+        is_admin: !!user.is_admin,
+        profile_completed: !!user.profile_completed
       }
     });
   } catch (err) {
@@ -90,12 +91,13 @@ router.post('/login', loginLimiter, async (req, res) => {
  */
 router.get('/me', authMiddleware, (req, res) => {
   try {
-    const user = db.prepare('SELECT id, email, name, created_at, is_admin FROM users WHERE id = ?').get(req.user.id);
+    const user = db.prepare('SELECT id, email, name, created_at, is_admin, profile_completed FROM users WHERE id = ?').get(req.user.id);
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    user.profile_completed = !!user.profile_completed;
     res.json({ user });
   } catch (err) {
     console.error('Get me error:', err);
