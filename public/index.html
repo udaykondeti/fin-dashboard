@@ -148,6 +148,10 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 .gmail-banner.warn{background:var(--amber-bg);border-color:var(--amber-border)}
 .gmail-banner.warn .gmail-banner-text strong,.gmail-banner.warn .demo-close{color:var(--amber)}
 .gmail-banner.warn .gmail-banner-btn{background:var(--amber)}
+/* connected + working — offers a manual "Sync from Gmail" pull */
+.gmail-banner.ok{background:color-mix(in srgb, var(--green) 10%, transparent);border-color:color-mix(in srgb, var(--green) 35%, transparent)}
+.gmail-banner.ok .gmail-banner-text strong,.gmail-banner.ok .demo-close{color:var(--green)}
+.gmail-banner.ok .gmail-banner-btn{background:var(--green)}
 .agent-shell{display:grid;grid-template-columns:260px 1fr;gap:0;height:calc(100dvh - var(--nav-height) - 56px);min-height:480px;max-height:calc(100dvh - var(--nav-height) - 56px);border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--bg-primary);box-shadow:0 4px 24px -8px rgba(60,40,20,.12);animation:agentShellIn 320ms var(--ease-out) both}
 @keyframes agentShellIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes fadeInUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
@@ -5534,12 +5538,26 @@ async function refreshGmailBanner() {
 
   var status = await apiFetch('/api/gmail/status');
   if (!status || !status.configured) { banner.style.display = 'none'; return; }
-  if (status.connected && status.valid) { banner.style.display = 'none'; return; }
   if (_gmailBannerDismissed) { banner.style.display = 'none'; return; }
 
   var title = document.getElementById('gmailBannerTitle');
   var msg   = document.getElementById('gmailBannerMsg');
   var btn   = document.getElementById('gmailBannerBtn');
+
+  if (status.connected && status.valid) {
+    // Connected and working — offer a manual sync instead of hiding.
+    banner.classList.remove('warn');
+    banner.classList.add('ok');
+    title.textContent = 'Gmail connected';
+    msg.textContent   = 'Read your recent bills, statements and receipts and update the dashboard.';
+    btn.textContent   = 'Sync from Gmail';
+    btn.onclick       = syncGmail;
+    banner.style.display = 'flex';
+    return;
+  }
+
+  banner.classList.remove('ok');
+  btn.onclick = connectGmail;
   if (status.connected && !status.valid) {
     // Linked once, but the credentials no longer work.
     banner.classList.add('warn');
@@ -5553,6 +5571,33 @@ async function refreshGmailBanner() {
     btn.textContent   = 'Connect Gmail';
   }
   banner.style.display = 'flex';
+}
+
+async function syncGmail() {
+  var btn = document.getElementById('gmailBannerBtn');
+  var msg = document.getElementById('gmailBannerMsg');
+  if (btn) { btn.disabled = true; btn.textContent = 'Syncing…'; }
+  if (msg) msg.textContent = 'Reading your inbox and extracting bills — this can take a moment.';
+  try {
+    var token = localStorage.getItem('fin_token');
+    var res = await fetch('/api/gmail/poll', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ days: 30 })
+    });
+    var data = await res.json().catch(function(){ return {}; });
+    if (!res.ok) throw new Error(data.message || data.error || ('HTTP ' + res.status));
+    var added = (data.inserted || 0), updated = (data.updated || 0), scanned = (data.emails || 0);
+    showToast('Synced ' + scanned + ' email' + (scanned === 1 ? '' : 's') + ' — ' + added + ' new, ' + updated + ' updated.', 'success');
+    // Reflect new/updated bills across the dashboard.
+    if (typeof loadTransactions === 'function') loadTransactions();
+    if (typeof refreshAllData === 'function') refreshAllData();
+  } catch (e) {
+    showToast('Gmail sync failed: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Sync from Gmail'; }
+    refreshGmailBanner();
+  }
 }
 
 async function connectGmail() {

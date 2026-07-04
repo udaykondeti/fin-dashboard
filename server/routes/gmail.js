@@ -100,10 +100,15 @@ router.post('/poll', async (req, res) => {
   const tokens = gmail.getTokens(req.user.id);
   if (!tokens) return res.status(400).json({ error: 'Gmail not connected' });
 
+  // Manual "Sync from Gmail" can widen the window; default 30 days (clamped
+  // 1–365). Cron keeps its own short overlap window.
+  const days = Math.min(365, Math.max(1, Number(req.body?.days) || 30));
+  const maxResults = Math.min(100, Math.max(1, Number(req.body?.maxResults) || 60));
+
   try {
     const { runPollForUser } = require('../../scripts/gmail-poller');
-    const result = await runPollForUser(req.user.id);
-    res.json({ message: 'Poll complete', ...result });
+    const result = await runPollForUser(req.user.id, { days, maxResults });
+    res.json({ message: 'Poll complete', days, ...result });
   } catch (err) {
     res.status(500).json({ error: 'Poll failed', message: err.message });
   }
