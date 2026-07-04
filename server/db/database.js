@@ -631,6 +631,36 @@ function runMigrations() {
       `);
     } },
     { id: 37, name: 'profiles.email', run: () => addColumnIfMissing('profiles', 'email', 'ALTER TABLE profiles ADD COLUMN email TEXT') },
+    // ── Profiles-are-logins: tax identity on the user + completion flag ──────
+    { id: 38, name: 'users.profile_fields', run: () => {
+      addColumnIfMissing('users', 'full_name',        'ALTER TABLE users ADD COLUMN full_name TEXT');
+      addColumnIfMissing('users', 'pan_number',       'ALTER TABLE users ADD COLUMN pan_number TEXT');
+      addColumnIfMissing('users', 'aadhaar_last4',    'ALTER TABLE users ADD COLUMN aadhaar_last4 TEXT');
+      addColumnIfMissing('users', 'name_on_pan',      'ALTER TABLE users ADD COLUMN name_on_pan TEXT');
+      addColumnIfMissing('users', 'name_on_aadhaar',  'ALTER TABLE users ADD COLUMN name_on_aadhaar TEXT');
+      addColumnIfMissing('users', 'phone',            'ALTER TABLE users ADD COLUMN phone TEXT');
+      addColumnIfMissing('users', 'dob',              'ALTER TABLE users ADD COLUMN dob TEXT');
+      addColumnIfMissing('users', 'profile_completed','ALTER TABLE users ADD COLUMN profile_completed INTEGER DEFAULT 0');
+    } },
+    // ── Consent-based links between two real logins (household) ──────────────
+    { id: 39, name: 'create_user_links', run: () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS user_links (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          requester_id INTEGER NOT NULL,
+          target_id    INTEGER NOT NULL,
+          status       TEXT NOT NULL DEFAULT 'pending',  -- pending | approved | rejected
+          relationship TEXT,                              -- spouse | parent | child | sibling | joint | other
+          created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+          responded_at DATETIME,
+          UNIQUE(requester_id, target_id),
+          FOREIGN KEY (requester_id) REFERENCES users(id) ON DELETE CASCADE,
+          FOREIGN KEY (target_id)    REFERENCES users(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_user_links_target ON user_links(target_id, status);
+        CREATE INDEX IF NOT EXISTS idx_user_links_requester ON user_links(requester_id, status);
+      `);
+    } },
   ];
 
   const appliedIds = new Set(

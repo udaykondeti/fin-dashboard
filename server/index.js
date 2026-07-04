@@ -126,6 +126,7 @@ app.use('/api/liabilities', liabilityRoutes);
 app.use('/api/loans', loanRoutes);
 app.use('/api/networth', networthRoutes);
 app.use('/api/profiles', profileRoutes);
+app.use('/api/profile', require('./routes/profile'));
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/tax', taxRoutes);
 app.use('/api/earnings', earningsRoutes);
