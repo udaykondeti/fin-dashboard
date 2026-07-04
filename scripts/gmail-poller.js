@@ -78,9 +78,12 @@ function upsertPayment(userId, data) {
   return { action: 'inserted', id: r.lastInsertRowid };
 }
 
-async function runPollForUser(userId) {
-  const since  = new Date(Date.now() - LOOKBACK_MS);
-  const emails = await gmailSvc.fetchEmails(userId, { sinceDate: since, maxResults: 30 });
+async function runPollForUser(userId, { days = null, maxResults = 30 } = {}) {
+  // Cron runs use the short overlap window (LOOKBACK_MS); a manual "Sync from
+  // Gmail" passes a wider `days` to sweep more history in one go.
+  const lookbackMs = days ? days * 24 * 60 * 60 * 1000 : LOOKBACK_MS;
+  const since  = new Date(Date.now() - lookbackMs);
+  const emails = await gmailSvc.fetchEmails(userId, { sinceDate: since, maxResults });
   const results = { processed: 0, inserted: 0, updated: 0, skipped: 0, errors: 0 };
 
   for (const email of emails) {
