@@ -1224,6 +1224,7 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
         <div class="profile-menu" id="profileMenu" onclick="event.stopPropagation()">
           <div id="profileMenuList"></div>
           <div style="border-top:1px solid var(--border);margin:6px 0"></div>
+          <button onclick="openMyProfile();closeProfileMenu()" style="width:100%;background:none;border:none;color:var(--text-secondary);font-size:12px;padding:8px;cursor:pointer;text-align:left">👤 My Profile &amp; Household</button>
           <button onclick="openModal('manageProfiles');closeProfileMenu()" style="width:100%;background:none;border:none;color:var(--text-secondary);font-size:12px;padding:8px;cursor:pointer;text-align:left">⚙️ Manage Profiles</button>
         </div>
       </div>
@@ -2540,6 +2541,7 @@ function showApp(){
   document.getElementById('dashDate').textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   refreshDemoBanner();
   loadAllData();
+  if(typeof profileGate==='function') profileGate();
   priceRefreshTimer=setInterval(function(){showToast('Refreshing prices...','info');},300000);
 }
 
@@ -2648,7 +2650,8 @@ function openModal(id,ctx){
 }
 function closeModal(id){document.getElementById('modal-'+id).classList.remove('open')}
 document.querySelectorAll('.modal-overlay').forEach(function(o){
-  o.addEventListener('click',function(e){if(e.target===o)o.classList.remove('open')});
+  // completeProfile is mandatory on first login — don't dismiss on outside click.
+  o.addEventListener('click',function(e){if(e.target===o && o.id!=='modal-completeProfile')o.classList.remove('open')});
 });
 
 async function apiFetch(url){
@@ -4672,6 +4675,60 @@ checkAuth();
 </div>
 
 <!-- Manage Profiles -->
+<!-- First-login mandatory profile completion (no close button, no click-outside) -->
+<div class="modal-overlay" id="modal-completeProfile">
+  <div class="modal-card">
+    <div class="modal-header"><span>Complete your profile</span></div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-secondary);margin:0 0 14px">Welcome! Add your details so we can compute your income tax. You can link family members afterwards to split shared income &amp; assets.</p>
+      <div class="form-row"><label>Full Name <span style="color:var(--red)">*</span></label><input type="text" id="cp-fullname" placeholder="As per official records"></div>
+      <div class="form-2col">
+        <div class="form-row"><label>PAN Number</label><input type="text" id="cp-pan" placeholder="ABCDE1234F" maxlength="10" style="text-transform:uppercase"></div>
+        <div class="form-row"><label>Aadhaar (last 4)</label><input type="text" id="cp-aadhaar" placeholder="1234" maxlength="4" inputmode="numeric"></div>
+      </div>
+      <div class="form-2col">
+        <div class="form-row"><label>Phone</label><input type="text" id="cp-phone" placeholder="+91…"></div>
+        <div class="form-row"><label>Date of Birth</label><input type="date" id="cp-dob"></div>
+      </div>
+      <button class="btn-save" onclick="saveCompleteProfile()" style="margin-top:10px;width:100%">Save &amp; Continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- My Profile & Household (linked logins with approval) -->
+<div class="modal-overlay" id="modal-myProfile">
+  <div class="modal-card">
+    <div class="modal-header"><span>My Profile &amp; Household</span><button class="modal-close" onclick="closeModal('myProfile')">✕</button></div>
+    <div class="modal-body">
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text-secondary)">My Profile</div>
+      <div class="form-row"><label>Full Name</label><input type="text" id="mp-fullname" placeholder="As per official records"></div>
+      <div class="form-2col">
+        <div class="form-row"><label>PAN Number</label><input type="text" id="mp-pan" placeholder="ABCDE1234F" maxlength="10" style="text-transform:uppercase"></div>
+        <div class="form-row"><label>Aadhaar (last 4)</label><input type="text" id="mp-aadhaar" placeholder="1234" maxlength="4" inputmode="numeric"></div>
+      </div>
+      <div class="form-2col">
+        <div class="form-row"><label>Phone</label><input type="text" id="mp-phone" placeholder="+91…"></div>
+        <div class="form-row"><label>Date of Birth</label><input type="date" id="mp-dob"></div>
+      </div>
+      <button class="btn-save" onclick="saveMyProfile()" style="margin-top:6px">Save Profile</button>
+
+      <div style="border-top:1px solid var(--border);margin:18px 0 14px"></div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text-secondary)">Linked People</div>
+      <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px">Link a family member's account to split shared income &amp; assets for tax. They must approve the request.</div>
+      <div id="linksContainer" style="margin-bottom:14px"></div>
+      <div class="form-2col">
+        <div class="form-row"><label>Their Email</label><input type="email" id="link-email" placeholder="person@example.com"></div>
+        <div class="form-row"><label>Relationship</label>
+          <select id="link-rel" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);padding:8px;border-radius:6px;width:100%">
+            <option value="">—</option><option value="spouse">Spouse</option><option value="parent">Parent</option><option value="child">Child</option><option value="sibling">Sibling</option><option value="joint">Joint</option><option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn-save" onclick="requestLink()" style="margin-top:4px">+ Send Link Request</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-manageProfiles">
   <div class="modal-card">
     <div class="modal-header"><span>Manage Profiles</span><button class="modal-close" onclick="closeModal('manageProfiles')">✕</button></div>
@@ -4980,6 +5037,109 @@ async function deleteProfile(id) {
 }
 
 // ─── API HELPERS ─────────────────────────────────────────────────────
+// ── Profile & household (profiles = logins) ─────────────────────────────────
+async function fetchMyProfile(){
+  var token=localStorage.getItem('fin_token');
+  try{ var r=await fetch('/api/profile/me',{headers:{'Authorization':'Bearer '+token}}); if(r.ok){var d=await r.json(); return d.profile;} }catch(e){}
+  return null;
+}
+async function profileGate(){
+  if(typeof isDemoMode==='function' && isDemoMode()) return; // no server profile in demo
+  var p=await fetchMyProfile();
+  if(p && !p.profile_completed){
+    document.getElementById('cp-fullname').value=p.full_name||p.name||'';
+    document.getElementById('modal-completeProfile').classList.add('open');
+  }
+}
+function _profileBody(prefix){
+  return {
+    full_name:document.getElementById(prefix+'-fullname').value.trim(),
+    pan_number:document.getElementById(prefix+'-pan').value.trim()||null,
+    aadhaar_last4:document.getElementById(prefix+'-aadhaar').value.trim()||null,
+    phone:document.getElementById(prefix+'-phone').value.trim()||null,
+    dob:document.getElementById(prefix+'-dob').value||null
+  };
+}
+function _validProfile(b){
+  if(!b.full_name) { showToast('Full name is required','error'); return false; }
+  if(b.pan_number && !PAN_RE.test(b.pan_number)) { showToast('PAN must look like ABCDE1234F','error'); return false; }
+  if(b.aadhaar_last4 && !AADHAAR4_RE.test(b.aadhaar_last4)) { showToast('Aadhaar must be exactly 4 digits','error'); return false; }
+  return true;
+}
+async function _putProfile(b){
+  var token=localStorage.getItem('fin_token');
+  var res=await fetch('/api/profile/me',{method:'PUT',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(b)});
+  if(res.ok) return true;
+  var r=await res.json().catch(function(){return null});
+  showToast((r&&r.error)||'Save failed','error');
+  return false;
+}
+async function saveCompleteProfile(){
+  var b=_profileBody('cp'); if(!_validProfile(b)) return;
+  if(await _putProfile(b)){ document.getElementById('modal-completeProfile').classList.remove('open'); showToast('Profile saved','success'); }
+}
+async function openMyProfile(){
+  var p=await fetchMyProfile();
+  if(p){
+    document.getElementById('mp-fullname').value=p.full_name||'';
+    document.getElementById('mp-pan').value=p.pan_number||'';
+    document.getElementById('mp-aadhaar').value=p.aadhaar_last4||'';
+    document.getElementById('mp-phone').value=p.phone||'';
+    document.getElementById('mp-dob').value=p.dob||'';
+  }
+  openModal('myProfile');
+  loadLinks();
+}
+async function saveMyProfile(){
+  var b=_profileBody('mp'); if(!_validProfile(b)) return;
+  if(await _putProfile(b)) showToast('Profile saved','success');
+}
+async function loadLinks(){
+  var el=document.getElementById('linksContainer'); if(!el) return;
+  var token=localStorage.getItem('fin_token');
+  var data=null;
+  try{ var r=await fetch('/api/profile/links',{headers:{'Authorization':'Bearer '+token}}); if(r.ok) data=await r.json(); }catch(e){}
+  if(!data){ el.innerHTML='<div style="font-size:12px;color:var(--text-secondary)">Could not load links.</div>'; return; }
+  function row(l, actions){
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px">'
+      +'<span><strong>'+esc(l.person.name||l.person.email)+'</strong>'
+      +'<span style="font-size:11px;color:var(--text-secondary);display:block">'+esc(l.person.email)+(l.relationship?' · '+esc(l.relationship):'')+'</span></span>'
+      +'<span style="display:flex;gap:6px">'+actions+'</span></div>';
+  }
+  var html='';
+  if(data.incoming && data.incoming.length){
+    html+='<div style="font-size:11px;font-weight:600;color:var(--accent-gold);margin:6px 0 4px">Requests awaiting your approval</div>';
+    data.incoming.forEach(function(l){ html+=row(l,'<button class="btn-save" onclick="respondLink('+l.id+',\'approve\')">Approve</button> <button class="action-btn del" onclick="respondLink('+l.id+',\'reject\')">Reject</button>'); });
+  }
+  if(data.approved && data.approved.length){
+    html+='<div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin:8px 0 4px">Linked</div>';
+    data.approved.forEach(function(l){ html+=row(l,'<button class="action-btn del" onclick="removeLink('+l.id+')">Unlink</button>'); });
+  }
+  if(data.outgoing && data.outgoing.length){
+    html+='<div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin:8px 0 4px">Pending their approval</div>';
+    data.outgoing.forEach(function(l){ html+=row(l,'<span style="font-size:11px;color:var(--text-secondary)">pending</span> <button class="action-btn del" onclick="removeLink('+l.id+')">Cancel</button>'); });
+  }
+  if(!html) html='<div style="font-size:12px;color:var(--text-secondary)">No linked people yet.</div>';
+  el.innerHTML=html;
+}
+async function requestLink(){
+  var email=document.getElementById('link-email').value.trim();
+  var rel=document.getElementById('link-rel').value;
+  if(!email) return showToast('Enter their email','error');
+  if(!EMAIL_RE.test(email)) return showToast('Enter a valid email','error');
+  var r=await apiPost('/api/profile/links',{email:email, relationship:rel||undefined});
+  if(r && r.success){ document.getElementById('link-email').value=''; document.getElementById('link-rel').value=''; showToast('Request sent','success'); loadLinks(); }
+}
+async function respondLink(id, action){
+  var r=await apiPost('/api/profile/links/'+id+'/respond',{action:action});
+  if(r && r.success){ showToast(action==='approve'?'Linked':'Rejected','success'); loadLinks(); }
+}
+async function removeLink(id){
+  var token=localStorage.getItem('fin_token');
+  var res=await fetch('/api/profile/links/'+id,{method:'DELETE',headers:{'Authorization':'Bearer '+token}});
+  if(res.ok){ showToast('Removed','success'); loadLinks(); } else showToast('Failed','error');
+}
+
 async function apiPost(url, data) {
   var token = localStorage.getItem('fin_token');
   try {
