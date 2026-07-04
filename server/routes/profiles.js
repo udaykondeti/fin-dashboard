@@ -7,9 +7,24 @@ router.use(authMiddleware);
 
 const PAN_REGEX = /^[A-Z]{5}\d{4}[A-Z]$/i;
 const AADHAAR_LAST4_REGEX = /^\d{4}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function normalizeIdentityFields(body) {
   const out = {};
+
+  if (body.email !== undefined) {
+    if (body.email === null || body.email === '') {
+      out.email = null;
+    } else {
+      const email = String(body.email).trim().toLowerCase();
+      if (!EMAIL_REGEX.test(email)) {
+        const err = new Error('Invalid email address');
+        err.status = 400;
+        throw err;
+      }
+      out.email = email;
+    }
+  }
 
   if (body.legal_name !== undefined) {
     out.legal_name = body.legal_name === null || body.legal_name === '' ? null : String(body.legal_name).trim();
@@ -90,13 +105,14 @@ router.post('/', (req, res) => {
   }
 
   const r = db.prepare(`
-    INSERT INTO profiles (user_id, name, color, icon, is_default, legal_name, name_on_aadhaar, name_on_pan, pan_number, aadhaar_last4, other_ids)
-    VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)
+    INSERT INTO profiles (user_id, name, color, icon, is_default, email, legal_name, name_on_aadhaar, name_on_pan, pan_number, aadhaar_last4, other_ids)
+    VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     req.user.id,
     name,
     color || '#94a3b8',
     icon || '👤',
+    identity.email || null,
     identity.legal_name || null,
     identity.name_on_aadhaar || null,
     identity.name_on_pan || null,
@@ -127,6 +143,7 @@ router.put('/:id', (req, res) => {
       name = COALESCE(?, name),
       color = COALESCE(?, color),
       icon = COALESCE(?, icon),
+      email = COALESCE(?, email),
       legal_name = COALESCE(?, legal_name),
       name_on_aadhaar = COALESCE(?, name_on_aadhaar),
       name_on_pan = COALESCE(?, name_on_pan),
@@ -138,6 +155,7 @@ router.put('/:id', (req, res) => {
     name || null,
     color || null,
     icon || null,
+    identity.email === undefined ? null : identity.email,
     identity.legal_name === undefined ? null : identity.legal_name,
     identity.name_on_aadhaar === undefined ? null : identity.name_on_aadhaar,
     identity.name_on_pan === undefined ? null : identity.name_on_pan,

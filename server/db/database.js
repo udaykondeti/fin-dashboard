@@ -630,6 +630,7 @@ function runMigrations() {
         CREATE INDEX IF NOT EXISTS idx_filevault_events_received ON filevault_events(received_at);
       `);
     } },
+    { id: 37, name: 'profiles.email', run: () => addColumnIfMissing('profiles', 'email', 'ALTER TABLE profiles ADD COLUMN email TEXT') },
   ];
 
   const appliedIds = new Set(
