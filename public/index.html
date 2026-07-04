@@ -120,9 +120,6 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
 .logout-btn{padding:5px 10px;background:rgba(253,246,236,.06);color:rgba(253,246,236,.85);border:1px solid rgba(253,246,236,.25);border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;transition:background 130ms var(--ease-out), color 130ms var(--ease-out), transform 100ms var(--ease-out)}
 .logout-btn:hover{background:rgba(253,246,236,.14);color:var(--cream)}
 .logout-btn:active{transform:scale(0.95)}
-.ask-ai-btn{padding:5px 11px;background:rgba(99,102,241,.22);color:#a5b4fc;border:1px solid rgba(99,102,241,.45);border-radius:20px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;white-space:nowrap;transition:background 130ms var(--ease-out),color 130ms var(--ease-out),transform 100ms var(--ease-out),box-shadow 130ms var(--ease-out)}
-.ask-ai-btn:hover{background:rgba(99,102,241,.38);color:#c7d2fe;box-shadow:0 0 12px rgba(99,102,241,.35)}
-.ask-ai-btn:active{transform:scale(0.97)}
 .hamburger{display:none;flex-direction:column;gap:4px;cursor:pointer;padding:4px}
 .hamburger div{width:20px;height:2px;background:rgba(253,246,236,.7);border-radius:2px}
 
@@ -1215,10 +1212,7 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
       <button class="nav-tab" onclick="navigateTo('liabilities')">Liabilities</button>
       <button class="nav-tab" onclick="navigateTo('handloans')">Hand Loans</button>
       <button class="nav-tab" onclick="navigateTo('earnings')">&#x1F4B0; Earnings</button>
-      <button class="nav-tab" onclick="navigateTo('payments')">&#x1F4C5; Payments</button>
       <button class="nav-tab" onclick="navigateTo('analytics')">Analytics</button>
-      <button class="nav-tab" onclick="navigateTo('vault')">&#x1F4C1; Vault</button>
-      <button class="nav-tab" onclick="navigateTo('agent')">&#x1F916; Agent</button>
       <button class="nav-tab" onclick="navigateTo('properties')">&#x1F3E0; Properties</button>
       <button class="nav-tab" onclick="navigateTo('incometax')">&#x1F4CB; Income Tax</button>
     </div>
@@ -1233,7 +1227,6 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
           <button onclick="openModal('manageProfiles');closeProfileMenu()" style="width:100%;background:none;border:none;color:var(--text-secondary);font-size:12px;padding:8px;cursor:pointer;text-align:left">⚙️ Manage Profiles</button>
         </div>
       </div>
-      <button class="ask-ai-btn" onclick="openAiChat()" aria-label="Open AI assistant">&#x2736; Ask AI</button>
       <button class="k-btn-icon" id="kds-theme-btn" onclick="window.KDS.toggleTheme()" aria-label="Toggle light/dark theme" style="border-radius:var(--radius-s)">☀</button>
       <span class="user-name" id="userNameDisplay">Kiran</span>
       <button class="logout-btn" onclick="logout()">Logout</button>
@@ -1248,9 +1241,8 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
       <button class="mobile-tab active" onclick="navigateTo('dashboard')" id="mtab-dashboard"><span class="icon">&#x1F3E0;</span>Home</button>
       <button class="mobile-tab" onclick="navigateTo('investments')" id="mtab-investments"><span class="icon">&#x1F4C8;</span>Invest</button>
       <button class="mobile-tab" onclick="navigateTo('earnings')" id="mtab-earnings"><span class="icon">&#x1F4B0;</span>Income</button>
-      <button class="mobile-tab" onclick="navigateTo('payments')" id="mtab-payments"><span class="icon">&#x1F4C5;</span>Pay</button>
       <button class="mobile-tab" onclick="navigateTo('liabilities')" id="mtab-liabilities"><span class="icon">&#x1F4B3;</span>Debts</button>
-      <button class="mobile-tab" onclick="navigateTo('vault')" id="mtab-vault"><span class="icon">&#x1F4C1;</span>Vault</button>
+      <button class="mobile-tab" onclick="navigateTo('incometax')" id="mtab-incometax"><span class="icon">&#x1F4CB;</span>Tax</button>
     </div>
   </nav>
 
@@ -1261,10 +1253,7 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('liabilities');closeMobileMenu()">Liabilities</button>
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('handloans');closeMobileMenu()">Hand Loans</button>
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('earnings');closeMobileMenu()">&#x1F4B0; Earnings</button>
-      <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('payments');closeMobileMenu()">&#x1F4C5; Payments</button>
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('analytics');closeMobileMenu()">Analytics</button>
-      <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('vault');closeMobileMenu()">&#x1F4C1; Vault</button>
-      <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('agent');closeMobileMenu()">&#x1F916; Agent</button>
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('properties');closeMobileMenu()">&#x1F3E0; Properties</button>
       <button class="nav-tab" style="width:100%;text-align:left;display:block" onclick="navigateTo('incometax');closeMobileMenu()">&#x1F4CB; Income Tax</button>
     </div>
@@ -7188,270 +7177,6 @@ function startFileProcessingPoll(fileId, fileName) {
 
 </script>
 
-<!-- ══════════════════════════════════════════════════════════════════
-     AI FLOATING CHAT PANEL
-     Self-contained: styles + markup + JS. Calls POST /api/ai/chat.
-     Token read from localStorage('fin_token').
-══════════════════════════════════════════════════════════════════ -->
-<style>
-/* Panel palette mapped onto Kirakon Design Language tokens — follows the
-   app theme (dark/light) and the single fleet accent instead of indigo. */
-:root{
-  --ai-bg:var(--bg2);
-  --ai-surface:var(--bg3);
-  --ai-border:var(--border);
-  --ai-accent:var(--accent);
-  --ai-accent-light:var(--accent-strong);
-  --ai-text:var(--text);
-  --ai-text-muted:var(--text-dim);
-  --ai-user-bubble:var(--accent);
-  --ai-ease:cubic-bezier(0.23,1,0.32,1);
-}
-#ai-fab{
-  position:fixed;bottom:24px;right:24px;z-index:9800;
-  width:48px;height:48px;border-radius:50%;
-  background:var(--ai-accent);color:var(--accent-contrast);
-  border:none;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:var(--glow-accent),0 4px 14px rgba(0,0,0,.30);
-  transition:transform 160ms var(--ai-ease),box-shadow 160ms var(--ai-ease),background 160ms var(--ai-ease);
-}
-#ai-fab:hover{background:var(--accent-strong);box-shadow:var(--glow-accent),0 8px 24px rgba(0,0,0,.35);transform:translateY(-2px)}
-#ai-fab:active{transform:scale(0.97)}
-@media(hover:none),(pointer:coarse){#ai-fab:hover{transform:none}}
-@media(prefers-reduced-motion:reduce){#ai-fab,#ai-panel{transition:none!important}}
-
-#ai-panel{
-  position:fixed;bottom:0;right:24px;z-index:9799;
-  width:340px;height:520px;max-height:calc(100dvh - 80px);
-  background:var(--ai-bg);border:1px solid var(--ai-border);
-  border-bottom:none;border-radius:14px 14px 0 0;
-  display:flex;flex-direction:column;overflow:hidden;
-  box-shadow:0 -4px 32px rgba(0,0,0,.45);
-  transform:translateX(120%);opacity:0;pointer-events:none;
-  transition:transform 280ms var(--ai-ease),opacity 220ms var(--ai-ease);
-}
-#ai-panel.open{transform:translateX(0);opacity:1;pointer-events:auto}
-@media(max-width:480px){
-  #ai-panel{right:0;width:100%;border-radius:14px 14px 0 0}
-  #ai-fab{right:16px;bottom:16px}
-}
-
-.ai-header{
-  padding:12px 16px;border-bottom:1px solid var(--ai-border);
-  display:flex;align-items:center;justify-content:space-between;
-  background:var(--ai-surface);flex-shrink:0;
-}
-.ai-header-title{
-  font-size:14px;font-weight:700;color:var(--ai-text);
-  display:flex;align-items:center;gap:8px;
-}
-.ai-header-title svg{flex-shrink:0}
-.ai-close-btn{
-  background:none;border:none;color:var(--ai-text-muted);
-  cursor:pointer;font-size:18px;line-height:1;padding:4px 6px;
-  border-radius:6px;transition:background 120ms,color 120ms;
-}
-.ai-close-btn:hover{background:var(--bg4);color:var(--ai-text)}
-
-.ai-messages{
-  flex:1;overflow-y:auto;padding:14px 14px 8px;
-  display:flex;flex-direction:column;gap:10px;
-  scroll-behavior:smooth;
-}
-.ai-messages::-webkit-scrollbar{width:4px}
-.ai-messages::-webkit-scrollbar-track{background:transparent}
-.ai-messages::-webkit-scrollbar-thumb{background:var(--ai-border);border-radius:4px}
-
-.ai-msg{max-width:86%;padding:9px 13px;border-radius:12px;font-size:13px;line-height:1.55;word-wrap:break-word;white-space:pre-wrap;animation:aiMsgIn 220ms var(--ai-ease) both}
-@keyframes aiMsgIn{from{opacity:0;transform:translateY(6px) scale(0.97)}to{opacity:1;transform:none}}
-.ai-msg.user{align-self:flex-end;background:var(--ai-user-bubble);color:var(--accent-contrast);border-radius:12px 12px 3px 12px}
-.ai-msg.assistant{align-self:flex-start;background:var(--ai-surface);color:var(--ai-text);border:1px solid var(--ai-border);border-radius:12px 12px 12px 3px}
-.ai-msg.error{align-self:flex-start;background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);border-radius:12px}
-
-.ai-typing{align-self:flex-start;display:flex;gap:5px;padding:10px 14px;background:var(--ai-surface);border:1px solid var(--ai-border);border-radius:12px 12px 12px 3px}
-.ai-typing span{width:7px;height:7px;border-radius:50%;background:var(--ai-text-muted);animation:aiDot 1.2s infinite both}
-.ai-typing span:nth-child(2){animation-delay:.18s}
-.ai-typing span:nth-child(3){animation-delay:.36s}
-@keyframes aiDot{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
-
-.ai-input-row{
-  padding:10px 12px;border-top:1px solid var(--ai-border);
-  display:flex;gap:8px;align-items:flex-end;
-  background:var(--ai-surface);flex-shrink:0;
-}
-.ai-input{
-  flex:1;background:var(--ai-bg);color:var(--ai-text);
-  border:1px solid var(--ai-border);border-radius:8px;
-  padding:8px 11px;font-size:13px;font-family:inherit;
-  resize:none;line-height:1.4;max-height:100px;overflow-y:auto;
-  transition:border-color 150ms;
-}
-.ai-input:focus{outline:none;border-color:var(--ai-accent);box-shadow:0 0 0 3px var(--accent-dim)}
-.ai-input::placeholder{color:var(--ai-text-muted)}
-.ai-send-btn{
-  background:var(--ai-accent);color:var(--accent-contrast);border:none;
-  border-radius:8px;padding:8px 13px;font-size:13px;font-weight:600;
-  cursor:pointer;flex-shrink:0;
-  transition:background 140ms var(--ai-ease),transform 120ms var(--ai-ease);
-  display:flex;align-items:center;justify-content:center;
-}
-.ai-send-btn:hover{background:var(--accent-strong)}
-.ai-send-btn:active{transform:scale(0.97)}
-.ai-send-btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
-.ai-empty-state{
-  flex:1;display:flex;flex-direction:column;align-items:center;
-  justify-content:center;gap:8px;padding:20px;text-align:center;
-}
-.ai-empty-state svg{opacity:.35}
-.ai-empty-state p{color:var(--ai-text-muted);font-size:13px;line-height:1.5;margin:0}
-</style>
-
-<!-- Floating trigger button -->
-<button id="ai-fab" onclick="toggleAiPanel()" aria-label="Open AI assistant" title="Ask AI">
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
-  </svg>
-</button>
-
-<!-- Side panel -->
-<div id="ai-panel" role="dialog" aria-modal="true" aria-label="AI assistant">
-  <div class="ai-header">
-    <div class="ai-header-title">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ai-accent-light)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
-      </svg>
-      Ask AI
-    </div>
-    <button class="ai-close-btn" onclick="toggleAiPanel()" aria-label="Close AI panel">&#x2715;</button>
-  </div>
-  <div class="ai-messages" id="aiMessages">
-    <div class="ai-empty-state" id="aiEmptyState">
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
-      </svg>
-      <p>Ask me anything about your finances — investments, net worth, liabilities, or how to use this dashboard.</p>
-    </div>
-  </div>
-  <div class="ai-input-row">
-    <textarea class="ai-input" id="aiInput" placeholder="Ask about your finances…" rows="1"
-      aria-label="Message to AI" onkeydown="aiInputKeydown(event)"></textarea>
-    <button class="ai-send-btn" id="aiSendBtn" onclick="aiSend()" aria-label="Send message">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-      </svg>
-    </button>
-  </div>
-</div>
-
-<script>
-(function(){
-  var AI_SYSTEM = 'You are a financial assistant helping the user navigate their fin-dashboard. The fin-dashboard tracks investments (stocks, mutual funds, FDs), liabilities, loans, net worth, and vault documents. Be concise and helpful.';
-  var aiHistory = [];
-  var aiOpen = false;
-  var aiLoading = false;
-
-  function getToken(){
-    return localStorage.getItem('fin_token') || localStorage.getItem('token') || '';
-  }
-
-  window.toggleAiPanel = function(){
-    aiOpen = !aiOpen;
-    var panel = document.getElementById('ai-panel');
-    var fab = document.getElementById('ai-fab');
-    if(aiOpen){
-      panel.classList.add('open');
-      fab.setAttribute('aria-expanded','true');
-      setTimeout(function(){ document.getElementById('aiInput').focus(); }, 300);
-    } else {
-      panel.classList.remove('open');
-      fab.setAttribute('aria-expanded','false');
-    }
-  };
-
-  window.openAiChat = function(prefill){
-    if(!aiOpen) window.toggleAiPanel();
-    if(prefill){
-      var inp = document.getElementById('aiInput');
-      inp.value = prefill;
-      inp.dispatchEvent(new Event('input'));
-      setTimeout(function(){ window.aiSend(); }, 400);
-    }
-  };
-
-  window.aiInputKeydown = function(e){
-    if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); window.aiSend(); }
-  };
-
-  function escAi(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-  function renderMessages(){
-    var container = document.getElementById('aiMessages');
-    var emptyState = document.getElementById('aiEmptyState');
-    if(!aiHistory.length && !aiLoading){
-      if(emptyState) emptyState.style.display = '';
-      return;
-    }
-    if(emptyState) emptyState.style.display = 'none';
-
-    var html = aiHistory.map(function(m){
-      var cls = m.role === 'user' ? 'user' : (m.error ? 'error' : 'assistant');
-      return '<div class="ai-msg '+cls+'">'+escAi(m.content)+'</div>';
-    }).join('');
-
-    if(aiLoading){
-      html += '<div class="ai-typing" aria-live="polite" aria-label="AI is typing">'
-            + '<span></span><span></span><span></span></div>';
-    }
-    container.innerHTML = html;
-    container.scrollTop = container.scrollHeight;
-  }
-
-  window.aiSend = async function(){
-    if(aiLoading) return;
-    var inp = document.getElementById('aiInput');
-    var text = inp.value.trim();
-    if(!text) return;
-    inp.value = '';
-    inp.style.height = '';
-
-    aiHistory.push({ role:'user', content:text });
-    aiLoading = true;
-    document.getElementById('aiSendBtn').disabled = true;
-    renderMessages();
-
-    var messages = [{ role:'system', content: AI_SYSTEM }]
-      .concat(aiHistory.map(function(m){ return { role: m.role === 'assistant' || m.role === 'user' ? m.role : 'user', content: m.content }; }));
-
-    try {
-      var token = getToken();
-      var r = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+token },
-        body: JSON.stringify({ messages: messages })
-      });
-      var data = await r.json();
-      if(!r.ok || data.error){
-        aiHistory.push({ role:'assistant', content: data.error || 'Request failed ('+r.status+')', error:true });
-      } else {
-        aiHistory.push({ role:'assistant', content: data.message });
-      }
-    } catch(err){
-      aiHistory.push({ role:'assistant', content:'Could not reach AI: '+err.message, error:true });
-    }
-
-    aiLoading = false;
-    document.getElementById('aiSendBtn').disabled = false;
-    renderMessages();
-  };
-
-  // Auto-grow textarea
-  document.getElementById('aiInput').addEventListener('input', function(){
-    this.style.height = 'auto';
-    this.style.height = Math.min(this.scrollHeight, 100)+'px';
-  });
-})();
-</script>
 
   <!-- Vault Proposals Modal -->
   <div id="vaultProposalsModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;overflow-y:auto">
