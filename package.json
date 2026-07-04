@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "nodemon server/index.js",
-    "mcp:gmail": "node mcp/gmail-mcp.mjs"
+    "mcp:gmail": "node mcp/gmail-mcp.mjs",
+    "gmail:check": "node scripts/gmail-check.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",
