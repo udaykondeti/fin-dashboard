@@ -1956,40 +1956,132 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
     <div class="summary-grid summary-grid--half" style="margin-bottom:14px" id="psSummary"></div>
 
     <!-- Filters + sort -->
-    <div style="display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;margin-bottom:14px;padding:12px 14px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px">
-      <div style="font-size:12px;color:var(--text-secondary);font-weight:600">Filter:</div>
-      <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px">
-        Locality
-        <select id="psFilterLocality" onchange="renderShortlist()" style="font-size:12px">
-          <option value="">All</option>
-        </select>
-      </label>
-      <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px">
-        Status
-        <select id="psFilterStatus" onchange="renderShortlist()" style="font-size:12px">
-          <option value="">All</option>
-          <option value="shortlist">Shortlist</option>
-          <option value="visiting">Visiting</option>
-          <option value="offered">Offered</option>
-          <option value="rejected">Rejected</option>
-          <option value="purchased">Purchased</option>
-        </select>
-      </label>
-      <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px">
-        Min senior fit
-        <input type="number" id="psFilterMinScore" min="0" max="100" step="5" placeholder="0" oninput="renderShortlist()" style="width:60px;font-size:12px;padding:4px 6px">
-      </label>
-      <div style="width:1px;background:var(--border);align-self:stretch;margin:0 4px"></div>
-      <div style="font-size:12px;color:var(--text-secondary);font-weight:600">Sort:</div>
-      <select id="psSort" onchange="renderShortlist()" style="font-size:12px">
-        <option value="senior_fit_score">Senior fit (high → low)</option>
-        <option value="ask_price">Price (low → high)</option>
-        <option value="size_sqft">SBA (large → small)</option>
-        <option value="carpet_sqft">Carpet area (large → small)</option>
-        <option value="project_name">Name (A → Z)</option>
-        <option value="created_at">Recently added</option>
-      </select>
-      <div style="margin-left:auto;font-size:11px;color:var(--text-secondary)" id="psCountLabel"></div>
+    <div style="margin-bottom:14px;padding:12px 14px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px">
+
+      <!-- Row 1: always visible -->
+      <div style="display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center">
+        <input type="search" id="psFilterText" oninput="renderShortlist()" placeholder="🔍 Search project, builder, locality, notes…"
+               style="flex:1;min-width:220px;font-size:12px;padding:6px 10px">
+        <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px">
+          Sort
+          <select id="psSort" onchange="renderShortlist()" style="font-size:12px">
+            <option value="senior_fit_score">Senior fit (high → low)</option>
+            <option value="ask_price">Price (low → high)</option>
+            <option value="price_per_sqft">₹/sqft (low → high)</option>
+            <option value="size_sqft">SBA (large → small)</option>
+            <option value="carpet_sqft">Carpet area (large → small)</option>
+            <option value="total_units">Community size (large → small)</option>
+            <option value="rating">My rating (high → low)</option>
+            <option value="project_name">Name (A → Z)</option>
+            <option value="created_at">Recently added</option>
+          </select>
+        </label>
+        <button class="action-btn" style="padding:5px 10px;font-size:12px" onclick="psToggleFilters()" id="psFilterToggle">⚙ Filters</button>
+        <button class="action-btn" style="padding:5px 10px;font-size:12px" onclick="psResetFilters()">↺ Reset</button>
+        <div style="font-size:11px;color:var(--text-secondary)" id="psCountLabel"></div>
+      </div>
+
+      <!-- Row 2: expandable filter grid -->
+      <div id="psFilterPanel" style="display:none;margin-top:12px;padding-top:12px;border-top:1px dashed var(--border)">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px 14px">
+
+          <label style="font-size:12px;color:var(--text-secondary)">Locality
+            <select id="psFilterLocality" onchange="renderShortlist()" style="width:100%;font-size:12px"><option value="">All</option></select>
+          </label>
+          <label style="font-size:12px;color:var(--text-secondary)">Builder
+            <select id="psFilterBuilder" onchange="renderShortlist()" style="width:100%;font-size:12px"><option value="">All</option></select>
+          </label>
+          <label style="font-size:12px;color:var(--text-secondary)">Workflow status
+            <select id="psFilterStatus" onchange="renderShortlist()" style="width:100%;font-size:12px">
+              <option value="">All</option>
+              <option value="shortlist">Shortlist</option>
+              <option value="visiting">Visiting</option>
+              <option value="offered">Offered</option>
+              <option value="rejected">Rejected</option>
+              <option value="purchased">Purchased</option>
+            </select>
+          </label>
+          <label style="font-size:12px;color:var(--text-secondary)">Possession
+            <select id="psFilterReady" onchange="renderShortlist()" style="width:100%;font-size:12px">
+              <option value="">Any</option>
+              <option value="ready">Ready to move only</option>
+              <option value="partial">Ready or partly handed over</option>
+              <option value="under">Under construction only</option>
+            </select>
+          </label>
+          <label style="font-size:12px;color:var(--text-secondary)">Facing
+            <select id="psFilterFacing" onchange="renderShortlist()" style="width:100%;font-size:12px">
+              <option value="">Any</option>
+              <option value="EN">East or North (incl. NE)</option>
+              <option value="East">East</option>
+              <option value="North">North</option>
+              <option value="North-East">North-East</option>
+              <option value="West">West</option>
+              <option value="South">South</option>
+            </select>
+          </label>
+          <label style="font-size:12px;color:var(--text-secondary)">BHK
+            <select id="psFilterBHK" onchange="renderShortlist()" style="width:100%;font-size:12px">
+              <option value="">Any</option><option>2</option><option>3</option><option>4</option>
+            </select>
+          </label>
+
+          <label style="font-size:12px;color:var(--text-secondary)">SBA (sqft)
+            <span style="display:flex;gap:4px">
+              <input type="number" id="psMinSba" oninput="renderShortlist()" placeholder="min" style="width:50%;font-size:12px;padding:4px 6px">
+              <input type="number" id="psMaxSba" oninput="renderShortlist()" placeholder="max" style="width:50%;font-size:12px;padding:4px 6px">
+            </span>
+          </label>
+          <label style="font-size:12px;color:var(--text-secondary)">Min carpet (sqft)
+            <input type="number" id="psMinCarpet" oninput="renderShortlist()" placeholder="e.g. 1300" style="width:100%;font-size:12px;padding:4px 6px">
+          </label>
+          <label style="font-size:12px;color:var(--text-secondary)">Max price (₹ Cr)
+            <input type="number" id="psMaxPrice" step="0.05" oninput="renderShortlist()" placeholder="e.g. 2.3" style="width:100%;font-size:12px;padding:4px 6px">
+          </label>
+          <label style="font-size:12px;color:var(--text-secondary)">Floor range
+            <span style="display:flex;gap:4px">
+              <input type="number" id="psMinFloor" oninput="renderShortlist()" placeholder="min" style="width:50%;font-size:12px;padding:4px 6px">
+              <input type="number" id="psMaxFloor" oninput="renderShortlist()" placeholder="max" style="width:50%;font-size:12px;padding:4px 6px">
+            </span>
+          </label>
+          <label style="font-size:12px;color:var(--text-secondary)">Min community size
+            <input type="number" id="psMinUnits" oninput="renderShortlist()" placeholder="e.g. 100" style="width:100%;font-size:12px;padding:4px 6px">
+          </label>
+          <label style="font-size:12px;color:var(--text-secondary)">Min car parks
+            <input type="number" id="psMinParks" min="0" max="6" oninput="renderShortlist()" placeholder="e.g. 2" style="width:100%;font-size:12px;padding:4px 6px">
+          </label>
+          <label style="font-size:12px;color:var(--text-secondary)">Min senior fit
+            <input type="number" id="psFilterMinScore" min="0" max="100" step="5" oninput="renderShortlist()" placeholder="0" style="width:100%;font-size:12px;padding:4px 6px">
+          </label>
+          <label style="font-size:12px;color:var(--text-secondary)">Max maintenance (₹/sqft)
+            <input type="number" id="psMaxMaint" step="0.25" oninput="renderShortlist()" placeholder="e.g. 5" style="width:100%;font-size:12px;padding:4px 6px">
+          </label>
+          <label style="font-size:12px;color:var(--text-secondary)">Min my rating
+            <select id="psMinRating" onchange="renderShortlist()" style="width:100%;font-size:12px">
+              <option value="">Any</option><option value="1">★+</option><option value="2">★★+</option>
+              <option value="3">★★★+</option><option value="4">★★★★+</option><option value="5">★★★★★</option>
+            </select>
+          </label>
+          <label style="font-size:12px;color:var(--text-secondary)">Min lifts per tower
+            <input type="number" id="psMinLifts" min="0" oninput="renderShortlist()" placeholder="e.g. 2" style="width:100%;font-size:12px;padding:4px 6px">
+          </label>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:12px">
+          <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px">
+            <input type="checkbox" id="psWalkableHosp" onchange="renderShortlist()"> Hospital within 1 km
+          </label>
+          <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px">
+            <input type="checkbox" id="psNoRedFlags" onchange="renderShortlist()"> No red flags
+          </label>
+          <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px">
+            <input type="checkbox" id="psHasPrice" onchange="renderShortlist()"> Has an asking price
+          </label>
+          <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px">
+            <input type="checkbox" id="psHideRejected" onchange="renderShortlist()" checked> Hide rejected
+          </label>
+        </div>
+      </div>
     </div>
 
     <div id="shortlistList" style="display:flex;flex-direction:column;gap:14px">
@@ -2053,6 +2145,18 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
         <label style="font-size:12px;color:var(--text-secondary)">
           Maintenance (₹/sqft/mo)
           <input id="smMaint" type="number" step="0.1" min="0" style="width:100%">
+        </label>
+        <label style="font-size:12px;color:var(--text-secondary)">
+          Car parks
+          <input id="smParks" type="number" min="0" max="6" placeholder="2" style="width:100%">
+        </label>
+        <label style="font-size:12px;color:var(--text-secondary)">
+          Total units in community
+          <input id="smUnits" type="number" min="0" placeholder="e.g. 372" style="width:100%">
+        </label>
+        <label style="font-size:12px;color:var(--text-secondary)">
+          Possession status
+          <input id="smStatusText" type="text" placeholder="Ready (possession from Oct 2019)" style="width:100%">
         </label>
         <label style="grid-column:1/-1;font-size:12px;color:var(--text-secondary)">
           Notes
@@ -5973,15 +6077,18 @@ async function loadShortlist() {
   _renderShortlistSummary();
 }
 
-// Populate the locality <select> with the unique localities we have data for.
+// Populate the locality and builder <select>s from the data we actually have,
+// preserving the current selection so a re-render doesn't reset the user's filter.
 function _psRefreshFilters() {
-  var sel = document.getElementById('psFilterLocality');
-  if (!sel) return;
-  var current = sel.value;
-  var localities = Array.from(new Set(shortlistData.map(function(p){return p.locality;}).filter(Boolean))).sort();
-  sel.innerHTML = '<option value="">All</option>' + localities.map(function(l){
-    return '<option value="'+esc(l)+'"'+(l===current?' selected':'')+'>'+esc(l)+'</option>';
-  }).join('');
+  [['psFilterLocality','locality'], ['psFilterBuilder','builder']].forEach(function(pair){
+    var sel = document.getElementById(pair[0]);
+    if (!sel) return;
+    var current = sel.value;
+    var opts = Array.from(new Set(shortlistData.map(function(p){ return p[pair[1]]; }).filter(Boolean))).sort();
+    sel.innerHTML = '<option value="">All</option>' + opts.map(function(o){
+      return '<option value="'+esc(o)+'"'+(o===current?' selected':'')+'>'+esc(o)+'</option>';
+    }).join('');
+  });
 }
 
 function _renderShortlistSummary() {
@@ -6012,33 +6119,159 @@ function _renderShortlistSummary() {
       + '</div>' : '');
 }
 
+// floor is free text ('4th', '15th', 'Unspecified') — pull the leading number
+// out, or null when there isn't one. A null floor is never excluded by a floor
+// filter; silently dropping unknowns would hide candidates rather than rank them.
+function _floorNum(p) {
+  var m = String(p.floor == null ? '' : p.floor).match(/\d+/);
+  return m ? Number(m[0]) : null;
+}
+
+// project_status is free text. 'Ready (possession from Jul 2023)' is ready,
+// 'Phase 1 handed over' is partial, 'Handover imminent/ongoing' is not ready yet.
+function _readiness(p) {
+  var s = String(p.project_status == null ? '' : p.project_status).toLowerCase();
+  if (!s) return 'unknown';
+  if (/^ready\b|ready to move|ready \(/.test(s)) return 'ready';
+  if (/handed over|possession from/.test(s)) return 'partial';
+  return 'under';
+}
+
+function _pricePerSqft(p) {
+  if (!p.ask_price || !p.size_sqft) return null;
+  return Number(p.ask_price) / Number(p.size_sqft);
+}
+
+function psToggleFilters() {
+  var el = document.getElementById('psFilterPanel');
+  if (!el) return;
+  el.style.display = (el.style.display === 'none') ? 'block' : 'none';
+}
+
+function psResetFilters() {
+  ['psFilterText','psMinSba','psMaxSba','psMinCarpet','psMaxPrice','psMinFloor','psMaxFloor',
+   'psMinUnits','psMinParks','psFilterMinScore','psMaxMaint','psMinLifts'
+  ].forEach(function(id){ var e = document.getElementById(id); if (e) e.value = ''; });
+  ['psFilterLocality','psFilterBuilder','psFilterStatus','psFilterReady','psFilterFacing',
+   'psFilterBHK','psMinRating'
+  ].forEach(function(id){ var e = document.getElementById(id); if (e) e.value = ''; });
+  ['psWalkableHosp','psNoRedFlags','psHasPrice'].forEach(function(id){
+    var e = document.getElementById(id); if (e) e.checked = false;
+  });
+  var hr = document.getElementById('psHideRejected'); if (hr) hr.checked = true;
+  renderShortlist();
+}
+
 function _applyFiltersAndSort(list) {
-  var loc     = (document.getElementById('psFilterLocality')||{}).value || '';
-  var status  = (document.getElementById('psFilterStatus')  ||{}).value || '';
-  var minScore = Number((document.getElementById('psFilterMinScore')||{}).value || 0);
-  var sort     = (document.getElementById('psSort')||{}).value || 'senior_fit_score';
+  function val(id) { var e = document.getElementById(id); return e ? e.value : ''; }
+  function num(id) { var v = val(id); return v === '' ? null : Number(v); }
+  function chk(id) { var e = document.getElementById(id); return !!(e && e.checked); }
+
+  var text     = val('psFilterText').trim().toLowerCase();
+  var loc      = val('psFilterLocality');
+  var builder  = val('psFilterBuilder');
+  var status   = val('psFilterStatus');
+  var ready    = val('psFilterReady');
+  var facing   = val('psFilterFacing');
+  var bhk      = val('psFilterBHK');
+  var minSba   = num('psMinSba'),   maxSba   = num('psMaxSba');
+  var minCarp  = num('psMinCarpet');
+  var maxPrice = num('psMaxPrice');            // in ₹ crore
+  var minFloor = num('psMinFloor'), maxFloor = num('psMaxFloor');
+  var minUnits = num('psMinUnits');
+  var minParks = num('psMinParks');
+  var minScore = num('psFilterMinScore');
+  var maxMaint = num('psMaxMaint');
+  var minRate  = num('psMinRating');
+  var minLifts = num('psMinLifts');
+  var sort     = val('psSort') || 'senior_fit_score';
+
+  var activeCount = 0;
+  [text, loc, builder, status, ready, facing, bhk].forEach(function(v){ if (v) activeCount++; });
+  [minSba, maxSba, minCarp, maxPrice, minFloor, maxFloor, minUnits, minParks, minScore, maxMaint, minRate, minLifts]
+    .forEach(function(v){ if (v != null && !isNaN(v)) activeCount++; });
+  ['psWalkableHosp','psNoRedFlags','psHasPrice'].forEach(function(id){ if (chk(id)) activeCount++; });
+  if (!chk('psHideRejected')) activeCount++;
 
   var out = list.filter(function(p){
     if (loc     && p.locality !== loc) return false;
+    if (builder && p.builder  !== builder) return false;
     if (status  && p.status   !== status) return false;
-    if (minScore && (p.senior_fit_score||0) < minScore) return false;
+    if (chk('psHideRejected') && !status && p.status === 'rejected') return false;
+
+    if (text) {
+      var hay = [p.project_name, p.builder, p.locality, p.address, p.notes, p.senior_notes, p.project_status]
+        .filter(Boolean).join(' ').toLowerCase();
+      if (hay.indexOf(text) === -1) return false;
+    }
+
+    if (ready) {
+      var r = _readiness(p);
+      if (ready === 'ready'   && r !== 'ready') return false;
+      if (ready === 'partial' && r !== 'ready' && r !== 'partial') return false;
+      if (ready === 'under'   && r !== 'under') return false;
+    }
+
+    if (facing) {
+      var f = String(p.facing || '').trim();
+      // 'EN' is the shorthand for the stated preference: east or north, and
+      // north-east counts. North-west and south-east deliberately do not.
+      if (facing === 'EN') { if (!/^(east|north|north-east)$/i.test(f)) return false; }
+      else if (f.toLowerCase() !== facing.toLowerCase()) return false;
+    }
+
+    if (bhk && String(p.bhk) !== bhk) return false;
+
+    var area = _areaInfo(p);
+    if (minSba != null && !(p.size_sqft && p.size_sqft >= minSba)) return false;
+    if (maxSba != null && !(p.size_sqft && p.size_sqft <= maxSba)) return false;
+    if (minCarp != null && !(area && area.carpet >= minCarp)) return false;
+
+    if (maxPrice != null && p.ask_price && p.ask_price > maxPrice * 1e7) return false;
+    if (chk('psHasPrice') && !p.ask_price) return false;
+
+    var fl = _floorNum(p);
+    if (minFloor != null && fl != null && fl < minFloor) return false;
+    if (maxFloor != null && fl != null && fl > maxFloor) return false;
+
+    if (minUnits != null && !(p.total_units && p.total_units >= minUnits)) return false;
+    if (minParks != null && !(p.car_parks && p.car_parks >= minParks)) return false;
+    if (minScore != null && (p.senior_fit_score || 0) < minScore) return false;
+    if (maxMaint != null && p.maintenance_per_sqft != null && p.maintenance_per_sqft > maxMaint) return false;
+    if (minRate != null && (p.rating || 0) < minRate) return false;
+    if (minLifts != null && !(p.elevator_count && p.elevator_count >= minLifts)) return false;
+
+    if (chk('psWalkableHosp')) {
+      var hs = Array.isArray(p.healthcare) ? p.healthcare : [];
+      if (!hs.some(function(h){ return h && h.distance_km != null && h.distance_km <= 1; })) return false;
+    }
+    if (chk('psNoRedFlags') && Array.isArray(p.red_flags) && p.red_flags.length) return false;
+
     return true;
   });
 
   out.sort(function(a,b){
     switch (sort) {
       case 'ask_price':    return (a.ask_price||Infinity) - (b.ask_price||Infinity);
+      case 'price_per_sqft': {
+        var pa = _pricePerSqft(a), pb = _pricePerSqft(b);
+        return (pa == null ? Infinity : pa) - (pb == null ? Infinity : pb);
+      }
       case 'size_sqft':    return (b.size_sqft||0) - (a.size_sqft||0);
       case 'carpet_sqft': {
         var ca = _areaInfo(a), cb = _areaInfo(b);
         return ((cb && cb.carpet) || 0) - ((ca && ca.carpet) || 0);
       }
+      case 'total_units':  return (b.total_units||0) - (a.total_units||0);
+      case 'rating':       return (b.rating||0) - (a.rating||0);
       case 'project_name': return String(a.project_name||'').localeCompare(String(b.project_name||''));
       case 'created_at':   return String(b.created_at||'').localeCompare(String(a.created_at||''));
       case 'senior_fit_score':
       default:             return (b.senior_fit_score||0) - (a.senior_fit_score||0);
     }
   });
+
+  out._activeFilters = activeCount;
   return out;
 }
 
@@ -6067,7 +6300,12 @@ function renderShortlist() {
   }
   var view = _applyFiltersAndSort(shortlistData);
   var countLbl = document.getElementById('psCountLabel');
-  if (countLbl) countLbl.textContent = view.length + ' of ' + shortlistData.length + ' shown';
+  if (countLbl) {
+    countLbl.textContent = view.length + ' of ' + shortlistData.length + ' shown'
+      + (view._activeFilters ? ' · ' + view._activeFilters + ' filter' + (view._activeFilters > 1 ? 's' : '') + ' active' : '');
+  }
+  var tog = document.getElementById('psFilterToggle');
+  if (tog) tog.textContent = view._activeFilters ? '⚙ Filters (' + view._activeFilters + ')' : '⚙ Filters';
   if (!view.length) {
     wrap.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:16px;background:var(--bg-secondary);border:1px dashed var(--border);border-radius:10px">No candidates match the current filters. <a href="#" onclick="_psClearFilters();return false" style="color:var(--caramel)">Clear filters</a>.</div>';
     return;
@@ -6117,6 +6355,8 @@ function renderShortlist() {
         + (ask ? '<div><span style="color:var(--text-secondary)">Ask</span> <strong>'+ask+'</strong></div>' : '')
         + (maint ? '<div><span style="color:var(--text-secondary)">Maintenance</span> <strong>'+maint+'</strong></div>' : '')
         + (p.total_units ? '<div><span style="color:var(--text-secondary)">Community</span> <strong>'+p.total_units+' units, '+(p.total_towers||'?')+' towers</strong></div>' : '')
+        + (p.car_parks != null ? '<div><span style="color:var(--text-secondary)">Parking</span> <strong>'+p.car_parks+' car'+(p.car_parks === 1 ? '' : 's')+'</strong></div>' : '')
+        + (p.elevator_count != null ? '<div><span style="color:var(--text-secondary)">Lifts</span> <strong>'+p.elevator_count+'/tower</strong></div>' : '')
         + (hcCount ? '<div><span style="color:var(--text-secondary)">Hospitals</span> <strong>'+hcCount+' nearby'+(walkableHosp.length?' <span style="color:#15803d">('+walkableHosp.length+' walkable)</span>':'')+'</strong></div>' : '')
       + '</div>'
       + (p.senior_notes ? '<div style="font-size:12px;color:var(--text-primary);background:rgba(198,134,66,.06);border-left:3px solid var(--caramel);padding:8px 12px;border-radius:0 6px 6px 0"><strong>Senior fit:</strong> '+esc(p.senior_notes)+'</div>' : '')
@@ -6151,19 +6391,14 @@ function _renderLocalityBlock(title, items, fmt) {
        + '</ul></div>';
 }
 
-function _psClearFilters() {
-  ['psFilterLocality','psFilterStatus','psFilterMinScore','psSort'].forEach(function(id){
-    var el = document.getElementById(id);
-    if (!el) return;
-    if (el.tagName === 'SELECT') el.selectedIndex = 0; else el.value = '';
-  });
-  renderShortlist();
-}
+// Kept as the name the empty-state link calls; psResetFilters is the one
+// implementation so the two can't drift apart as filters are added.
+function _psClearFilters() { psResetFilters(); }
 
 function openShortlistModal() {
   var modal = document.getElementById('shortlistModal');
   if (!modal) return;
-  ['smProject','smLocality','smBuilder','smSize','smCarpet','smLoading','smFloor','smAsk','smMaint','smNotes'].forEach(function(id){
+  ['smProject','smLocality','smBuilder','smSize','smCarpet','smLoading','smFloor','smAsk','smMaint','smParks','smUnits','smStatusText','smNotes'].forEach(function(id){
     var el = document.getElementById(id); if (el) el.value = '';
   });
   var bhk = document.getElementById('smBHK'); if (bhk) bhk.value = '3';
@@ -6198,6 +6433,9 @@ async function saveShortlistFromModal() {
     size_sqft: v('smSize') ? Number(v('smSize')) : null,
     carpet_sqft: v('smCarpet') ? Number(v('smCarpet')) : null,
     loading_factor_pct: v('smLoading') ? Number(v('smLoading')) : null,
+    car_parks: v('smParks') ? Number(v('smParks')) : null,
+    total_units: v('smUnits') ? Number(v('smUnits')) : null,
+    project_status: v('smStatusText') || null,
     bhk: v('smBHK') ? Number(v('smBHK')) : null,
     floor: v('smFloor') || null,
     facing: v('smFacing') || null,

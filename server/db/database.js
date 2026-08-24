@@ -736,6 +736,15 @@ function runMigrations() {
         db.exec('ALTER TABLE property_shortlist ADD COLUMN loading_factor_pct REAL');
       }
     } },
+
+    // Covered car parks per unit. An explicit search criterion (2+ slots) that
+    // previously had nowhere to live, so it could not be filtered on.
+    { id: 42, name: 'property_shortlist_car_parks', run: () => {
+      const cols = db.prepare('PRAGMA table_info(property_shortlist)').all().map(c => c.name);
+      if (!cols.includes('car_parks')) {
+        db.exec('ALTER TABLE property_shortlist ADD COLUMN car_parks INTEGER');
+      }
+    } },
   ];
 
   const appliedIds = new Set(

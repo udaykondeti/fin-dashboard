@@ -62,7 +62,7 @@ router.get('/:id', (req, res) => {
 const COLS = [
   'project_name', 'locality', 'city', 'builder', 'address', 'maps_url', 'project_url',
   'size_sqft', 'carpet_sqft', 'loading_factor_pct', 'facing', 'floor', 'bhk', 'ask_price',
-  'project_status', 'total_units', 'total_towers', 'floors_per_tower', 'size_range',
+  'project_status', 'total_units', 'total_towers', 'floors_per_tower', 'size_range', 'car_parks',
   'maintenance_per_sqft', 'maintenance_notes',
   'amenities', 'healthcare', 'banks', 'schools', 'transit', 'groceries', 'worship',
   'senior_fit_score', 'senior_notes', 'red_flags',
