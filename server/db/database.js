@@ -661,6 +661,65 @@ function runMigrations() {
         CREATE INDEX IF NOT EXISTS idx_user_links_requester ON user_links(requester_id, status);
       `);
     } },
+    { id: 40, name: 'create_property_shortlist', run: () => {
+      // Property SEARCH shortlist — distinct from the `properties` table which
+      // is for user-owned real estate. This one is for candidates the user is
+      // evaluating (e.g. a 3 BHK flat search). Enriched with locality research
+      // (amenities, healthcare, banks, transit, groceries) so a user can
+      // compare properties on more than just price/size.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS property_shortlist (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          -- Identity
+          project_name  TEXT NOT NULL,
+          locality      TEXT,
+          city          TEXT DEFAULT 'Hyderabad',
+          builder       TEXT,
+          address       TEXT,
+          maps_url      TEXT,        -- Google Maps deep link
+          project_url   TEXT,        -- builder / listing page
+          -- Unit specifics for THIS candidate
+          size_sqft     REAL,
+          facing        TEXT,        -- North / East / North-East / …
+          floor         TEXT,        -- '4th', 'Unspecified', etc.
+          bhk           INTEGER,     -- 2 / 3 / 4
+          ask_price     REAL,        -- INR, nullable ('Ask' listings)
+          -- Project-wide context
+          project_status  TEXT,      -- 'Ready', 'Phase 1 handed over', etc.
+          total_units     INTEGER,
+          total_towers    INTEGER,
+          floors_per_tower INTEGER,
+          size_range      TEXT,      -- '1957-2235 sqft'
+          -- Cost
+          maintenance_per_sqft REAL, -- ₹/sqft/month
+          maintenance_notes    TEXT,
+          -- Enrichment (JSON arrays of objects; NULL until researched)
+          amenities   TEXT,          -- JSON: ["clubhouse","gym","pool",...]
+          healthcare  TEXT,          -- JSON: [{name,distance_km,type}]
+          banks       TEXT,          -- JSON: [{name,distance_km}]
+          schools     TEXT,          -- JSON: [{name,distance_km,type}]
+          transit     TEXT,          -- JSON: {metro,bus,cab_availability,notes}
+          groceries   TEXT,          -- JSON: [{name,distance_km,type}]
+          worship     TEXT,          -- JSON: [{name,distance_km,type}]
+          -- Senior fit (user is optimising for a couple aged 64 & 75)
+          senior_fit_score INTEGER,        -- 0-100
+          senior_notes     TEXT,           -- narrative summary
+          red_flags        TEXT,           -- JSON array of strings
+          elevator_count   INTEGER,
+          power_backup     TEXT,
+          -- Workflow
+          status TEXT DEFAULT 'shortlist' CHECK(status IN ('shortlist','visiting','offered','rejected','purchased')),
+          rating INTEGER,                  -- user's 0-5 star rating
+          notes  TEXT,                     -- user's free-text notes
+          researched_at DATETIME,          -- when enrichment was last refreshed
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_property_shortlist_user ON property_shortlist(user_id, status);
+      `);
+    } },
   ];
 
   const appliedIds = new Set(

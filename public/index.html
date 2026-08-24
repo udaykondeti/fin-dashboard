@@ -1777,6 +1777,20 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
       <button class="add-btn" onclick="openPropModal()">+ Add Property</button>
     </div>
 
+    <!-- Property Shortlist — flats under evaluation (separate from owned) -->
+    <div style="margin-bottom:32px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px">
+        <div>
+          <div class="section-title" style="font-size:18px">&#x1F50D; Property Search &amp; Shortlist</div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">Candidates you're evaluating — with locality research (healthcare, transit, banks, groceries) and a senior-fit score.</div>
+        </div>
+        <button class="add-btn" onclick="openShortlistModal()">+ Add Candidate</button>
+      </div>
+      <div id="shortlistList" style="display:flex;flex-direction:column;gap:14px">
+        <div style="color:var(--text-secondary);font-size:13px;padding:16px">Loading…</div>
+      </div>
+    </div>
+
     <!-- Research / Buying Guide (collapsible) -->
     <div style="margin-bottom:22px">
       <button onclick="togglePropResearch()" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:0;margin-bottom:10px">
@@ -5813,6 +5827,118 @@ async function loadProperties() {
   var r = await apiFetch('/api/properties');
   propertiesData = (r && r.properties) ? r.properties : [];
   renderPropCards();
+  loadShortlist();
+}
+
+// ── Property Shortlist (research candidates) ─────────────────────────────
+var shortlistData = [];
+
+async function loadShortlist() {
+  var r = await apiFetch('/api/property-shortlist');
+  shortlistData = (r && r.properties) ? r.properties : [];
+  renderShortlist();
+}
+
+function _scoreColor(score) {
+  if (score == null) return { bg: 'rgba(148,163,184,.15)', fg: '#475569', label: 'unrated' };
+  if (score >= 80)   return { bg: 'rgba(34,197,94,.15)',  fg: '#15803d', label: 'strong fit' };
+  if (score >= 65)   return { bg: 'rgba(59,130,246,.15)', fg: '#1d4ed8', label: 'good fit' };
+  if (score >= 50)   return { bg: 'rgba(217,119,6,.15)',  fg: '#b45309', label: 'mixed' };
+  return               { bg: 'rgba(220,38,38,.15)',  fg: '#b91c1c', label: 'weak fit' };
+}
+
+function _fmtLakhCr(n) {
+  if (n == null) return null;
+  if (n >= 10000000) return '₹' + (n/10000000).toFixed(2) + ' Cr';
+  if (n >= 100000)   return '₹' + (n/100000).toFixed(1)  + ' L';
+  return '₹' + Number(n).toLocaleString('en-IN');
+}
+
+function renderShortlist() {
+  var wrap = document.getElementById('shortlistList');
+  if (!wrap) return;
+  if (!shortlistData.length) {
+    wrap.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:16px;background:var(--bg-secondary);border:1px dashed var(--border);border-radius:10px">No candidates yet. Run <code>scripts/seed-property-shortlist-rajapushpa.js</code> to seed the Narsingi/Kokapet search, or click "+ Add Candidate".</div>';
+    return;
+  }
+  wrap.innerHTML = shortlistData.map(function(p){
+    var sc = _scoreColor(p.senior_fit_score);
+    var ask = _fmtLakhCr(p.ask_price);
+    var maint = p.maintenance_per_sqft != null
+      ? '₹' + p.maintenance_per_sqft + '/sqft/mo · ~₹' + Math.round((p.maintenance_per_sqft||0) * (p.size_sqft||2000)).toLocaleString('en-IN') + '/mo est'
+      : null;
+    var hcCount = Array.isArray(p.healthcare) ? p.healthcare.length : 0;
+    var walkableHosp = Array.isArray(p.healthcare) ? p.healthcare.filter(function(h){return h && h.distance_km != null && h.distance_km <= 1;}) : [];
+    var flagsCount = Array.isArray(p.red_flags) ? p.red_flags.length : 0;
+
+    return '<div class="shortlist-card" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:10px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">'
+        + '<div style="flex:1;min-width:0">'
+          + '<div style="font-size:16px;font-weight:700;color:var(--text-primary)">'+esc(p.project_name)+'</div>'
+          + '<div style="font-size:12px;color:var(--text-secondary);margin-top:2px">'
+            + esc(p.builder || '—') + ' · ' + esc(p.locality || '—')
+            + (p.project_status ? ' · <span style="color:var(--caramel)">'+esc(p.project_status)+'</span>' : '')
+          + '</div>'
+        + '</div>'
+        + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+          + '<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:10px;font-size:11px;font-weight:700;background:'+sc.bg+';color:'+sc.fg+';border:1px solid '+sc.fg+'22">'
+              + (p.senior_fit_score != null ? p.senior_fit_score + ' · ' : '') + sc.label
+          + '</span>'
+          + (p.maps_url ? '<a href="'+esc(p.maps_url)+'" target="_blank" rel="noopener" class="action-btn" style="text-decoration:none;padding:4px 10px">🗺 Map</a>' : '')
+          + (p.project_url ? '<a href="'+esc(p.project_url)+'" target="_blank" rel="noopener" class="action-btn" style="text-decoration:none;padding:4px 10px">🔗 Site</a>' : '')
+        + '</div>'
+      + '</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px 16px;font-size:12px">'
+        + (p.size_sqft ? '<div><span style="color:var(--text-secondary)">Size</span> <strong>'+p.size_sqft+' sqft</strong></div>' : '')
+        + (p.bhk ? '<div><span style="color:var(--text-secondary)">Config</span> <strong>'+p.bhk+' BHK</strong></div>' : '')
+        + (p.floor ? '<div><span style="color:var(--text-secondary)">Floor</span> <strong>'+esc(p.floor)+'</strong></div>' : '')
+        + (p.facing ? '<div><span style="color:var(--text-secondary)">Facing</span> <strong>'+esc(p.facing)+'</strong></div>' : '')
+        + (ask ? '<div><span style="color:var(--text-secondary)">Ask</span> <strong>'+ask+'</strong></div>' : '')
+        + (maint ? '<div><span style="color:var(--text-secondary)">Maintenance</span> <strong>'+maint+'</strong></div>' : '')
+        + (p.total_units ? '<div><span style="color:var(--text-secondary)">Community</span> <strong>'+p.total_units+' units, '+(p.total_towers||'?')+' towers</strong></div>' : '')
+        + (hcCount ? '<div><span style="color:var(--text-secondary)">Hospitals</span> <strong>'+hcCount+' nearby'+(walkableHosp.length?' <span style="color:#15803d">('+walkableHosp.length+' walkable)</span>':'')+'</strong></div>' : '')
+      + '</div>'
+      + (p.senior_notes ? '<div style="font-size:12px;color:var(--text-primary);background:rgba(198,134,66,.06);border-left:3px solid var(--caramel);padding:8px 12px;border-radius:0 6px 6px 0"><strong>Senior fit:</strong> '+esc(p.senior_notes)+'</div>' : '')
+      + (flagsCount ? '<div style="font-size:12px"><strong style="color:#b91c1c">⚠ Red flags:</strong> <span style="color:var(--text-secondary)">'+p.red_flags.map(esc).join(' · ')+'</span></div>' : '')
+      + '<details style="font-size:12px"><summary style="cursor:pointer;color:var(--caramel);font-weight:600">🔬 Locality details</summary>'
+        + '<div style="margin-top:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px">'
+          + _renderLocalityBlock('🏥 Healthcare', p.healthcare, function(h){return h.name + (h.distance_km != null ? ' — '+h.distance_km+' km' : '');})
+          + _renderLocalityBlock('🚌 Transit', p.transit ? [p.transit] : null, function(t){
+              return (t.metro ? 'Metro: '+t.metro+'<br>' : '')
+                   + (t.bus ? 'Bus: '+t.bus+'<br>' : '')
+                   + (t.cab_availability ? 'Cabs: '+t.cab_availability+'<br>' : '')
+                   + (t.notes ? '<em>'+t.notes+'</em>' : '');
+            })
+          + _renderLocalityBlock('🛒 Groceries', p.groceries, function(g){return g.name + (g.distance_km != null ? ' — '+g.distance_km+' km' : '');})
+          + _renderLocalityBlock('🏦 Banks', p.banks, function(b){return b.name + (b.distance_km != null ? ' — '+b.distance_km+' km' : '');})
+          + _renderLocalityBlock('🏫 Schools', p.schools, function(s){return s.name + (s.distance_km != null ? ' — '+s.distance_km+' km' : '');})
+          + _renderLocalityBlock('🕉 Worship', p.worship, function(w){return w.name + (w.distance_km != null ? ' — '+w.distance_km+' km' : '');})
+          + _renderLocalityBlock('🎯 Amenities', Array.isArray(p.amenities) ? p.amenities.slice(0,10).map(function(a){return {label:a};}) : null, function(a){return a.label;})
+        + '</div>'
+      + '</details>'
+      + (p.notes ? '<div style="font-size:12px;color:var(--text-secondary);font-style:italic;padding-top:6px;border-top:1px dashed var(--border)">📝 '+esc(p.notes)+'</div>' : '')
+    + '</div>';
+  }).join('');
+}
+
+function _renderLocalityBlock(title, items, fmt) {
+  if (!items || (Array.isArray(items) && !items.length)) return '';
+  var list = Array.isArray(items) ? items : [items];
+  return '<div><div style="font-weight:700;color:var(--text-primary);margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">'+title+'</div>'
+       + '<ul style="margin:0;padding-left:16px;line-height:1.6;color:var(--text-secondary)">'
+       + list.map(function(it){ try { return '<li>'+fmt(it)+'</li>'; } catch(_) { return ''; } }).join('')
+       + '</ul></div>';
+}
+
+function openShortlistModal() {
+  var name = prompt('Project name (e.g. "Prestige Highridge, Kokapet"):');
+  if (!name) return;
+  apiPost('/api/property-shortlist', { project_name: name, city: 'Hyderabad', maps_url: 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(name) })
+    .then(function(r){
+      if (!r || r.error) { showToast((r&&r.error)||'Add failed','error'); return; }
+      showToast('Added "'+name+'" — enrich with amenities/research via API or agent.', 'success');
+      loadShortlist();
+    });
 }
 
 function renderPropCards() {
