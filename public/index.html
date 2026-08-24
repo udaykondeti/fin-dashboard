@@ -1214,6 +1214,7 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
       <button class="nav-tab" onclick="navigateTo('earnings')">&#x1F4B0; Earnings</button>
       <button class="nav-tab" onclick="navigateTo('analytics')">Analytics</button>
       <button class="nav-tab" onclick="navigateTo('properties')">&#x1F3E0; Properties</button>
+      <button class="nav-tab" onclick="navigateTo('propsearch')">&#x1F50D; Property Search</button>
       <button class="nav-tab" onclick="navigateTo('incometax')">&#x1F4CB; Income Tax</button>
     </div>
     <div class="topnav-right">
@@ -1777,19 +1778,6 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
       <button class="add-btn" onclick="openPropModal()">+ Add Property</button>
     </div>
 
-    <!-- Property Shortlist — flats under evaluation (separate from owned) -->
-    <div style="margin-bottom:32px">
-      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px">
-        <div>
-          <div class="section-title" style="font-size:18px">&#x1F50D; Property Search &amp; Shortlist</div>
-          <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">Candidates you're evaluating — with locality research (healthcare, transit, banks, groceries) and a senior-fit score.</div>
-        </div>
-        <button class="add-btn" onclick="openShortlistModal()">+ Add Candidate</button>
-      </div>
-      <div id="shortlistList" style="display:flex;flex-direction:column;gap:14px">
-        <div style="color:var(--text-secondary);font-size:13px;padding:16px">Loading…</div>
-      </div>
-    </div>
 
     <!-- Research / Buying Guide (collapsible) -->
     <div style="margin-bottom:22px">
@@ -1950,6 +1938,121 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
           Sec 24(b) = Home loan interest (up to ₹2L for self-occupied; unlimited for let-out)<br>
           <em>Net income from house property = NAV − 30% − loan interest</em>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROPERTY SEARCH PAGE -->
+  <div class="page" id="page-propsearch">
+    <div class="section-header">
+      <div>
+        <div class="section-title">&#x1F50D; Property Search &amp; Shortlist</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">Candidates you're evaluating — with locality research (healthcare, transit, banks, groceries) and a senior-fit score.</div>
+      </div>
+      <button class="add-btn" onclick="openShortlistModal()">+ Add Candidate</button>
+    </div>
+
+    <!-- Summary strip -->
+    <div class="summary-grid summary-grid--half" style="margin-bottom:14px" id="psSummary"></div>
+
+    <!-- Filters + sort -->
+    <div style="display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;margin-bottom:14px;padding:12px 14px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px">
+      <div style="font-size:12px;color:var(--text-secondary);font-weight:600">Filter:</div>
+      <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px">
+        Locality
+        <select id="psFilterLocality" onchange="renderShortlist()" style="font-size:12px">
+          <option value="">All</option>
+        </select>
+      </label>
+      <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px">
+        Status
+        <select id="psFilterStatus" onchange="renderShortlist()" style="font-size:12px">
+          <option value="">All</option>
+          <option value="shortlist">Shortlist</option>
+          <option value="visiting">Visiting</option>
+          <option value="offered">Offered</option>
+          <option value="rejected">Rejected</option>
+          <option value="purchased">Purchased</option>
+        </select>
+      </label>
+      <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px">
+        Min senior fit
+        <input type="number" id="psFilterMinScore" min="0" max="100" step="5" placeholder="0" oninput="renderShortlist()" style="width:60px;font-size:12px;padding:4px 6px">
+      </label>
+      <div style="width:1px;background:var(--border);align-self:stretch;margin:0 4px"></div>
+      <div style="font-size:12px;color:var(--text-secondary);font-weight:600">Sort:</div>
+      <select id="psSort" onchange="renderShortlist()" style="font-size:12px">
+        <option value="senior_fit_score">Senior fit (high → low)</option>
+        <option value="ask_price">Price (low → high)</option>
+        <option value="size_sqft">Size (large → small)</option>
+        <option value="project_name">Name (A → Z)</option>
+        <option value="created_at">Recently added</option>
+      </select>
+      <div style="margin-left:auto;font-size:11px;color:var(--text-secondary)" id="psCountLabel"></div>
+    </div>
+
+    <div id="shortlistList" style="display:flex;flex-direction:column;gap:14px">
+      <div style="color:var(--text-secondary);font-size:13px;padding:16px">Loading…</div>
+    </div>
+  </div>
+
+  <!-- Add Candidate modal -->
+  <div id="shortlistModal" class="modal-overlay" style="display:none">
+    <div class="modal-box" style="max-width:560px;width:100%;background:var(--bg-primary);border:1px solid var(--border);border-radius:12px;box-shadow:0 20px 60px -20px rgba(0,0,0,.35);max-height:88vh;display:flex;flex-direction:column;overflow:hidden">
+      <div class="modal-header">
+        <div class="section-title" style="font-size:16px">Add candidate to shortlist</div>
+        <button onclick="closeShortlistModal()" class="modal-close">&times;</button>
+      </div>
+      <div style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;overflow-y:auto;flex:1;min-height:0">
+        <label style="grid-column:1/-1;font-size:12px;color:var(--text-secondary)">
+          Project name *
+          <input id="smProject" type="text" placeholder="e.g. My Home Sayuk, Kokapet" style="width:100%">
+        </label>
+        <label style="font-size:12px;color:var(--text-secondary)">
+          Locality
+          <input id="smLocality" type="text" placeholder="Kokapet" style="width:100%">
+        </label>
+        <label style="font-size:12px;color:var(--text-secondary)">
+          Builder
+          <input id="smBuilder" type="text" placeholder="My Home Constructions" style="width:100%">
+        </label>
+        <label style="font-size:12px;color:var(--text-secondary)">
+          Size (sqft)
+          <input id="smSize" type="number" min="0" style="width:100%">
+        </label>
+        <label style="font-size:12px;color:var(--text-secondary)">
+          BHK
+          <select id="smBHK" style="width:100%"><option value="">--</option><option>2</option><option selected>3</option><option>4</option></select>
+        </label>
+        <label style="font-size:12px;color:var(--text-secondary)">
+          Floor
+          <input id="smFloor" type="text" placeholder="4th" style="width:100%">
+        </label>
+        <label style="font-size:12px;color:var(--text-secondary)">
+          Facing
+          <select id="smFacing" style="width:100%">
+            <option value="">--</option>
+            <option>North</option><option>North-East</option><option>East</option>
+            <option>South-East</option><option>South</option><option>South-West</option>
+            <option>West</option><option>North-West</option>
+          </select>
+        </label>
+        <label style="font-size:12px;color:var(--text-secondary)">
+          Ask price (₹)
+          <input id="smAsk" type="number" min="0" placeholder="e.g. 28500000" style="width:100%">
+        </label>
+        <label style="font-size:12px;color:var(--text-secondary)">
+          Maintenance (₹/sqft/mo)
+          <input id="smMaint" type="number" step="0.1" min="0" style="width:100%">
+        </label>
+        <label style="grid-column:1/-1;font-size:12px;color:var(--text-secondary)">
+          Notes
+          <textarea id="smNotes" rows="3" style="width:100%" placeholder="Broker phone, when viewed, first impressions…"></textarea>
+        </label>
+      </div>
+      <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;padding:12px 16px;border-top:1px solid var(--border)">
+        <button class="add-btn" style="background:transparent;color:var(--text-primary);border:1px solid var(--border)" onclick="closeShortlistModal()">Cancel</button>
+        <button class="add-btn" onclick="saveShortlistFromModal()">Add</button>
       </div>
     </div>
   </div>
@@ -2622,6 +2725,7 @@ function navigateTo(page){
   if (page==='earnings'   && typeof loadEarnings==='function')   loadEarnings();
   if (page==='payments'   && typeof loadPayments==='function')   loadPayments();
   if (page==='properties' && typeof loadProperties==='function') loadProperties();
+  if (page==='propsearch' && typeof loadShortlist==='function') loadShortlist();
   if (page==='incometax'  && typeof loadAdvTax==='function') {
     loadAdvTax();
     var ai = document.getElementById('itAnnualIncome');
@@ -5827,7 +5931,6 @@ async function loadProperties() {
   var r = await apiFetch('/api/properties');
   propertiesData = (r && r.properties) ? r.properties : [];
   renderPropCards();
-  loadShortlist();
 }
 
 // ── Property Shortlist (research candidates) ─────────────────────────────
@@ -5836,7 +5939,74 @@ var shortlistData = [];
 async function loadShortlist() {
   var r = await apiFetch('/api/property-shortlist');
   shortlistData = (r && r.properties) ? r.properties : [];
+  _psRefreshFilters();
   renderShortlist();
+  _renderShortlistSummary();
+}
+
+// Populate the locality <select> with the unique localities we have data for.
+function _psRefreshFilters() {
+  var sel = document.getElementById('psFilterLocality');
+  if (!sel) return;
+  var current = sel.value;
+  var localities = Array.from(new Set(shortlistData.map(function(p){return p.locality;}).filter(Boolean))).sort();
+  sel.innerHTML = '<option value="">All</option>' + localities.map(function(l){
+    return '<option value="'+esc(l)+'"'+(l===current?' selected':'')+'>'+esc(l)+'</option>';
+  }).join('');
+}
+
+function _renderShortlistSummary() {
+  var el = document.getElementById('psSummary');
+  if (!el) return;
+  if (!shortlistData.length) { el.innerHTML = ''; return; }
+  var scores = shortlistData.map(function(p){return p.senior_fit_score;}).filter(function(s){return typeof s === 'number';});
+  var avg = scores.length ? Math.round(scores.reduce(function(a,b){return a+b;},0)/scores.length) : null;
+  var withPrice = shortlistData.filter(function(p){return p.ask_price;});
+  var minPrice = withPrice.length ? Math.min.apply(null, withPrice.map(function(p){return p.ask_price;})) : null;
+  var maxPrice = withPrice.length ? Math.max.apply(null, withPrice.map(function(p){return p.ask_price;})) : null;
+  el.innerHTML =
+      '<div class="summary-card green">'
+      + '<div class="summary-card-label">Candidates</div>'
+      + '<div class="summary-card-value green">'+shortlistData.length+'</div>'
+      + '<div class="summary-card-sub">Across '+new Set(shortlistData.map(function(p){return p.locality;}).filter(Boolean)).size+' localities</div>'
+    + '</div>'
+    + '<div class="summary-card blue">'
+      + '<div class="summary-card-label">Avg senior fit</div>'
+      + '<div class="summary-card-value blue">'+(avg==null?'—':avg+'/100')+'</div>'
+      + '<div class="summary-card-sub">Higher = better for 64+75 couple, non-driving, floors 4-10</div>'
+    + '</div>'
+    + (minPrice != null
+      ? '<div class="summary-card gold">'
+        + '<div class="summary-card-label">Price range</div>'
+        + '<div class="summary-card-value gold">'+_fmtLakhCr(minPrice)+' – '+_fmtLakhCr(maxPrice)+'</div>'
+        + '<div class="summary-card-sub">Across '+withPrice.length+' priced candidates</div>'
+      + '</div>' : '');
+}
+
+function _applyFiltersAndSort(list) {
+  var loc     = (document.getElementById('psFilterLocality')||{}).value || '';
+  var status  = (document.getElementById('psFilterStatus')  ||{}).value || '';
+  var minScore = Number((document.getElementById('psFilterMinScore')||{}).value || 0);
+  var sort     = (document.getElementById('psSort')||{}).value || 'senior_fit_score';
+
+  var out = list.filter(function(p){
+    if (loc     && p.locality !== loc) return false;
+    if (status  && p.status   !== status) return false;
+    if (minScore && (p.senior_fit_score||0) < minScore) return false;
+    return true;
+  });
+
+  out.sort(function(a,b){
+    switch (sort) {
+      case 'ask_price':    return (a.ask_price||Infinity) - (b.ask_price||Infinity);
+      case 'size_sqft':    return (b.size_sqft||0) - (a.size_sqft||0);
+      case 'project_name': return String(a.project_name||'').localeCompare(String(b.project_name||''));
+      case 'created_at':   return String(b.created_at||'').localeCompare(String(a.created_at||''));
+      case 'senior_fit_score':
+      default:             return (b.senior_fit_score||0) - (a.senior_fit_score||0);
+    }
+  });
+  return out;
 }
 
 function _scoreColor(score) {
@@ -5859,9 +6029,17 @@ function renderShortlist() {
   if (!wrap) return;
   if (!shortlistData.length) {
     wrap.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:16px;background:var(--bg-secondary);border:1px dashed var(--border);border-radius:10px">No candidates yet. Run <code>scripts/seed-property-shortlist-rajapushpa.js</code> to seed the Narsingi/Kokapet search, or click "+ Add Candidate".</div>';
+    var lbl0 = document.getElementById('psCountLabel'); if (lbl0) lbl0.textContent = '';
     return;
   }
-  wrap.innerHTML = shortlistData.map(function(p){
+  var view = _applyFiltersAndSort(shortlistData);
+  var countLbl = document.getElementById('psCountLabel');
+  if (countLbl) countLbl.textContent = view.length + ' of ' + shortlistData.length + ' shown';
+  if (!view.length) {
+    wrap.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:16px;background:var(--bg-secondary);border:1px dashed var(--border);border-radius:10px">No candidates match the current filters. <a href="#" onclick="_psClearFilters();return false" style="color:var(--caramel)">Clear filters</a>.</div>';
+    return;
+  }
+  wrap.innerHTML = view.map(function(p){
     var sc = _scoreColor(p.senior_fit_score);
     var ask = _fmtLakhCr(p.ask_price);
     var maint = p.maintenance_per_sqft != null
@@ -5930,15 +6108,66 @@ function _renderLocalityBlock(title, items, fmt) {
        + '</ul></div>';
 }
 
+function _psClearFilters() {
+  ['psFilterLocality','psFilterStatus','psFilterMinScore','psSort'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (el.tagName === 'SELECT') el.selectedIndex = 0; else el.value = '';
+  });
+  renderShortlist();
+}
+
 function openShortlistModal() {
-  var name = prompt('Project name (e.g. "Prestige Highridge, Kokapet"):');
-  if (!name) return;
-  apiPost('/api/property-shortlist', { project_name: name, city: 'Hyderabad', maps_url: 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(name) })
-    .then(function(r){
-      if (!r || r.error) { showToast((r&&r.error)||'Add failed','error'); return; }
-      showToast('Added "'+name+'" — enrich with amenities/research via API or agent.', 'success');
-      loadShortlist();
+  var modal = document.getElementById('shortlistModal');
+  if (!modal) return;
+  ['smProject','smLocality','smBuilder','smSize','smFloor','smAsk','smMaint','smNotes'].forEach(function(id){
+    var el = document.getElementById(id); if (el) el.value = '';
+  });
+  var bhk = document.getElementById('smBHK'); if (bhk) bhk.value = '3';
+  var fac = document.getElementById('smFacing'); if (fac) fac.value = '';
+  modal.style.display = 'flex';
+  // First open: wire ESC + backdrop-click close (idempotent — guarded by dataset flag)
+  if (!modal.dataset.wired) {
+    modal.addEventListener('click', function(e){ if (e.target === modal) closeShortlistModal(); });
+    document.addEventListener('keydown', function(e){
+      if (e.key === 'Escape' && modal.style.display === 'flex') closeShortlistModal();
     });
+    modal.dataset.wired = '1';
+  }
+  setTimeout(function(){ var p = document.getElementById('smProject'); if (p) p.focus(); }, 30);
+}
+
+function closeShortlistModal() {
+  var modal = document.getElementById('shortlistModal');
+  if (modal) modal.style.display = 'none';
+}
+
+async function saveShortlistFromModal() {
+  var v = function(id){ var el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  var name = v('smProject');
+  if (!name) { showToast('Project name is required', 'error'); return; }
+  var locality = v('smLocality');
+  var body = {
+    project_name: name,
+    locality: locality || null,
+    city: 'Hyderabad',
+    builder: v('smBuilder') || null,
+    size_sqft: v('smSize') ? Number(v('smSize')) : null,
+    bhk: v('smBHK') ? Number(v('smBHK')) : null,
+    floor: v('smFloor') || null,
+    facing: v('smFacing') || null,
+    ask_price: v('smAsk') ? Number(v('smAsk')) : null,
+    maintenance_per_sqft: v('smMaint') ? Number(v('smMaint')) : null,
+    notes: v('smNotes') || null,
+    // Auto-build Google Maps deep link from project + locality.
+    maps_url: 'https://www.google.com/maps/search/?api=1&query=' +
+              encodeURIComponent(name + (locality ? ' ' + locality : '') + ' Hyderabad')
+  };
+  var r = await apiPost('/api/property-shortlist', body);
+  if (!r || r.error) { showToast((r && r.error) || 'Add failed', 'error'); return; }
+  showToast('Added "' + name + '" — enrich locality details via the API or an agent.', 'success');
+  closeShortlistModal();
+  loadShortlist();
 }
 
 function renderPropCards() {
