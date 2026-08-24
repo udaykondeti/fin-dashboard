@@ -131,6 +131,7 @@ app.use('/api/payments', paymentsRoutes);
 app.use('/api/tax', taxRoutes);
 app.use('/api/earnings', earningsRoutes);
 app.use('/api/properties', propertiesRoutes);
+app.use('/api/property-shortlist', require('./routes/propertyShortlist'));
 app.use('/api/activity', activityRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/transactions', transactionsRoutes);
