@@ -327,6 +327,65 @@ Both were asked to argue opposite sides. They converged on one thing and split o
 
 **Adjudication:** the Rd 12 advocate is right in principle but the Kokapet advocate is right in practice. You cannot buy on the assumption that GHMC fixes a U-turn. Rd 12 retains the edge — three-to-four-deep tertiary redundancy within 5 minutes still beats two hospitals at 10–20 minutes, and the pension-office adjacency is a genuine daily-life advantage — but the margin is much narrower than §5 originally claimed, and it is now a judgement call rather than an obvious win.
 
+## 9. Parameters resolved — revised verdict
+
+The three open questions from §7 are answered: **(1) sizes are super built-up, (2) ₹2.3 Cr is all-in, (3) no existing home loan.** This sharpens the conclusion considerably.
+
+### 9.1 All-in changes the shoppable ceiling to ~₹2.0 Cr
+
+Working backwards from ₹2.3 Cr all-in, with 6% duty plus the one-time extras identified in §8.9:
+
+| Extras scenario | PLC + club + corpus + parking | Base price ceiling |
+|---|---|---|
+| Low (parking included, minimal PLC) | ₹8.6 L | **₹2.09 Cr** |
+| High (2 slots charged, corner/east PLC) | ₹25.4 L | **₹1.93 Cr** |
+
+**Base price ceiling: ₹1.93–2.09 Cr.** Not ₹2.3 Cr, and not the ₹2.05 Cr first estimated — PLC and club membership pull it lower.
+
+### 9.2 What that buys, by submarket
+
+| Submarket | Rate (₹/sqft) | Size at ₹1.93–2.09 Cr base | Verdict |
+|---|---|---|---|
+| **Puppalaguda / Manikonda / Narsingi-fringe** | 8,900–10,500 | **1,838–2,348 sqft** | ✅ **Only submarket that reaches the target band** |
+| Kokapet-core | 12,200–15,800 | 1,222–1,713 sqft | ❌ Short by 300–800 sqft |
+| Banjara Hills Rd 12 | 15,000–18,000 | 1,072–1,393 sqft | ❌ Short by 600–900 sqft |
+
+**Banjara Hills Road No. 12 is now definitively out at this budget.** Both verified 100+ unit projects there — Fortune One (from ₹3.35 Cr) and The Valencia (from ~₹2.9 Cr) — start roughly ₹1–1.6 Cr above an all-in ₹2.3 Cr. This is no longer a trade-off between space and healthcare access; it is simply unaffordable. Recommending it would be recommending something you cannot buy.
+
+The §5 "better residence vs better investment" framing therefore collapses: **the decision is now which project within Puppalaguda / Manikonda**, unless the budget moves.
+
+### 9.3 SBA confirmed — a livability note, not a pricing problem
+
+Because sizes are super built-up, every rate in this document is correctly based and nothing needs re-basing. But at Hyderabad's typical 30–38% loading, **a 2,150 sqft SBA unit is roughly 1,330–1,500 sqft of actual carpet area.** For two people that remains comfortable, but it is worth walking a sample flat rather than trusting the brochure number — the gap between 2,150 and ~1,400 surprises most buyers.
+
+### 9.4 Tax benefit is fully available
+
+With no existing self-occupied property carrying a loan, the §24(b) aggregation trap in §8.7 does not apply. Year-one interest on ₹1.3 Cr at 8% is ~₹10.3 L, so the **₹2 L cap is fully consumed from day one**, worth **~₹62,400/year at the 30% slab** — and interest stays above ₹2 L until roughly year 17 of a 20-year term, so this is a durable benefit of roughly **₹11 L nominal** over the loan life. Section 80C on principal (₹1.5 L) is also available, subject to your other 80C usage.
+
+This materially improves the case for the **20-year tenure** over 15: the longer term keeps interest above the ₹2 L threshold for more years, partly offsetting its higher total interest cost.
+
+### 9.5 Candidates that actually fit
+
+From the seeded shortlist, filtered against the corrected budget and the target size band:
+
+| Project | Locality | Units | Size range | Senior score | Fit |
+|---|---|---|---|---|---|
+| **EIPL Skyila** | Puppalaguda / Manikonda | 180 | 1,320–2,190 sqft | 72 | ✅ Top units reach 2,190 sqft; ready since 2018 with an active resale market |
+| **My Home Avatar** | Puppalaguda | 2,800 | 1,180–2,100 sqft | 80 | ✅ Tops out at 2,100 sqft; fully occupied, mature community |
+| **Lansum Etania** | Nanakramguda | 372 | 1,890–4,085 sqft | **85** | ⚠️ **Stretch candidate** — see below |
+
+**Practical target size is 2,000–2,190 sqft**, not 2,000–2,300 — nothing in the viable submarket goes higher.
+
+**Lansum Etania deserves a hard look despite being marginal.** It has the best senior-fit score of anything researched (85), and Yashoda Hospital's registered address is literally "Behind Lansum Etania Apartments Complex" — under 500 m, walkable. That single fact neutralises the Kokapet corridor's worst weakness and delivers most of what made Banjara Hills Rd 12 attractive, at a fraction of the price. Its entry unit is 1,890 sqft, just below your band, and Nanakramguda pricing is higher than Puppalaguda — so it will be tight. **Get a quote on the 1,890 sqft units specifically before dismissing it on size.**
+
+### 9.6 Revised recommendation
+
+1. **Drop Banjara Hills Road No. 12** unless the budget rises to ~₹3.6 Cr all-in.
+2. **Concentrate the search on Puppalaguda / Manikonda**, targeting 2,000–2,190 sqft.
+3. **Price Lansum Etania's 1,890 sqft units as a serious exception** — trading ~150 sqft for a walkable tertiary hospital is a good trade for a 75-year-old.
+4. **Borrow solo, 20-year tenure**, then gift-deed a share post-closure (§3).
+5. Budget **₹2.2 L/year** carrying cost and **₹5–15 L** of one-time extras beyond the sale price.
+
 ## Sources
 
 - [Kokapet ready-to-move projects — SquareYards](https://www.squareyards.com/ready-to-move-projects-in-kokapet-hyderabad)
