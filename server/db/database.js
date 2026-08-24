@@ -720,6 +720,22 @@ function runMigrations() {
         CREATE INDEX IF NOT EXISTS idx_property_shortlist_user ON property_shortlist(user_id, status);
       `);
     } },
+
+    // size_sqft on property_shortlist is SUPER BUILT-UP AREA (SBA) — that is how
+    // Hyderabad builders quote. Carpet area is what is actually livable, and the
+    // gap is large: typical loading is 30-38%, so a 2,150 sqft SBA flat is only
+    // ~1,400 sqft carpet. Store carpet when it is known from RERA/the builder,
+    // and the loading factor when that is known instead. The UI derives an
+    // estimate from a default loading when neither is present, and labels it.
+    { id: 41, name: 'property_shortlist_carpet_area', run: () => {
+      const cols = db.prepare('PRAGMA table_info(property_shortlist)').all().map(c => c.name);
+      if (!cols.includes('carpet_sqft')) {
+        db.exec('ALTER TABLE property_shortlist ADD COLUMN carpet_sqft REAL');
+      }
+      if (!cols.includes('loading_factor_pct')) {
+        db.exec('ALTER TABLE property_shortlist ADD COLUMN loading_factor_pct REAL');
+      }
+    } },
   ];
 
   const appliedIds = new Set(
