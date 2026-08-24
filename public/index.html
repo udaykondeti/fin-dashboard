@@ -1984,7 +1984,8 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
       <select id="psSort" onchange="renderShortlist()" style="font-size:12px">
         <option value="senior_fit_score">Senior fit (high → low)</option>
         <option value="ask_price">Price (low → high)</option>
-        <option value="size_sqft">Size (large → small)</option>
+        <option value="size_sqft">SBA (large → small)</option>
+        <option value="carpet_sqft">Carpet area (large → small)</option>
         <option value="project_name">Name (A → Z)</option>
         <option value="created_at">Recently added</option>
       </select>
@@ -2017,8 +2018,16 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
           <input id="smBuilder" type="text" placeholder="My Home Constructions" style="width:100%">
         </label>
         <label style="font-size:12px;color:var(--text-secondary)">
-          Size (sqft)
-          <input id="smSize" type="number" min="0" style="width:100%">
+          SBA (sqft)
+          <input id="smSize" type="number" min="0" placeholder="2128" style="width:100%">
+        </label>
+        <label style="font-size:12px;color:var(--text-secondary)">
+          Carpet (sqft) <span style="opacity:.7">— optional</span>
+          <input id="smCarpet" type="number" min="0" placeholder="leave blank to estimate" style="width:100%">
+        </label>
+        <label style="font-size:12px;color:var(--text-secondary)">
+          Loading % <span style="opacity:.7">— optional</span>
+          <input id="smLoading" type="number" min="0" max="70" step="0.5" placeholder="35" style="width:100%">
         </label>
         <label style="font-size:12px;color:var(--text-secondary)">
           BHK
@@ -5936,6 +5945,26 @@ async function loadProperties() {
 // ── Property Shortlist (research candidates) ─────────────────────────────
 var shortlistData = [];
 
+// Hyderabad builders quote SUPER BUILT-UP AREA (SBA). Carpet is what is actually
+// livable, and the gap is big — typical loading is 30-38%, so a 2,150 sqft SBA
+// flat is only ~1,400 sqft carpet. Resolve carpet in order of trustworthiness:
+// a stored carpet figure, else a stored loading factor, else a default that we
+// label as an estimate so nobody mistakes it for a builder-quoted number.
+var PS_DEFAULT_LOADING = 35;
+function _areaInfo(p) {
+  var sba = (p.size_sqft != null && p.size_sqft !== '') ? Number(p.size_sqft) : null;
+  if (!sba || !isFinite(sba) || sba <= 0) return null;
+  if (p.carpet_sqft != null && p.carpet_sqft !== '') {
+    var carpet = Number(p.carpet_sqft);
+    return { sba: sba, carpet: Math.round(carpet),
+             loading: Math.round((1 - carpet / sba) * 1000) / 10, basis: 'actual' };
+  }
+  var hasLoad = (p.loading_factor_pct != null && p.loading_factor_pct !== '');
+  var load = hasLoad ? Number(p.loading_factor_pct) : PS_DEFAULT_LOADING;
+  return { sba: sba, carpet: Math.round(sba * (1 - load / 100)),
+           loading: Math.round(load * 10) / 10, basis: hasLoad ? 'loading' : 'default' };
+}
+
 async function loadShortlist() {
   var r = await apiFetch('/api/property-shortlist');
   shortlistData = (r && r.properties) ? r.properties : [];
@@ -6000,6 +6029,10 @@ function _applyFiltersAndSort(list) {
     switch (sort) {
       case 'ask_price':    return (a.ask_price||Infinity) - (b.ask_price||Infinity);
       case 'size_sqft':    return (b.size_sqft||0) - (a.size_sqft||0);
+      case 'carpet_sqft': {
+        var ca = _areaInfo(a), cb = _areaInfo(b);
+        return ((cb && cb.carpet) || 0) - ((ca && ca.carpet) || 0);
+      }
       case 'project_name': return String(a.project_name||'').localeCompare(String(b.project_name||''));
       case 'created_at':   return String(b.created_at||'').localeCompare(String(a.created_at||''));
       case 'senior_fit_score':
@@ -6041,6 +6074,7 @@ function renderShortlist() {
   }
   wrap.innerHTML = view.map(function(p){
     var sc = _scoreColor(p.senior_fit_score);
+    var area = _areaInfo(p);
     var ask = _fmtLakhCr(p.ask_price);
     var maint = p.maintenance_per_sqft != null
       ? '₹' + p.maintenance_per_sqft + '/sqft/mo · ~₹' + Math.round((p.maintenance_per_sqft||0) * (p.size_sqft||2000)).toLocaleString('en-IN') + '/mo est'
@@ -6067,7 +6101,16 @@ function renderShortlist() {
         + '</div>'
       + '</div>'
       + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px 16px;font-size:12px">'
-        + (p.size_sqft ? '<div><span style="color:var(--text-secondary)">Size</span> <strong>'+p.size_sqft+' sqft</strong></div>' : '')
+        + (area ? '<div><span style="color:var(--text-secondary)">SBA</span> <strong>'+area.sba.toLocaleString('en-IN')+' sqft</strong></div>' : '')
+        + (area ? '<div title="'+(area.basis === 'actual' ? 'Carpet area as quoted' : area.basis === 'loading' ? 'Derived from a recorded loading factor' : 'Estimated using a default '+PS_DEFAULT_LOADING+'% loading — confirm with the builder')+'">'
+            + '<span style="color:var(--text-secondary)">Carpet</span> '
+            + '<strong'+(area.basis === 'default' ? ' style="opacity:.8"' : '')+'>'
+              + (area.basis === 'default' ? '~' : '') + area.carpet.toLocaleString('en-IN') + ' sqft'
+            + '</strong>'
+            + ' <span style="color:var(--text-secondary);font-size:11px">'
+              + (area.basis === 'default' ? 'est · ' : '') + area.loading + '% loading'
+            + '</span>'
+          + '</div>' : '')
         + (p.bhk ? '<div><span style="color:var(--text-secondary)">Config</span> <strong>'+p.bhk+' BHK</strong></div>' : '')
         + (p.floor ? '<div><span style="color:var(--text-secondary)">Floor</span> <strong>'+esc(p.floor)+'</strong></div>' : '')
         + (p.facing ? '<div><span style="color:var(--text-secondary)">Facing</span> <strong>'+esc(p.facing)+'</strong></div>' : '')
@@ -6120,7 +6163,7 @@ function _psClearFilters() {
 function openShortlistModal() {
   var modal = document.getElementById('shortlistModal');
   if (!modal) return;
-  ['smProject','smLocality','smBuilder','smSize','smFloor','smAsk','smMaint','smNotes'].forEach(function(id){
+  ['smProject','smLocality','smBuilder','smSize','smCarpet','smLoading','smFloor','smAsk','smMaint','smNotes'].forEach(function(id){
     var el = document.getElementById(id); if (el) el.value = '';
   });
   var bhk = document.getElementById('smBHK'); if (bhk) bhk.value = '3';
@@ -6153,6 +6196,8 @@ async function saveShortlistFromModal() {
     city: 'Hyderabad',
     builder: v('smBuilder') || null,
     size_sqft: v('smSize') ? Number(v('smSize')) : null,
+    carpet_sqft: v('smCarpet') ? Number(v('smCarpet')) : null,
+    loading_factor_pct: v('smLoading') ? Number(v('smLoading')) : null,
     bhk: v('smBHK') ? Number(v('smBHK')) : null,
     floor: v('smFloor') || null,
     facing: v('smFacing') || null,
