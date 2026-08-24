@@ -1977,6 +1977,7 @@ body{background:var(--bg);color:var(--text);overflow-x:hidden;font-family:var(--
           </select>
         </label>
         <button class="action-btn" style="padding:5px 10px;font-size:12px" onclick="psToggleFilters()" id="psFilterToggle">⚙ Filters</button>
+        <button class="action-btn" style="padding:5px 10px;font-size:12px" onclick="psToggleView()" id="psViewToggle">▤ Table view</button>
         <button class="action-btn" style="padding:5px 10px;font-size:12px" onclick="psResetFilters()">↺ Reset</button>
         <div style="font-size:11px;color:var(--text-secondary)" id="psCountLabel"></div>
       </div>
@@ -6148,6 +6149,16 @@ function psToggleFilters() {
   el.style.display = (el.style.display === 'none') ? 'block' : 'none';
 }
 
+// Cards are readable but only to about 15 rows; past that a dense table is the
+// only way to compare candidates side by side. Persisted so the choice survives
+// a reload.
+var psView = (function(){ try { return localStorage.getItem('psView') || 'cards'; } catch (_) { return 'cards'; } })();
+function psToggleView() {
+  psView = (psView === 'cards') ? 'table' : 'cards';
+  try { localStorage.setItem('psView', psView); } catch (_) {}
+  renderShortlist();
+}
+
 function psResetFilters() {
   ['psFilterText','psMinSba','psMaxSba','psMinCarpet','psMaxPrice','psMinFloor','psMaxFloor',
    'psMinUnits','psMinParks','psFilterMinScore','psMaxMaint','psMinLifts'
@@ -6290,6 +6301,49 @@ function _fmtLakhCr(n) {
   return '₹' + Number(n).toLocaleString('en-IN');
 }
 
+// Dense comparison table. Every cell falls back to an em dash rather than a zero
+// or a blank, so "not researched yet" stays visually distinct from a real value.
+function _renderShortlistTable(view) {
+  var head = ['Project','Locality','Builder','SBA','Carpet','Ask','₹/sqft','Floor','Facing','Units','Parks','Status','Fit'];
+  var rows = view.map(function(p){
+    var a = _areaInfo(p);
+    var pps = _pricePerSqft(p);
+    var sc = _scoreColor(p.senior_fit_score);
+    var dash = '<span style="color:var(--text-secondary);opacity:.5">—</span>';
+    function cell(v){ return (v == null || v === '') ? dash : v; }
+    return '<tr style="border-top:1px solid var(--border)">'
+      + '<td style="padding:7px 8px;font-weight:600">'
+          + (p.project_url ? '<a href="'+esc(p.project_url)+'" target="_blank" rel="noopener" style="color:var(--text-primary);text-decoration:none">'+esc(p.project_name)+'</a>' : esc(p.project_name))
+          + (p.maps_url ? ' <a href="'+esc(p.maps_url)+'" target="_blank" rel="noopener" title="Map" style="text-decoration:none">🗺</a>' : '')
+        + '</td>'
+      + '<td style="padding:7px 8px;color:var(--text-secondary)">'+cell(esc(p.locality||''))+'</td>'
+      + '<td style="padding:7px 8px;color:var(--text-secondary)">'+cell(esc(p.builder||''))+'</td>'
+      + '<td style="padding:7px 8px;text-align:right">'+cell(p.size_sqft ? p.size_sqft.toLocaleString('en-IN') : null)+'</td>'
+      + '<td style="padding:7px 8px;text-align:right'+(a && a.basis === 'default' ? ';opacity:.75' : '')+'"'
+          + (a ? ' title="'+(a.basis === 'default' ? 'Estimated at '+PS_DEFAULT_LOADING+'% loading' : a.loading+'% loading')+'"' : '')
+          + '>' + cell(a ? (a.basis === 'default' ? '~' : '') + a.carpet.toLocaleString('en-IN') : null) + '</td>'
+      + '<td style="padding:7px 8px;text-align:right">'+cell(_fmtLakhCr(p.ask_price))+'</td>'
+      + '<td style="padding:7px 8px;text-align:right">'+cell(pps ? '₹'+Math.round(pps).toLocaleString('en-IN') : null)+'</td>'
+      + '<td style="padding:7px 8px;text-align:right">'+cell(esc(p.floor||''))+'</td>'
+      + '<td style="padding:7px 8px">'+cell(esc(p.facing||''))+'</td>'
+      + '<td style="padding:7px 8px;text-align:right">'+cell(p.total_units)+'</td>'
+      + '<td style="padding:7px 8px;text-align:right">'+cell(p.car_parks)+'</td>'
+      + '<td style="padding:7px 8px;font-size:11px;color:var(--text-secondary)">'+cell(esc(p.project_status||''))+'</td>'
+      + '<td style="padding:7px 8px;text-align:center">'
+          + (p.senior_fit_score != null
+              ? '<span style="padding:2px 7px;border-radius:8px;font-weight:700;background:'+sc.bg+';color:'+sc.fg+'">'+p.senior_fit_score+'</span>'
+              : dash)
+        + '</td>'
+      + '</tr>';
+  }).join('');
+
+  return '<div style="overflow-x:auto;background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px">'
+    + '<table style="width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap">'
+    + '<thead><tr style="background:rgba(198,134,66,.07)">'
+    + head.map(function(h){ return '<th style="padding:9px 8px;text-align:left;font-weight:700;color:var(--text-secondary);font-size:11px;text-transform:uppercase;letter-spacing:.03em">'+h+'</th>'; }).join('')
+    + '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+}
+
 function renderShortlist() {
   var wrap = document.getElementById('shortlistList');
   if (!wrap) return;
@@ -6310,6 +6364,12 @@ function renderShortlist() {
     wrap.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:16px;background:var(--bg-secondary);border:1px dashed var(--border);border-radius:10px">No candidates match the current filters. <a href="#" onclick="_psClearFilters();return false" style="color:var(--caramel)">Clear filters</a>.</div>';
     return;
   }
+
+  var vt = document.getElementById('psViewToggle');
+  if (vt) vt.textContent = (psView === 'table') ? '▦ Card view' : '▤ Table view';
+
+  if (psView === 'table') { wrap.innerHTML = _renderShortlistTable(view); return; }
+
   wrap.innerHTML = view.map(function(p){
     var sc = _scoreColor(p.senior_fit_score);
     var area = _areaInfo(p);
