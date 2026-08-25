@@ -10,10 +10,11 @@ node_modules/
 .env.production
 
 # Database
+# *.db* rather than the three exact extensions: it also catches the timestamped
+# copies left behind by migrations and backups (finance.db.retired-20260825-...,
+# finance.db.stale-...), which the narrower patterns missed.
 data/
-*.db
-*.db-shm
-*.db-wal
+*.db*
 
 # Logs
 *.log

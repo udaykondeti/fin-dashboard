@@ -3,7 +3,15 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const fs = require('fs');
 
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'finance.db');
+// The database lives in the repo's data/ directory, NOT beside this source file.
+//
+// This default matters more than it looks. server/index.js loads dotenv, so the
+// app honours DB_PATH from .env — but the scripts in scripts/ mostly require this
+// module directly WITHOUT loading dotenv, so they land on this fallback. If the
+// fallback and the configured path disagree, the app and the seed scripts silently
+// read and write two different databases. Keep this in sync with the DB_PATH in
+// ecosystem.config.js and .env.example; all three must resolve to data/finance.db.
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', '..', 'data', 'finance.db');
 
 // Ensure the db directory exists
 const dbDir = path.dirname(DB_PATH);
