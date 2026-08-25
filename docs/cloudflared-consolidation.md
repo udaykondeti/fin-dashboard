@@ -90,8 +90,20 @@ User-level agents are recoverable from `~/backups/disabled-launchagents/`.
 
 ## Worth doing at the same time
 
-- **cloudflared is outdated:** running 2026.5.2, current is 2026.8.2. The log warns
-  daily. `brew upgrade cloudflared` then restart the one remaining daemon.
+- **cloudflared binary upgraded 2026.5.2 → 2026.8.2 on 2026-08-25, but NOT yet
+  active.** The two running daemons still hold the old binary in memory —
+  `cloudflared tunnel info` still reports `VERSION 2026.5.2` for both connectors.
+  The new binary takes effect on the next daemon restart, which is step 3 above,
+  so the upgrade and the consolidation complete in the same operation.
+
+  Rollback is available: `/opt/homebrew/Cellar/cloudflared/2026.5.2` was kept
+  alongside `2026.8.2`. To revert, `brew switch cloudflared 2026.5.2` (or relink
+  the Cellar path) before restarting the daemon.
+
+  Note for whoever runs the brew command next: `brew upgrade cloudflared`
+  autoremoved `ripgrep` as an "unneeded formula" on 2026-08-25. It was reinstalled
+  immediately. Pass `HOMEBREW_NO_INSTALL_CLEANUP=1` or check `brew list` afterwards
+  if you care about incidental removals.
 - **Config lives in two places.** `/etc/cloudflared/config.yml` and
   `~/.cloudflared/config.yml` are byte-identical today. Once only the `/etc` daemon
   runs, `~/.cloudflared/config.yml` becomes dead weight that will drift — consider
