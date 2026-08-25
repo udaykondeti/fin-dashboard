@@ -61,7 +61,8 @@ router.get('/:id', (req, res) => {
 // ── POST /api/property-shortlist ───────────────────────────────────────────
 const COLS = [
   'project_name', 'locality', 'city', 'builder', 'address', 'maps_url', 'project_url',
-  'size_sqft', 'carpet_sqft', 'loading_factor_pct', 'facing', 'floor', 'bhk', 'ask_price',
+  'size_sqft', 'carpet_sqft', 'loading_factor_pct', 'facing', 'floor', 'bhk',
+  'ask_price', 'price_min', 'price_max',
   'project_status', 'total_units', 'total_towers', 'floors_per_tower', 'size_range', 'car_parks',
   'maintenance_per_sqft', 'maintenance_notes',
   'amenities', 'healthcare', 'banks', 'schools', 'transit', 'groceries', 'worship',
