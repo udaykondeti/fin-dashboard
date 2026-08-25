@@ -35,7 +35,9 @@ The app listens on `PORT` (default 3001) and serves both the API and the static 
 - Pippy auto-deploys on every push to `main` via webhook → SSH → `npm install --production && pm2 restart fin-dashboard`. It does not always fire — verify with `git log --oneline -1` on the box before assuming a merge reached production.
 - Nginx at `/opt/homebrew/etc/nginx/servers/kirakon.conf` routes `fin.kirakon.com` → `localhost:3001`
 
-**Edge / TLS — Cloudflare tunnel, not Let's Encrypt.** `fin.kirakon.com` resolves to Cloudflare IPs, and `cloudflared` forwards to nginx. **Nginx listens on `127.0.0.1:80` only and has no TLS config at all** — TLS terminates at Cloudflare, so there is no certificate on this host to renew and nothing in `deploy.sh` provisions one.
+**Edge / TLS — Cloudflare tunnel, not Let's Encrypt, and nginx is NOT in the public path.** `fin.kirakon.com` resolves to Cloudflare IPs and `cloudflared` forwards **straight to `http://localhost:3001`** — the tunnel ingress talks to Express directly and skips nginx entirely. Nginx listens on `127.0.0.1:80` with no TLS config; its `fin.kirakon.com` vhost is only reachable over loopback and is not what public traffic uses. TLS terminates at Cloudflare, so there is no certificate on this host to renew and nothing in `deploy.sh` provisions one.
+
+Tunnel: `kirakon-mini` / `0cd710cd-152e-44f8-af5b-105e1803c435`, serving 11 hostnames. Config lives in **two byte-identical copies**, `/etc/cloudflared/config.yml` and `~/.cloudflared/config.yml`. Editing one without the other is the obvious trap — check both.
 
 Consequences worth knowing:
 - The public URL is generally **not reachable from the Mac Mini itself** (requests hairpin out to Cloudflare and back). A `curl https://fin.kirakon.com` timing out from the box proves nothing. To test the vhost locally, send the Host header instead:
@@ -43,7 +45,17 @@ Consequences worth knowing:
   curl -H "Host: fin.kirakon.com" http://127.0.0.1/
   ```
 - To confirm the site is genuinely up externally, open it in a browser or curl from another machine.
-- As of 2026-08-25 there are **three concurrent `cloudflared` processes** running (`/etc/cloudflared/config.yml` plus `~/.cloudflared/config.yml` twice). Competing tunnels for one hostname cause intermittent failures. Both `cloudflared` and `nginx` also show `error` in `brew services list` despite running, so neither restarts cleanly after a reboot. Unresolved.
+- **Duplicate connectors (partly fixed 2026-08-25).** Five cloudflared plists existed and three ran the *same* tunnel at once, giving 3 connectors / 12 edge connections where 1 / 4 is correct. Because all three configs are identical this degrades rather than breaks — but a config change applied to one connector looks "live" while two stale ones keep serving. The two user-level LaunchAgents were removed (backed up to `~/backups/disabled-launchagents/`), taking it to 2 connectors.
+
+  **Still to do — needs sudo, see `docs/cloudflared-consolidation.md`.** Two root LaunchDaemons remain, both running the same tunnel:
+  - `com.cloudflare.cloudflared` → `/etc/cloudflared/config.yml` — the canonical one, keep
+  - `com.kirakon.cloudflared` → `~/.cloudflared/config.yml` — duplicate, remove
+
+  Verify connector count at any time with:
+  ```bash
+  cloudflared tunnel info 0cd710cd-152e-44f8-af5b-105e1803c435
+  ```
+- `brew services list` reports `error` for both `cloudflared` (78) and `nginx` (1). The running processes were started by other supervisors, so neither is guaranteed to come back cleanly after a reboot. Unresolved.
 
 Manual update:
 ```bash
@@ -124,12 +136,14 @@ Environment variables (root `.env`, copied from `.env.example` on first setup):
 Production stack, front to back:
 
 ```
-browser → Cloudflare (terminates TLS) → cloudflared tunnel
-        → nginx on 127.0.0.1:80 (/opt/homebrew/etc/nginx/servers/kirakon.conf)
+browser → Cloudflare (terminates TLS)
+        → cloudflared tunnel  (ingress: fin.kirakon.com → http://localhost:3001)
         → Express on 127.0.0.1:3001 under PM2 (single instance, 512M cap)
 ```
 
-There is **no Let's Encrypt certificate and no TLS in nginx** — earlier revisions of this file described an `nginx/fin.kirakon.com.conf` with SSL provisioned by `deploy.sh`, which no longer reflects the deployment. See the Edge / TLS notes above.
+**Nginx is not in this path.** It runs, and it has a `fin.kirakon.com` vhost proxying to `:3001`, but that vhost binds `127.0.0.1:80` and only ever sees loopback requests — it is useful for local testing and nothing else. Public traffic goes tunnel → Express directly.
+
+There is **no Let's Encrypt certificate and no TLS in nginx**. Earlier revisions of this file described an `nginx/fin.kirakon.com.conf` with SSL provisioned by `deploy.sh`; that has not matched the deployment for some time. See the Edge / TLS notes above.
 
 ## Model & token economy (standing instruction)
 
