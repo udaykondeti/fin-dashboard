@@ -745,6 +745,20 @@ function runMigrations() {
         db.exec('ALTER TABLE property_shortlist ADD COLUMN car_parks INTEGER');
       }
     } },
+
+    // ask_price is the asking price of ONE specific unit. Most census rows have
+    // no such unit — they have a project-wide band ("from Rs 2.47 Cr", "Rs 3.16-4.52 Cr").
+    // Forcing a band into ask_price would misrepresent a starting price as an ask,
+    // so bands get their own columns and the price filter reads both.
+    { id: 43, name: 'property_shortlist_price_band', run: () => {
+      const cols = db.prepare('PRAGMA table_info(property_shortlist)').all().map(c => c.name);
+      if (!cols.includes('price_min')) {
+        db.exec('ALTER TABLE property_shortlist ADD COLUMN price_min REAL');
+      }
+      if (!cols.includes('price_max')) {
+        db.exec('ALTER TABLE property_shortlist ADD COLUMN price_max REAL');
+      }
+    } },
   ];
 
   const appliedIds = new Set(

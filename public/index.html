@@ -6143,6 +6143,16 @@ function _pricePerSqft(p) {
   return Number(p.ask_price) / Number(p.size_sqft);
 }
 
+// ask_price is one unit's ask; price_min/price_max is a project-wide band. Render
+// them differently so a "from Rs 2.1 Cr" starting price is never read as an ask.
+function _priceLabel(p) {
+  if (p.ask_price != null) return _fmtLakhCr(p.ask_price);
+  if (p.price_min != null && p.price_max != null) return _fmtLakhCr(p.price_min) + '–' + _fmtLakhCr(p.price_max);
+  if (p.price_min != null) return 'from ' + _fmtLakhCr(p.price_min);
+  if (p.price_max != null) return 'up to ' + _fmtLakhCr(p.price_max);
+  return null;
+}
+
 function psToggleFilters() {
   var el = document.getElementById('psFilterPanel');
   if (!el) return;
@@ -6238,8 +6248,15 @@ function _applyFiltersAndSort(list) {
     if (maxSba != null && !(p.size_sqft && p.size_sqft <= maxSba)) return false;
     if (minCarp != null && !(area && area.carpet >= minCarp)) return false;
 
-    if (maxPrice != null && p.ask_price && p.ask_price > maxPrice * 1e7) return false;
-    if (chk('psHasPrice') && !p.ask_price) return false;
+    // Match on whichever price signal exists. A project whose band STARTS below
+    // the ceiling is a candidate even if its top end runs well past it, because
+    // the cheap units in it are the ones worth chasing.
+    if (maxPrice != null) {
+      var cap = maxPrice * 1e7;
+      var entry = (p.ask_price != null) ? p.ask_price : p.price_min;
+      if (entry != null && entry > cap) return false;
+    }
+    if (chk('psHasPrice') && p.ask_price == null && p.price_min == null) return false;
 
     var fl = _floorNum(p);
     if (minFloor != null && fl != null && fl < minFloor) return false;
@@ -6263,7 +6280,11 @@ function _applyFiltersAndSort(list) {
 
   out.sort(function(a,b){
     switch (sort) {
-      case 'ask_price':    return (a.ask_price||Infinity) - (b.ask_price||Infinity);
+      case 'ask_price': {
+        var ea = (a.ask_price != null) ? a.ask_price : (a.price_min != null ? a.price_min : Infinity);
+        var eb = (b.ask_price != null) ? b.ask_price : (b.price_min != null ? b.price_min : Infinity);
+        return ea - eb;
+      }
       case 'price_per_sqft': {
         var pa = _pricePerSqft(a), pb = _pricePerSqft(b);
         return (pa == null ? Infinity : pa) - (pb == null ? Infinity : pb);
@@ -6322,7 +6343,9 @@ function _renderShortlistTable(view) {
       + '<td style="padding:7px 8px;text-align:right'+(a && a.basis === 'default' ? ';opacity:.75' : '')+'"'
           + (a ? ' title="'+(a.basis === 'default' ? 'Estimated at '+PS_DEFAULT_LOADING+'% loading' : a.loading+'% loading')+'"' : '')
           + '>' + cell(a ? (a.basis === 'default' ? '~' : '') + a.carpet.toLocaleString('en-IN') : null) + '</td>'
-      + '<td style="padding:7px 8px;text-align:right">'+cell(_fmtLakhCr(p.ask_price))+'</td>'
+      + '<td style="padding:7px 8px;text-align:right'+(p.ask_price == null ? ';opacity:.8' : '')+'"'
+          + (p.ask_price == null && _priceLabel(p) ? ' title="Project-wide price band, not a specific unit\'s asking price"' : '')
+          + '>' + cell(_priceLabel(p)) + '</td>'
       + '<td style="padding:7px 8px;text-align:right">'+cell(pps ? '₹'+Math.round(pps).toLocaleString('en-IN') : null)+'</td>'
       + '<td style="padding:7px 8px;text-align:right">'+cell(esc(p.floor||''))+'</td>'
       + '<td style="padding:7px 8px">'+cell(esc(p.facing||''))+'</td>'
@@ -6412,7 +6435,8 @@ function renderShortlist() {
         + (p.bhk ? '<div><span style="color:var(--text-secondary)">Config</span> <strong>'+p.bhk+' BHK</strong></div>' : '')
         + (p.floor ? '<div><span style="color:var(--text-secondary)">Floor</span> <strong>'+esc(p.floor)+'</strong></div>' : '')
         + (p.facing ? '<div><span style="color:var(--text-secondary)">Facing</span> <strong>'+esc(p.facing)+'</strong></div>' : '')
-        + (ask ? '<div><span style="color:var(--text-secondary)">Ask</span> <strong>'+ask+'</strong></div>' : '')
+        + (ask ? '<div><span style="color:var(--text-secondary)">Ask</span> <strong>'+ask+'</strong></div>'
+               : (_priceLabel(p) ? '<div title="Project-wide band, not a unit asking price"><span style="color:var(--text-secondary)">Price band</span> <strong style="opacity:.8">'+_priceLabel(p)+'</strong></div>' : ''))
         + (maint ? '<div><span style="color:var(--text-secondary)">Maintenance</span> <strong>'+maint+'</strong></div>' : '')
         + (p.total_units ? '<div><span style="color:var(--text-secondary)">Community</span> <strong>'+p.total_units+' units, '+(p.total_towers||'?')+' towers</strong></div>' : '')
         + (p.car_parks != null ? '<div><span style="color:var(--text-secondary)">Parking</span> <strong>'+p.car_parks+' car'+(p.car_parks === 1 ? '' : 's')+'</strong></div>' : '')
