@@ -31,8 +31,19 @@ The app listens on `PORT` (default 3001) and serves both the API and the static 
 - Host: `100.85.165.105`, SSH port `2323`, user `kiran`
 - Repo path: `/Users/kiran/repos/fin-dashboard`
 - Port: `3001`, PM2 name: `fin-dashboard`
-- Pippy auto-deploys on every push to `main` via webhook → SSH → `npm install --production && pm2 restart fin-dashboard`
+- All repos live under `~/repos`. Never clone or check out a copy anywhere else.
+- Pippy auto-deploys on every push to `main` via webhook → SSH → `npm install --production && pm2 restart fin-dashboard`. It does not always fire — verify with `git log --oneline -1` on the box before assuming a merge reached production.
 - Nginx at `/opt/homebrew/etc/nginx/servers/kirakon.conf` routes `fin.kirakon.com` → `localhost:3001`
+
+**Edge / TLS — Cloudflare tunnel, not Let's Encrypt.** `fin.kirakon.com` resolves to Cloudflare IPs, and `cloudflared` forwards to nginx. **Nginx listens on `127.0.0.1:80` only and has no TLS config at all** — TLS terminates at Cloudflare, so there is no certificate on this host to renew and nothing in `deploy.sh` provisions one.
+
+Consequences worth knowing:
+- The public URL is generally **not reachable from the Mac Mini itself** (requests hairpin out to Cloudflare and back). A `curl https://fin.kirakon.com` timing out from the box proves nothing. To test the vhost locally, send the Host header instead:
+  ```bash
+  curl -H "Host: fin.kirakon.com" http://127.0.0.1/
+  ```
+- To confirm the site is genuinely up externally, open it in a browser or curl from another machine.
+- As of 2026-08-25 there are **three concurrent `cloudflared` processes** running (`/etc/cloudflared/config.yml` plus `~/.cloudflared/config.yml` twice). Competing tunnels for one hostname cause intermittent failures. Both `cloudflared` and `nginx` also show `error` in `brew services list` despite running, so neither restarts cleanly after a reboot. Unresolved.
 
 Manual update:
 ```bash
@@ -51,7 +62,24 @@ Default seeded admin (created automatically on first DB init): `kondetiudaykiran
 - `POST /api/auth/login` — public
 - `GET /api/vault/ca/:token` — public CA (chartered accountant) download link, gated by a one-off token row in `ca_access_tokens`. It is mounted directly in `server/index.js` *outside* the auth middleware as `vaultRoutes.caAccess` (a named export bolted onto the router); don't move it under the auth-protected `/api/vault` prefix.
 
-**Database.** `server/db/database.js` opens a `better-sqlite3` handle (synchronous API, WAL mode, FK enforcement) at `DB_PATH`. On module load it runs `initializeDatabase()` (idempotent `CREATE TABLE IF NOT EXISTS`), `seedData()` (inserts a default user + sample portfolio only if the admin email isn't present), and `runMigrations()` (an array of "add this column if missing" `ALTER TABLE` statements — this is how new columns are introduced; append to the `migrations` array rather than editing existing `CREATE TABLE` statements). The exported `db` is a shared singleton. All routes use prepared statements via `db.prepare(...)`.
+**Database — `data/finance.db` is the one and only location.** Four things resolve `DB_PATH` and **all four must agree**:
+
+| Source | Value |
+|---|---|
+| `server/db/database.js` fallback (used when `DB_PATH` is unset) | `path.join(__dirname, '..', '..', 'data', 'finance.db')` |
+| `.env` on the Mac Mini | `/Users/kiran/repos/fin-dashboard/data/finance.db` |
+| `ecosystem.config.js` (both apps) | `path.join(root, 'data/finance.db')` |
+| `.env.example` | `./data/finance.db` |
+
+This is not bookkeeping pedantry. **`server/index.js` loads dotenv but most scripts in `scripts/` do not** — they require `database.js` directly and land on the code fallback. If the fallback and the configured path ever diverge, the app and the seed scripts silently open *different databases*, and the app comes up healthy and empty while the real data sits elsewhere on disk. That happened before 2026-08-25 (fixed in #146); the tell was an orphaned skeleton DB with 0 rows.
+
+Rules: never change one of the four without changing all four. Never run `pm2 restart --update-env` or a fresh `pm2 start ecosystem.config.js` without afterwards confirming the file actually in use:
+```bash
+lsof -p "$(pm2 jlist | jq -r '.[]|select(.name=="fin-dashboard")|.pid')" | grep finance.db
+```
+Retired/backup copies are left in place with a timestamp suffix rather than deleted; `.gitignore` uses `*.db*` so those cannot be committed.
+
+`server/db/database.js` opens a `better-sqlite3` handle (synchronous API, WAL mode, FK enforcement) at `DB_PATH`. On module load it runs `initializeDatabase()` (idempotent `CREATE TABLE IF NOT EXISTS`), `seedData()` (inserts a default user + sample portfolio only if the admin email isn't present), and `runMigrations()` (an array of "add this column if missing" `ALTER TABLE` statements — this is how new columns are introduced; append to the `migrations` array rather than editing existing `CREATE TABLE` statements). The exported `db` is a shared singleton. All routes use prepared statements via `db.prepare(...)`.
 
 **Domain entities and routes.** Each financial concept gets its own table + router file:
 - `server/routes/investments.js` — stocks (NSE/BSE), mutual_funds, fixed_deposits, us_stocks; also exposes `GET /prices` (Yahoo Finance proxy) and `GET /summary`
@@ -87,13 +115,21 @@ If AWS env vars are missing, vault endpoints return `503` via the `requireS3` he
 ## Configuration
 
 Environment variables (root `.env`, copied from `.env.example` on first setup):
-- `PORT` (default 3001), `NODE_ENV`, `JWT_SECRET`, `DB_PATH` (default `./data/finance.db`)
+- `PORT` (default 3001), `NODE_ENV`, `JWT_SECRET`, `DB_PATH` (default `data/finance.db` — see the Database section; four sources must stay in sync)
 - `CORS_ORIGIN` — passed to both Express CORS and the S3 bucket CORS rule
 - `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME` (default `fin-kirakon-vault`), `AWS_ACCOUNT_ID`, `BASE_URL` — all optional; only required for vault features
 
-`JWT_SECRET` and the production secret in `ecosystem.config.js` both have insecure fallback strings. Production secrets are expected to be set via the EC2 environment, not committed.
+`JWT_SECRET` and the production secret in `ecosystem.config.js` both have insecure fallback strings. Production secrets are expected to be set via the Mac Mini's `.env`, not committed. (EC2 is decommissioned; ignore any remaining references to it.)
 
-Production stack: PM2 (single instance, 512M memory cap) → Express on `localhost:3001` ← Nginx reverse proxy at `nginx/fin.kirakon.com.conf` with Let's Encrypt SSL provisioned by `deploy.sh`.
+Production stack, front to back:
+
+```
+browser → Cloudflare (terminates TLS) → cloudflared tunnel
+        → nginx on 127.0.0.1:80 (/opt/homebrew/etc/nginx/servers/kirakon.conf)
+        → Express on 127.0.0.1:3001 under PM2 (single instance, 512M cap)
+```
+
+There is **no Let's Encrypt certificate and no TLS in nginx** — earlier revisions of this file described an `nginx/fin.kirakon.com.conf` with SSL provisioned by `deploy.sh`, which no longer reflects the deployment. See the Edge / TLS notes above.
 
 ## Model & token economy (standing instruction)
 
