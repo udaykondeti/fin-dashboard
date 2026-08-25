@@ -37,7 +37,17 @@ The app listens on `PORT` (default 3001) and serves both the API and the static 
 
 **Edge / TLS — Cloudflare tunnel, not Let's Encrypt, and nginx is NOT in the public path.** `fin.kirakon.com` resolves to Cloudflare IPs and `cloudflared` forwards **straight to `http://localhost:3001`** — the tunnel ingress talks to Express directly and skips nginx entirely. Nginx listens on `127.0.0.1:80` with no TLS config; its `fin.kirakon.com` vhost is only reachable over loopback and is not what public traffic uses. TLS terminates at Cloudflare, so there is no certificate on this host to renew and nothing in `deploy.sh` provisions one.
 
-Tunnel: `kirakon-mini` / `0cd710cd-152e-44f8-af5b-105e1803c435`, serving 11 hostnames. Config lives in **two byte-identical copies**, `/etc/cloudflared/config.yml` and `~/.cloudflared/config.yml`. Editing one without the other is the obvious trap — check both.
+Tunnel: `kirakon-mini` / `0cd710cd-152e-44f8-af5b-105e1803c435`, serving 12 hostnames (`fin`, `timesheet`, `coffee`, `git`, `pulse`, `token`, `invoice`, `ai`, `ai2`, `vault`, `ci`, `n8n`). Config lives in **two byte-identical copies**, `/etc/cloudflared/config.yml` and `~/.cloudflared/config.yml`. The running daemon reads the **`/etc` copy**; `~/.cloudflared` is the editable source. Change one, copy to the other, then reload — editing only one is the obvious trap.
+
+Adding a hostname:
+```bash
+cloudflared tunnel route dns kirakon-mini <name>.kirakon.com   # creates the CNAME
+$EDITOR ~/.cloudflared/config.yml                              # add ingress ABOVE the catch-all
+cloudflared --config ~/.cloudflared/config.yml tunnel ingress validate
+sudo cp ~/.cloudflared/config.yml /etc/cloudflared/config.yml
+sudo launchctl kickstart -k system/com.cloudflare.cloudflared
+```
+Note `--config` is a **global** flag and must precede `tunnel`, not follow it.
 
 Consequences worth knowing:
 - The public URL is generally **not reachable from the Mac Mini itself** (requests hairpin out to Cloudflare and back). A `curl https://fin.kirakon.com` timing out from the box proves nothing. To test the vhost locally, send the Host header instead:
@@ -45,13 +55,9 @@ Consequences worth knowing:
   curl -H "Host: fin.kirakon.com" http://127.0.0.1/
   ```
 - To confirm the site is genuinely up externally, open it in a browser or curl from another machine.
-- **Duplicate connectors (partly fixed 2026-08-25).** Five cloudflared plists existed and three ran the *same* tunnel at once, giving 3 connectors / 12 edge connections where 1 / 4 is correct. Because all three configs are identical this degrades rather than breaks — but a config change applied to one connector looks "live" while two stale ones keep serving. The two user-level LaunchAgents were removed (backed up to `~/backups/disabled-launchagents/`), taking it to 2 connectors.
+- **Duplicate connectors — RESOLVED 2026-08-25.** Five cloudflared plists had existed and three ran the *same* tunnel at once, giving 3 connectors / 12 edge connections where 1 / 4 is correct. Now down to a single `com.cloudflare.cloudflared` LaunchDaemon reading `/etc/cloudflared/config.yml`, running 2026.8.2. Removed plists are in `/var/backups/cloudflared-plists/` and `~/backups/disabled-launchagents/`. History in `docs/cloudflared-consolidation.md`.
 
-  **Still to do — needs sudo, see `docs/cloudflared-consolidation.md`.** Two root LaunchDaemons remain, both running the same tunnel:
-  - `com.cloudflare.cloudflared` → `/etc/cloudflared/config.yml` — the canonical one, keep
-  - `com.kirakon.cloudflared` → `~/.cloudflared/config.yml` — duplicate, remove
-
-  Verify connector count at any time with:
+  Sanity check after any tunnel work — expect exactly one connector:
   ```bash
   cloudflared tunnel info 0cd710cd-152e-44f8-af5b-105e1803c435
   ```
