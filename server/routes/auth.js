@@ -139,4 +139,46 @@ router.post('/change-password', authMiddleware, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/auth/cf
+ * Unified SSO: if the request arrived through Cloudflare Access, its signed JWT
+ * identifies the user by email. We verify that signature, upsert a local user,
+ * and issue this app's own JWT — so the SPA signs in silently with no password
+ * screen. Returns 204 when CF Access isn't configured or no valid assertion is
+ * present, so the frontend quietly falls back to normal login.
+ */
+router.get('/cf', async (req, res) => {
+  const cfAccess = require('../services/cfAccess');
+  if (!cfAccess.isConfigured()) return res.status(204).end();
+  try {
+    const id = await cfAccess.verifyRequest(req);
+    if (!id || !id.email) return res.status(204).end();
+
+    let user = db.prepare('SELECT * FROM users WHERE email = ?').get(id.email);
+    if (!user) {
+      // Provision on first SSO login. Password is random (login is via SSO);
+      // the user can set one later via change-password if they ever need it.
+      const randomHash = await bcrypt.hash('cf:' + id.sub + ':' + Date.now(), 12);
+      const name = id.email.split('@')[0];
+      const r = db.prepare('INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)')
+        .run(id.email, randomHash, name);
+      user = db.prepare('SELECT * FROM users WHERE id = ?').get(r.lastInsertRowid);
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email, name: user.name },
+      JWT_SECRET, { expiresIn: JWT_EXPIRY });
+    res.json({
+      success: true, token, sso: 'cloudflare-access',
+      user: {
+        id: user.id, email: user.email, name: user.name,
+        created_at: user.created_at, is_admin: !!user.is_admin,
+        profile_completed: !!user.profile_completed,
+      },
+    });
+  } catch (err) {
+    console.error('CF SSO error:', err);
+    res.status(204).end();
+  }
+});
+
 module.exports = router;
