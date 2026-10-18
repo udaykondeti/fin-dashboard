@@ -2804,8 +2804,24 @@ function logout(){
   destroyCharts();
 }
 
-function checkAuth(){
-  if(localStorage.getItem('fin_token')){showApp();}
+async function trySsoLogin(){
+  // If we arrived through Cloudflare Access, sign in silently — no password screen.
+  try{
+    var res=await fetch('/api/auth/cf');
+    if(res.status===200){
+      var data=await res.json();
+      if(data && data.token){
+        localStorage.setItem('fin_token',data.token);
+        localStorage.setItem('fin_user',(data.user && data.user.name) || (data.user && data.user.email) || 'User');
+        return true;
+      }
+    }
+  }catch(e){}
+  return false;
+}
+async function checkAuth(){
+  if(localStorage.getItem('fin_token')){showApp();return;}
+  if(await trySsoLogin()){showApp();}
 }
 
 // Single source of truth for page navigation. All pages are .page inside
